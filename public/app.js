@@ -260,6 +260,47 @@ function resetTrack() {
   track.offsetWidth;
 }
 
+// --- GPU EFFECTS ---
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function applyPanelEffects(progress) {
+  if (reduceMotion) return;
+  const abs = Math.min(Math.abs(progress), 1);
+  const dir = progress < 0 ? 1 : -1; // 1 = forward, -1 = back
+  const inIdx = dir === 1 ? 2 : 0;
+  const outIdx = dir === 1 ? 0 : 2;
+
+  // Incoming: scale 0.92→1, opacity 0.6→1
+  panels[inIdx].style.transform = 'translateZ(0) scale(' + (0.92 + abs * 0.08) + ')';
+  panels[inIdx].style.opacity = 0.6 + abs * 0.4;
+
+  // Outgoing: scale 1→0.96, dim
+  panels[outIdx].style.transform = 'translateZ(0) scale(' + (1 - abs * 0.04) + ')';
+  panels[outIdx].style.filter = 'brightness(' + (1 - abs * 0.15) + ')';
+
+  // Current: directional shadow
+  const shadowX = progress * 8;
+  panels[1].style.boxShadow = abs > 0.02
+    ? shadowX + 'px 0 ' + (16 * abs) + 'px rgba(0,0,0,' + (0.12 * abs) + ')'
+    : 'none';
+}
+
+function clearPanelEffects() {
+  for (let i = 0; i < 3; i++) {
+    panels[i].style.transform = 'translateZ(0)';
+    panels[i].style.opacity = '';
+    panels[i].style.filter = '';
+    panels[i].style.boxShadow = '';
+    panels[i].style.transition = '';
+  }
+}
+
+function setPanelTransitions(dur) {
+  if (reduceMotion) return;
+  const t = 'transform ' + dur + 's ease-out, opacity ' + dur + 's ease-out, filter ' + dur + 's ease-out, box-shadow ' + dur + 's ease-out';
+  for (let i = 0; i < 3; i++) panels[i].style.transition = t;
+}
+
 // --- SWIPE ---
 function slideTo(dir, velocity) {
   if (sliding) return;
@@ -268,6 +309,8 @@ function slideTo(dir, velocity) {
     // Rubber-band: spring back with a gentle settle curve
     track.style.transition = 'transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)';
     track.style.transform = 'translateX(-33.333%)';
+    setPanelTransitions(0.4);
+    clearPanelEffects();
     return;
   }
   sliding = true;
@@ -276,8 +319,27 @@ function slideTo(dir, velocity) {
   const vel = velocity || 0;
   const dur = Math.max(0.12, Math.min(0.35, 0.3 / (1 + vel * 2)));
 
-  track.style.transition = 'transform ' + dur + 's cubic-bezier(0.16,1,0.3,1)';
+  // Velocity-dependent spring curves
+  let ease = 'cubic-bezier(0.16,1,0.3,1)';
+  if (!reduceMotion) {
+    if (vel > 0.6) ease = 'cubic-bezier(0.22,1.15,0.36,1)';
+    else if (vel > 0.2) ease = 'cubic-bezier(0.175,0.885,0.32,1.05)';
+  }
+
+  track.style.transition = 'transform ' + dur + 's ' + ease;
   track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
+
+  // Drive panel effects to final state
+  setPanelTransitions(dur);
+  if (!reduceMotion) {
+    const inIdx = dir === 1 ? 2 : 0;
+    const outIdx = dir === 1 ? 0 : 2;
+    panels[inIdx].style.transform = 'translateZ(0) scale(1)';
+    panels[inIdx].style.opacity = '1';
+    panels[outIdx].style.transform = 'translateZ(0) scale(0.96)';
+    panels[outIdx].style.filter = 'brightness(0.85)';
+    panels[1].style.boxShadow = 'none';
+  }
 
   function onDone() {
     clearTimeout(safety);
@@ -294,6 +356,7 @@ function slideTo(dir, velocity) {
       panels.unshift(panels.pop());
     }
 
+    clearPanelEffects();
     resetTrack();
     bindScrollShadow();
 
@@ -312,7 +375,7 @@ function slideTo(dir, velocity) {
 
 // --- TOUCH HANDLING ---
 let sx = 0, sy = 0, dx = 0, drag = false, horiz = null;
-let touchStartTime = 0;
+let touchStartTime = 0, containerW = 0, rafId = null;
 
 container.addEventListener('touchstart', e => {
   if (sliding) return;
@@ -320,7 +383,9 @@ container.addEventListener('touchstart', e => {
   sy = e.touches[0].clientY;
   dx = 0; drag = true; horiz = null;
   touchStartTime = Date.now();
+  containerW = container.offsetWidth;
   track.style.transition = 'none';
+  clearPanelEffects();
 }, { passive: true });
 
 container.addEventListener('touchmove', e => {
@@ -334,21 +399,33 @@ container.addEventListener('touchmove', e => {
   if (horiz) {
     e.preventDefault();
     dx = mx;
-    // Rubber-band at boundaries: diminishing returns via sqrt
-    let visualDx = dx;
-    const atStart = pos === 0 && dx > 0;
-    const atEnd = pos === TOTAL - 1 && dx < 0;
-    if (atStart || atEnd) {
-      const sign = dx > 0 ? 1 : -1;
-      visualDx = sign * Math.sqrt(Math.abs(dx)) * 3;
-    }
-    track.style.transform = 'translateX(' + (-33.333 + visualDx / container.offsetWidth * 33.333) + '%)';
+    if (!rafId) rafId = requestAnimationFrame(applyDrag);
   }
 }, { passive: false });
+
+function applyDrag() {
+  rafId = null;
+  // Rubber-band at boundaries: diminishing returns via sqrt
+  let visualDx = dx;
+  const atStart = pos === 0 && dx > 0;
+  const atEnd = pos === TOTAL - 1 && dx < 0;
+  if (atStart || atEnd) {
+    const sign = dx > 0 ? 1 : -1;
+    visualDx = sign * Math.sqrt(Math.abs(dx)) * 3;
+  }
+  const pct = -33.333 + visualDx / containerW * 33.333;
+  track.style.transform = 'translateX(' + pct + '%)';
+
+  // Per-panel depth effects (skip at boundaries)
+  if (!atStart && !atEnd) {
+    applyPanelEffects(visualDx / containerW);
+  }
+}
 
 container.addEventListener('touchend', () => {
   if (!drag || !horiz) { drag = false; return; }
   drag = false;
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
 
   // Boundary: just spring back
   const atStart = pos === 0 && dx > 0;
@@ -362,8 +439,7 @@ container.addEventListener('touchend', () => {
   // Velocity-adaptive threshold
   const elapsed = Date.now() - touchStartTime || 1;
   const velocity = Math.abs(dx) / elapsed; // px/ms
-  const w = container.offsetWidth;
-  const distRatio = Math.abs(dx) / w;
+  const distRatio = Math.abs(dx) / containerW;
   // Fast flick (>0.5 px/ms): commit at 8%; slow drag: require 15%
   const velT = Math.max(0, Math.min(1, (velocity - 0.1) / 0.4));
   const threshold = 0.15 - velT * 0.07;
@@ -373,8 +449,11 @@ container.addEventListener('touchend', () => {
   } else {
     // Snap back — duration proportional to how far we dragged
     const snapDur = Math.max(0.15, Math.min(0.3, distRatio * 2));
-    track.style.transition = 'transform ' + snapDur + 's cubic-bezier(0.16,1,0.3,1)';
+    const snapEase = reduceMotion ? 'cubic-bezier(0.16,1,0.3,1)' : 'cubic-bezier(0.25,1.1,0.35,1)';
+    track.style.transition = 'transform ' + snapDur + 's ' + snapEase;
     track.style.transform = 'translateX(-33.333%)';
+    setPanelTransitions(snapDur);
+    clearPanelEffects();
   }
 });
 
