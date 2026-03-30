@@ -3,11 +3,27 @@ const compression = require('compression');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const { minify } = require('terser');
+
+// --- Bible data ---
+const { books: BOOKS, verses: VERSES } = require('./data/bible.json');
+const CHAPTERS = VERSES.map(v => v.length);
+const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
+
+// --- Constants ---
+const API_TIMEOUT_MS = 30_000;
+const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
+const CACHE_ONE_DAY = 'public, max-age=86400';
+const RENDER_CONCURRENCY = 8;
+const RATE_WINDOW_MS = 60_000;
+const RATE_LIMIT = 30;
+const RATE_CLEANUP_MS = 5 * 60_000;
 
 // --- Asset fingerprinting ---
 const CSS_SRC = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
-const JS_SRC = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
-const JS_HASH = crypto.createHash('sha256').update(JS_SRC).digest('hex').slice(0, 10);
+const JS_RAW = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+let JS_SRC = JS_RAW;
+let JS_HASH;
 
 const app = express();
 const XAI_API_KEY = process.env.XAI_API_KEY;
@@ -62,88 +78,6 @@ const RENDER_VERSION = crypto
   .digest('hex')
   .slice(0, 12);
 
-const BOOKS = [
-  'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
-  '1 Samuel','2 Samuel','1 Kings','2 Kings','1 Chronicles','2 Chronicles',
-  'Ezra','Nehemiah','Esther','Job','Psalms','Proverbs','Ecclesiastes',
-  'Song of Solomon','Isaiah','Jeremiah','Lamentations','Ezekiel','Daniel',
-  'Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk',
-  'Zephaniah','Haggai','Zechariah','Malachi',
-  'Matthew','Mark','Luke','John','Acts','Romans',
-  '1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians',
-  'Colossians','1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy',
-  'Titus','Philemon','Hebrews','James','1 Peter','2 Peter',
-  '1 John','2 John','3 John','Jude','Revelation'
-];
-
-const VERSES = [
-  [31,25,24,26,32,22,24,22,29,32,32,20,18,24,21,16,27,33,38,18,34,24,20,67,34,35,46,22,35,43,55,32,20,31,29,43,36,30,23,23,57,38,34,34,28,34,31,22,33,26],
-  [22,25,22,31,23,30,25,32,35,29,10,51,22,31,27,36,16,27,25,26,36,31,33,18,40,37,21,43,46,38,18,35,23,35,35,38,29,31,43,38],
-  [17,16,17,35,19,30,38,36,24,20,47,8,59,57,33,34,16,30,37,27,24,33,44,23,55,46,34],
-  [54,34,51,49,31,27,89,26,23,36,35,16,33,45,41,50,13,32,22,29,35,41,30,25,18,65,23,31,40,16,54,42,56,29,34,13],
-  [46,37,29,49,33,25,26,20,29,22,32,32,18,29,23,22,20,22,21,20,23,30,25,22,19,19,26,68,29,20,30,52,29,12],
-  [18,24,17,24,15,27,26,35,27,43,23,24,33,15,63,10,18,28,51,9,45,34,16,33],
-  [36,23,31,24,31,40,25,35,57,18,40,15,25,20,20,31,13,31,30,48,25],
-  [22,23,18,22],
-  [28,36,21,22,12,21,17,22,27,27,15,25,23,52,35,23,58,30,24,42,15,23,29,22,44,25,12,25,11,31,13],
-  [27,32,39,12,25,23,29,18,13,19,27,31,39,33,37,23,29,33,43,26,22,51,39,25],
-  [53,46,28,34,18,38,51,66,28,29,43,33,34,31,34,34,24,46,21,43,29,53],
-  [18,25,27,44,27,33,20,29,37,36,21,21,25,29,38,20,41,37,37,21,26,20,37,20,30],
-  [54,55,24,43,26,81,40,40,44,14,47,40,14,17,29,43,27,17,19,8,30,19,32,31,31,32,34,21,30],
-  [17,18,17,22,14,42,22,18,31,19,23,16,22,15,19,14,19,34,11,37,20,12,21,27,28,23,9,27,36,27,21,33,25,33,27,23],
-  [11,70,13,24,17,22,28,36,15,44],
-  [11,20,32,23,19,19,73,18,38,39,36,47,31],
-  [22,23,15,17,14,14,10,17,32,3],
-  [22,13,26,21,27,30,21,22,35,22,20,25,28,22,35,22,16,21,29,29,34,30,17,25,6,14,23,28,25,31,40,22,33,37,16,33,24,41,30,24,34,17],
-  [6,12,8,8,12,10,17,9,20,18,7,8,6,7,5,11,15,50,14,9,13,31,6,10,22,12,14,9,11,12,24,11,22,22,28,12,40,22,13,17,13,11,5,26,17,11,9,14,20,23,19,9,6,7,23,13,11,11,17,12,8,12,11,10,13,20,7,35,36,5,24,20,28,23,10,12,20,72,13,19,16,8,18,12,13,17,7,18,52,17,16,15,5,23,11,13,12,9,9,5,8,28,22,35,45,48,43,13,31,7,10,10,9,8,18,19,2,29,176,7,8,9,4,8,5,6,5,6,8,8,3,18,3,3,21,26,9,8,24,13,10,7,12,15,21,10,20,14,9,6],
-  [33,22,35,27,23,35,27,36,18,32,31,28,25,35,33,33,28,24,29,30,31,31,29,22,25,28,25,29,28,30,31],
-  [18,26,22,16,20,12,29,17,18,20,10,14],
-  [17,17,11,16,16,13,13,14],
-  [31,22,26,6,30,13,25,22,21,34,16,6,22,32,9,14,14,7,25,6,17,25,18,23,12,21,13,29,24,33,9,20,24,17,10,22,38,22,8,31,29,25,28,28,25,13,15,22,26,11,23,15,12,17,13,12,21,14,21,22,11,12,19,12,25,24],
-  [19,37,25,31,31,30,34,22,26,25,23,17,27,22,21,21,27,23,15,18,14,30,40,10,38,24,22,17,32,24,40,44,26,22,19,32,21,28,18,16,18,22,13,30,5,28,7,47,39,46,64,34],
-  [22,22,66,22,22],
-  [28,10,27,17,17,14,27,18,11,22,25,28,23,23,8,63,24,32,14,49,32,31,49,27,17,21,36,26,21,26,18,32,33,31,15,38,28,23,29,49,26,20,27,31,25,24,23,35],
-  [21,49,30,37,31,28,28,27,27,21,45,13],
-  [11,23,5,19,15,11,16,14,17,15,12,14,16,9],
-  [20,32,21],
-  [15,16,15,13,27,14,17,14,15],
-  [21],
-  [17,10,10,11],
-  [16,13,12,13,15,16,20],
-  [15,13,19],
-  [17,20,19],
-  [18,15,20],
-  [15,23],
-  [21,13,10,14,11,15,14,23,17,12,17,14,9,21],
-  [14,18,6,8],
-  [25,23,17,25,48,34,29,34,38,42,30,50,58,36,39,28,27,35,30,34,46,46,39,51,46,75,66,20],
-  [45,28,35,41,43,56,37,38,50,52,33,44,37,72,47,20],
-  [80,52,38,44,39,49,50,56,62,42,54,59,35,35,32,31,37,43,48,47,38,71,56,53],
-  [51,25,36,54,47,71,53,59,41,42,57,50,38,31,27,33,26,40,42,31,25],
-  [26,47,26,37,42,15,60,40,43,48,30,25,52,28,41,40,34,28,41,38,40,30,35,27,27,32,44,31],
-  [32,29,31,25,21,23,25,39,33,21,36,21,14,23,33,27],
-  [31,16,23,21,13,20,40,13,27,33,34,31,13,40,58,24],
-  [24,17,18,18,21,18,16,24,15,18,33,21,14],
-  [24,21,29,31,26,18],
-  [23,22,21,32,33,24],
-  [30,30,21,23],
-  [29,23,25,18],
-  [10,20,13,18,28],
-  [12,17,18],
-  [20,15,16,16,25,21],
-  [18,26,17,22],
-  [16,15,15],
-  [25],
-  [14,18,19,16,14,20,28,13,28,39,40,29,25],
-  [27,26,18,17,20],
-  [25,25,22,19,14],
-  [21,22,18],
-  [10,29,24,21,21],
-  [13],
-  [14],
-  [25],
-  [20,29,22,11,14,17,17,13,21,11,19,17,18,20,8,21,18,24,21,15,27,21]
-];
 
 function cleanText(s) {
   return s.replaceAll('\u2014', ', ').replaceAll('vapor', 'vapour');
@@ -173,9 +107,9 @@ app.use(compression());
 app.get('/health', (req, res) => { res.status(200).send('ok'); });
 
 // --- Fingerprinted static assets with immutable caching ---
-const IMMUTABLE = 'public, max-age=31536000, immutable';
-app.get(`/app.${JS_HASH}.js`, (req, res) => {
-  res.setHeader('Cache-Control', IMMUTABLE);
+app.get('/app.:hash.js', (req, res) => {
+  if (req.params.hash !== JS_HASH) return res.status(404).end();
+  res.setHeader('Cache-Control', CACHE_IMMUTABLE);
   res.type('js').send(JS_SRC);
 });
 
@@ -206,11 +140,40 @@ function saveCache(bookIndex, cache) {
   ).catch(err => console.error('cache write failed:', err));
 }
 
+// --- Shared helpers ---
+
+function resolveChapter(bookSlug, chapterStr) {
+  const bookName = bookSlug.replace(/-/g, ' ');
+  const bookIndex = BOOKS_LOWER.indexOf(bookName.toLowerCase());
+  if (bookIndex === -1) return null;
+  const chNum = parseInt(chapterStr);
+  if (!Number.isFinite(chNum) || chNum < 1) return null;
+  const verseCount = VERSES[bookIndex]?.[chNum - 1];
+  if (!verseCount) return null;
+  return { bookIndex, bookName: BOOKS[bookIndex], chNum, verseCount };
+}
+
+function getChapterVerses(bookIndex, chNum) {
+  const cache = loadCache(bookIndex);
+  const verseCount = VERSES[bookIndex][chNum - 1];
+  const verses = [];
+  const missing = [];
+  for (let v = 0; v < verseCount; v++) {
+    const entry = cache[`${chNum - 1}:${v}`];
+    if (entry && entry.v === RENDER_VERSION) {
+      verses[v] = { rendering: entry.rendering, note: entry.note };
+    } else {
+      missing.push(v);
+    }
+  }
+  return { cache, verses, missing };
+}
+
 async function renderVerse(book, chapter, verse) {
   const ref = `${book} ${chapter}:${verse}`;
   const r = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${XAI_API_KEY}` },
     body: JSON.stringify({
       model: RENDER_MODEL,
@@ -250,16 +213,14 @@ async function renderVerse(book, chapter, verse) {
   return parsed;
 }
 
-// --- Rate limiting (30 req/min per IP) ---
+// --- Rate limiting ---
 const rateMap = new Map();
-const RATE_WINDOW = 60_000;
-const RATE_LIMIT = 30;
 
 function rateLimit(req, res) {
   const ip = req.ip;
   const now = Date.now();
   let entry = rateMap.get(ip);
-  if (!entry || now - entry.start > RATE_WINDOW) {
+  if (!entry || now - entry.start > RATE_WINDOW_MS) {
     entry = { start: now, count: 0 };
     rateMap.set(ip, entry);
   }
@@ -273,44 +234,27 @@ function rateLimit(req, res) {
 
 // Clean stale entries every 5 minutes
 setInterval(() => {
-  const cutoff = Date.now() - RATE_WINDOW;
+  const cutoff = Date.now() - RATE_WINDOW_MS;
   for (const [ip, entry] of rateMap) {
     if (entry.start < cutoff) rateMap.delete(ip);
   }
-}, 5 * 60_000);
+}, RATE_CLEANUP_MS);
 
 app.get('/api/chapter/:book/:chapter', async (req, res) => {
   if (!rateLimit(req, res)) return;
 
-  const { book, chapter } = req.params;
-  const bookIndex = BOOKS.indexOf(book);
-  if (bookIndex === -1) return res.status(400).json({ error: 'unknown book' });
-  const chNum = parseInt(chapter);
-  if (!Number.isFinite(chNum) || chNum < 1) return res.status(400).json({ error: 'invalid chapter' });
-  const verseCount = VERSES[bookIndex]?.[chNum - 1];
-  if (!verseCount) return res.status(400).json({ error: 'invalid chapter' });
+  const ref = resolveChapter(req.params.book, req.params.chapter);
+  if (!ref) return res.status(400).json({ error: 'invalid book or chapter' });
+  const { bookIndex, bookName, chNum } = ref;
 
-  const cache = loadCache(bookIndex);
-  const verses = [];
-  const missing = [];
-
-  for (let v = 0; v < verseCount; v++) {
-    const key = `${chNum - 1}:${v}`;
-    const entry = cache[key];
-    if (entry && entry.v === RENDER_VERSION) {
-      verses[v] = { rendering: entry.rendering, note: entry.note };
-    } else {
-      missing.push(v);
-    }
-  }
+  const { cache, verses, missing } = getChapterVerses(bookIndex, chNum);
 
   // Render missing verses in batches (limit concurrency to avoid API rate limits)
   if (missing.length > 0) {
-    const CONCURRENCY = 8;
-    for (let i = 0; i < missing.length; i += CONCURRENCY) {
-      const batch = missing.slice(i, i + CONCURRENCY);
+    for (let i = 0; i < missing.length; i += RENDER_CONCURRENCY) {
+      const batch = missing.slice(i, i + RENDER_CONCURRENCY);
       const results = await Promise.allSettled(
-        batch.map(v => renderVerse(book, chNum, v + 1).then(r => ({ v, r })))
+        batch.map(v => renderVerse(bookName, chNum, v + 1).then(r => ({ v, r })))
       );
       for (const result of results) {
         if (result.status === 'fulfilled') {
@@ -334,7 +278,7 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
       cached = { body, etag };
       etagCache.set(cacheKey, cached);
     }
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', CACHE_ONE_DAY);
     res.setHeader('ETag', cached.etag);
     if (req.headers['if-none-match'] === cached.etag) {
       return res.status(304).end();
@@ -345,18 +289,15 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 });
 
 app.get('/api/version', (req, res) => {
-  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Cache-Control', CACHE_ONE_DAY);
   res.json({ version: RENDER_VERSION, model: RENDER_MODEL });
 });
 
-const CHAPTERS = VERSES.map(v => v.length);
 const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION }).replace(/<\//g, '<\\/');
-const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
+const INDEX_RAW = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
   .replace('__CONFIG__', CONFIG_JSON)
-  .replace('<link rel="stylesheet" href="/style.css">', '<style>' + CSS_SRC + '</style>')
-  .replace('src="/app.js"', `src="/app.${JS_HASH}.js"`)
-  .replace('<!--PRELOAD-->', `<link rel="preload" href="/app.${JS_HASH}.js" as="script">`);
-const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
+  .replace('<link rel="stylesheet" href="/style.css">', '<style>' + CSS_SRC + '</style>');
+let INDEX_HTML;
 
 const DEFAULT_DESC = 'The Bible rendered in modern English. Every verse, every note, illuminated.';
 const ORIGIN = 'https://www.vapourware.ai';
@@ -366,24 +307,30 @@ app.get('{*path}', (req, res) => {
   let ogTitle = 'vapourware.ai';
   let desc = DEFAULT_DESC;
   let canonical = ORIGIN;
+  let preloadData = '';
   try {
     const parts = decodeURIComponent(req.path).split('/').filter(Boolean);
     if (parts.length === 2) {
-      const bookName = parts[0].replace(/-/g, ' ');
-      const ch = parseInt(parts[1]);
-      const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
-      if (bi !== -1 && ch >= 1 && ch <= (VERSES[bi]?.length || 0)) {
-        const book = BOOKS[bi];
-        title = book + ' ' + ch;
-        ogTitle = book + ' ' + ch;
-        canonical = ORIGIN + '/' + parts[0].toLowerCase() + '/' + ch;
-        // Pull first verse rendering from cache for a real description
-        const cache = loadCache(bi);
-        const firstVerse = cache[`${ch - 1}:0`];
-        if (firstVerse && firstVerse.rendering && firstVerse.v === RENDER_VERSION) {
-          desc = firstVerse.rendering;
+      const ref = resolveChapter(parts[0], parts[1]);
+      if (ref) {
+        const { bookIndex, bookName, chNum } = ref;
+        title = bookName + ' ' + chNum;
+        ogTitle = bookName + ' ' + chNum;
+        canonical = ORIGIN + '/' + parts[0].toLowerCase() + '/' + chNum;
+        // Pull chapter data from cache
+        const { verses, missing } = getChapterVerses(bookIndex, chNum);
+        if (missing.length === 0 && verses.length > 0) {
+          desc = verses[0].rendering;
+          const payload = JSON.stringify({ book: bookName, ch: chNum, verses }).replace(/<\//g, '<\\/');
+          preloadData = '<script id="preloaded" type="application/json">' + payload + '</script>';
         } else {
-          desc = book + ' ' + ch + ', rendered in modern English with scholarly notes.';
+          const cache = loadCache(bookIndex);
+          const firstVerse = cache[`${chNum - 1}:0`];
+          if (firstVerse && firstVerse.rendering && firstVerse.v === RENDER_VERSION) {
+            desc = firstVerse.rendering;
+          } else {
+            desc = bookName + ' ' + chNum + ', rendered in modern English with scholarly notes.';
+          }
         }
       }
     }
@@ -392,9 +339,26 @@ app.get('{*path}', (req, res) => {
     .replace('<title>vapourware.ai</title>', '<title>' + escapeHtml(title) + '</title>')
     .replace(/__OG_TITLE__/g, escapeHtml(ogTitle))
     .replace(/__META_DESC__/g, escapeHtml(desc))
-    .replace(/__CANONICAL__/g, escapeHtml(canonical));
+    .replace(/__CANONICAL__/g, escapeHtml(canonical))
+    .replace('<!--PRELOAD_DATA-->', preloadData);
   res.type('html').send(html);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`vapourware.ai → http://localhost:${PORT}`));
+
+(async () => {
+  try {
+    const result = await minify(JS_RAW, { compress: true, mangle: true });
+    if (result.code) {
+      JS_SRC = result.code;
+      console.log(`JS minified: ${JS_RAW.length} → ${JS_SRC.length} bytes`);
+    }
+  } catch (e) {
+    console.warn('JS minification failed, serving unminified:', e.message);
+  }
+  JS_HASH = crypto.createHash('sha256').update(JS_SRC).digest('hex').slice(0, 10);
+  INDEX_HTML = INDEX_RAW
+    .replace('src="/app.js"', `src="/app.${JS_HASH}.js"`)
+    .replace('<!--PRELOAD-->', `<link rel="preload" href="/app.${JS_HASH}.js" as="script">`);
+  app.listen(PORT, () => console.log(`vapourware.ai → http://localhost:${PORT}`));
+})();

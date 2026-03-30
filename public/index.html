@@ -87,13 +87,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>vapourware.ai</title>
 <meta name="description" content="__META_DESC__">
 <meta name="theme-color" content="#e9e9eb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0e0e0e" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
@@ -130,6 +130,8 @@
   <div id="header"></div>
   <div id="reading">
     <div id="swipe-container">
+      <div id="edge-glow-left" class="edge-glow"></div>
+      <div id="edge-glow-right" class="edge-glow"></div>
       <div id="swipe-track">
         <div class="ch-panel"><div class="chapter-scroll"></div></div>
         <div class="ch-panel"><div class="chapter-scroll"></div></div>
@@ -144,6 +146,7 @@
 </div>
 
 <script id="config" type="application/json">__CONFIG__</script>
+<!--PRELOAD_DATA-->
 <script src="/app.js"></script>
 </body>
 </html>

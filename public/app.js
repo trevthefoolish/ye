@@ -6,6 +6,19 @@ const ALL = [];
 CHAPTERS.forEach((n, bi) => { for (let c = 0; c < n; c++) ALL.push({ bi, ch: c }); });
 const TOTAL = ALL.length;
 
+// --- Constants ---
+const PREFETCH_DISTANCE = 2;
+const SCROLL_LRU_MAX = 50;
+const SWIPE_DIR_THRESHOLD = 6;
+const SWIPE_COMMIT_SLOW = 0.15;
+const SWIPE_COMMIT_RANGE = 0.07;
+const SKELETON_WIDTHS = [100, 85, 92, 78, 95, 60];
+const TRACK_CENTER = 'translateX(-33.333%)';
+const SPRING_DURATION = 0.4;
+const SPRING_EASING = 'cubic-bezier(0.25,0.46,0.45,0.94)';
+const SLIDE_DUR_MIN = 0.12;
+const SLIDE_DUR_MAX = 0.35;
+
 function toSlug(name) { return name.replace(/ /g, '-'); }
 function fromSlug(slug) { return slug.replace(/-/g, ' '); }
 
@@ -14,6 +27,7 @@ const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 // --- Client-side chapter cache + request deduplication ---
 const chapterCache = new Map();
 const inflightFetches = new Map();
+const scrollPositions = new Map();
 
 function fetchChapter(bookName, chNum) {
   const key = `${bookName}/${chNum}`;
@@ -35,6 +49,15 @@ function fetchChapter(bookName, chNum) {
     });
   inflightFetches.set(key, promise);
   return promise;
+}
+
+function prefetchAdjacent(p, dir) {
+  const ahead = p + (dir || 1) * PREFETCH_DISTANCE;
+  if (ahead >= 0 && ahead < TOTAL) {
+    const e = ALL[ahead];
+    const idle = window.requestIdleCallback || (cb => setTimeout(cb, 100));
+    idle(() => fetchChapter(BOOKS[e.bi], e.ch + 1).catch(() => {}));
+  }
 }
 
 function posFromPath() {
@@ -88,104 +111,69 @@ function bindScrollShadow() {
 }
 
 // --- NAV ---
-function closeNav() { nav.classList.remove('open'); }
-
-function collapseGrid(wrap, instant) {
-  if (!wrap) return;
-  if (instant) { wrap.remove(); return; }
-  wrap.classList.remove('expanded');
-  const safety = setTimeout(() => { if (wrap.isConnected) wrap.remove(); }, 350);
-  wrap.addEventListener('transitionend', () => { clearTimeout(safety); wrap.remove(); }, { once: true });
-}
+function closeNav() { nav.style.display = 'none'; }
 
 function buildChapterGrid(item, b) {
   const curBi = ALL[pos].bi;
   const curCh = ALL[pos].ch;
-  const wrap = document.createElement('div');
-  wrap.className = 'chapter-grid-wrap';
   const grid = document.createElement('div');
   grid.className = 'chapter-grid';
   for (let c = 1; c <= CHAPTERS[b]; c++) {
     const pill = document.createElement('span');
     pill.className = 'chapter-pill' + (b === curBi && c === curCh + 1 ? ' current' : '');
     pill.textContent = c;
-    pill.addEventListener('click', () => {
+    pill.addEventListener('click', ev => {
+      ev.stopPropagation();
       closeNav();
-      const liveBi = ALL[pos].bi;
-      const liveCh = ALL[pos].ch;
-      if (b === liveBi && c === liveCh + 1) return; // already here
+      if (b === curBi && c === curCh + 1) return;
       const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
-      if (np >= 0) { pos = np; fillAllPanels(); }
+      if (np >= 0) { pos = np; navJump(); }
     });
     grid.appendChild(pill);
   }
-  wrap.appendChild(grid);
-  wrap.addEventListener('click', e => e.stopPropagation());
-  item.appendChild(wrap);
-  requestAnimationFrame(() => wrap.classList.add('expanded'));
+  grid.addEventListener('click', e => e.stopPropagation());
+  item.appendChild(grid);
 }
-
-let bookListBuilt = false;
 
 header.addEventListener('click', () => {
   if (sliding) return;
   const curBi = ALL[pos].bi;
-
-  if (!bookListBuilt) {
-    // Build once
-    for (let b = 0; b < 66; b++) {
-      const item = document.createElement('div');
-      item.className = 'book-item';
-      item.dataset.book = b;
-      const name = document.createElement('span');
-      name.className = 'book-name';
-      name.textContent = BOOKS[b];
-      item.appendChild(name);
-      name.addEventListener('click', e => {
-        e.stopPropagation();
-        const bi = b;
-        const liveBi = ALL[pos].bi;
-        // Single-chapter books: navigate or close
-        if (CHAPTERS[bi] === 1) {
-          if (bi === liveBi) { closeNav(); return; }
-          closeNav();
-          const np = ALL.findIndex(a => a.bi === bi && a.ch === 0);
-          if (np >= 0) { pos = np; fillAllPanels(); }
-          return;
-        }
-        // Multi-chapter: toggle chapter grid
-        const existing = item.querySelector('.chapter-grid-wrap');
-        if (existing) { collapseGrid(existing); return; }
-        // Collapse any other expanded book
-        const prev = bookList.querySelector('.chapter-grid-wrap');
-        collapseGrid(prev);
-        buildChapterGrid(item, bi);
-      });
-      bookList.appendChild(item);
-    }
-    bookListBuilt = true;
+  const curCh = ALL[pos].ch;
+  bookList.replaceChildren();
+  for (let b = 0; b < 66; b++) {
+    const item = document.createElement('div');
+    item.className = 'book-item' + (b === curBi ? ' current' : '');
+    const name = document.createElement('span');
+    name.className = 'book-name';
+    name.textContent = BOOKS[b];
+    item.appendChild(name);
+    name.addEventListener('click', e => {
+      e.stopPropagation();
+      // Single-chapter books: navigate directly
+      if (CHAPTERS[b] === 1) {
+        if (b === curBi) { closeNav(); return; }
+        closeNav();
+        const np = ALL.findIndex(a => a.bi === b && a.ch === 0);
+        if (np >= 0) { pos = np; navJump(); }
+        return;
+      }
+      // Multi-chapter: toggle chapter grid
+      const existing = item.querySelector('.chapter-grid');
+      if (existing) { existing.remove(); return; }
+      // Collapse any other expanded grid
+      const prev = bookList.querySelector('.chapter-grid');
+      if (prev) prev.remove();
+      buildChapterGrid(item, b);
+    });
+    bookList.appendChild(item);
   }
-
-  // Update current states
-  bookList.querySelectorAll('.book-item').forEach(el => {
-    const b = parseInt(el.dataset.book);
-    el.classList.toggle('current', b === curBi);
-  });
-  // Remove any lingering grids instantly (nav was closed)
-  bookList.querySelectorAll('.chapter-grid-wrap').forEach(w => w.remove());
-
   // Auto-expand current book's chapters
   const currentItem = bookList.querySelector('.current');
   if (currentItem && CHAPTERS[curBi] > 1) {
     buildChapterGrid(currentItem, curBi);
   }
-
-  nav.classList.add('open');
-  if (currentItem) {
-    requestAnimationFrame(() => {
-      currentItem.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
-    });
-  }
+  nav.style.display = 'block';
+  if (currentItem) currentItem.scrollIntoView({ block: 'center' });
 });
 
 nav.addEventListener('click', closeNav);
@@ -232,11 +220,10 @@ async function fillPanel(panel, p) {
   const key = `${bookName}/${chNum}`;
   const willFade = !chapterCache.has(key);
   if (willFade) {
-    const widths = [100, 85, 92, 78, 95, 60];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < SKELETON_WIDTHS.length; i++) {
       const line = document.createElement('div');
       line.className = 'skeleton-line';
-      line.style.width = widths[i] + '%';
+      line.style.width = SKELETON_WIDTHS[i] + '%';
       scroll.appendChild(line);
     }
   }
@@ -256,6 +243,9 @@ async function fillPanel(panel, p) {
     }
     scroll.replaceChildren();
     renderVersesInto(scroll, verses);
+    // Restore saved scroll position
+    const savedScroll = scrollPositions.get(p);
+    if (savedScroll) scroll.scrollTop = savedScroll;
     // Fade in content that was behind a skeleton
     if (willFade) {
       scroll.style.opacity = '0';
@@ -273,6 +263,18 @@ async function fillPanel(panel, p) {
   }
 }
 
+const reading = document.getElementById('reading');
+function navJump() {
+  if (reduceMotion) { fillAllPanels(); return; }
+  reading.style.transition = 'opacity 0.15s ease-out';
+  reading.style.opacity = '0';
+  setTimeout(() => {
+    fillAllPanels();
+    reading.style.transition = 'opacity 0.2s ease-out';
+    reading.style.opacity = '1';
+  }, 150);
+}
+
 // Fill all 3 panels from scratch (used for init + nav jumps)
 function fillAllPanels() {
   fillPanel(panels[0], pos > 0 ? pos - 1 : null);
@@ -286,9 +288,19 @@ function fillAllPanels() {
 // Reset track to center position with no transition
 function resetTrack() {
   track.style.transition = 'none';
-  track.style.transform = 'translateX(-33.333%)';
-  // Force reflow so the browser applies transition:none before any future transition
-  track.offsetWidth;
+  track.style.transform = TRACK_CENTER;
+  track.offsetWidth; // force reflow
+}
+
+function springBack() {
+  track.style.transition = 'transform ' + SPRING_DURATION + 's ' + SPRING_EASING;
+  track.style.transform = TRACK_CENTER;
+  setPanelTransitions(SPRING_DURATION);
+  clearPanelEffects();
+}
+
+function atBoundary(p, dx) {
+  return (p === 0 && dx > 0) || (p === TOTAL - 1 && dx < 0);
 }
 
 // --- GPU EFFECTS ---
@@ -335,19 +347,12 @@ function setPanelTransitions(dur) {
 function slideTo(dir, velocity) {
   if (sliding) return;
   const np = pos + dir;
-  if (np < 0 || np >= TOTAL) {
-    // Rubber-band: spring back with a gentle settle curve
-    track.style.transition = 'transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)';
-    track.style.transform = 'translateX(-33.333%)';
-    setPanelTransitions(0.4);
-    clearPanelEffects();
-    return;
-  }
+  if (np < 0 || np >= TOTAL) { springBack(); return; }
   sliding = true;
 
   // Scale duration with velocity: fast flick ~150ms, slow drag ~300ms
   const vel = velocity || 0;
-  const dur = Math.max(0.12, Math.min(0.35, 0.3 / (1 + vel * 2)));
+  const dur = Math.max(SLIDE_DUR_MIN, Math.min(SLIDE_DUR_MAX, 0.3 / (1 + vel * 2)));
 
   // Velocity-dependent spring curves
   let ease = 'cubic-bezier(0.16,1,0.3,1)';
@@ -375,6 +380,17 @@ function slideTo(dir, velocity) {
     clearTimeout(safety);
     track.removeEventListener('transitionend', onDone);
 
+    // Save scroll position of outgoing panel
+    const outPanel = panels[dir === 1 ? 0 : 2];
+    const outScroll = outPanel.querySelector('.chapter-scroll');
+    if (outScroll) {
+      const outP = parseInt(outScroll.dataset.p);
+      if (!isNaN(outP)) {
+        scrollPositions.set(outP, outScroll.scrollTop);
+        if (scrollPositions.size > SCROLL_LRU_MAX) scrollPositions.delete(scrollPositions.keys().next().value);
+      }
+    }
+
     pos = np;
     updateHeader();
 
@@ -397,6 +413,9 @@ function slideTo(dir, velocity) {
     }
 
     sliding = false;
+
+    // Prefetch the chapter beyond the new adjacent (warm cache for next swipe)
+    prefetchAdjacent(pos, dir);
   }
 
   track.addEventListener('transitionend', onDone, { once: true });
@@ -404,84 +423,89 @@ function slideTo(dir, velocity) {
 }
 
 // --- TOUCH HANDLING ---
-let sx = 0, sy = 0, dx = 0, drag = false, horiz = null;
-let touchStartTime = 0, containerW = 0, rafId = null;
+const touch = { sx: 0, sy: 0, dx: 0, drag: false, horiz: null, startTime: 0, width: 0, rafId: null };
+const edgeL = document.getElementById('edge-glow-left');
+const edgeR = document.getElementById('edge-glow-right');
 
 container.addEventListener('touchstart', e => {
   if (sliding) return;
-  sx = e.touches[0].clientX;
-  sy = e.touches[0].clientY;
-  dx = 0; drag = true; horiz = null;
-  touchStartTime = Date.now();
-  containerW = container.offsetWidth;
+  touch.sx = e.touches[0].clientX;
+  touch.sy = e.touches[0].clientY;
+  touch.dx = 0; touch.drag = true; touch.horiz = null;
+  touch.startTime = Date.now();
+  touch.width = container.offsetWidth;
   track.style.transition = 'none';
   clearPanelEffects();
 }, { passive: true });
 
 container.addEventListener('touchmove', e => {
-  if (!drag || sliding) return;
-  const mx = e.touches[0].clientX - sx;
-  const my = e.touches[0].clientY - sy;
-  if (horiz === null && (Math.abs(mx) > 6 || Math.abs(my) > 6)) {
-    horiz = Math.abs(mx) > Math.abs(my);
+  if (!touch.drag || sliding) return;
+  const mx = e.touches[0].clientX - touch.sx;
+  const my = e.touches[0].clientY - touch.sy;
+  if (touch.horiz === null && (Math.abs(mx) > SWIPE_DIR_THRESHOLD || Math.abs(my) > SWIPE_DIR_THRESHOLD)) {
+    touch.horiz = Math.abs(mx) > Math.abs(my);
   }
-  if (horiz === false) { drag = false; return; }
-  if (horiz) {
+  if (touch.horiz === false) { touch.drag = false; return; }
+  if (touch.horiz) {
     e.preventDefault();
-    dx = mx;
-    if (!rafId) rafId = requestAnimationFrame(applyDrag);
+    touch.dx = mx;
+    if (!touch.rafId) touch.rafId = requestAnimationFrame(applyDrag);
   }
 }, { passive: false });
 
 function applyDrag() {
-  rafId = null;
+  touch.rafId = null;
   // Rubber-band at boundaries: diminishing returns via sqrt
-  let visualDx = dx;
-  const atStart = pos === 0 && dx > 0;
-  const atEnd = pos === TOTAL - 1 && dx < 0;
-  if (atStart || atEnd) {
-    const sign = dx > 0 ? 1 : -1;
-    visualDx = sign * Math.sqrt(Math.abs(dx)) * 3;
+  let visualDx = touch.dx;
+  const bounded = atBoundary(pos, touch.dx);
+  if (bounded) {
+    const sign = touch.dx > 0 ? 1 : -1;
+    visualDx = sign * Math.sqrt(Math.abs(touch.dx)) * 3;
   }
-  const pct = -33.333 + visualDx / containerW * 33.333;
+  const pct = -33.333 + visualDx / touch.width * 33.333;
   track.style.transform = 'translateX(' + pct + '%)';
 
   // Per-panel depth effects (skip at boundaries)
-  if (!atStart && !atEnd) {
-    applyPanelEffects(visualDx / containerW);
+  if (!bounded) {
+    applyPanelEffects(visualDx / touch.width);
   }
+  // Edge glow at boundaries
+  const glowAmt = Math.min(0.2, Math.abs(visualDx) / 200);
+  if (pos === 0 && touch.dx > 0) edgeL.style.opacity = glowAmt;
+  if (pos === TOTAL - 1 && touch.dx < 0) edgeR.style.opacity = glowAmt;
 }
 
 container.addEventListener('touchend', () => {
-  if (!drag || !horiz) { drag = false; return; }
-  drag = false;
-  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  if (!touch.drag || !touch.horiz) { touch.drag = false; return; }
+  touch.drag = false;
+  if (touch.rafId) { cancelAnimationFrame(touch.rafId); touch.rafId = null; }
+
+  // Clear edge glows
+  edgeL.style.opacity = '0';
+  edgeR.style.opacity = '0';
 
   // Boundary: just spring back
-  const atStart = pos === 0 && dx > 0;
-  const atEnd = pos === TOTAL - 1 && dx < 0;
-  if (atStart || atEnd) {
-    track.style.transition = 'transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)';
-    track.style.transform = 'translateX(-33.333%)';
+  if (atBoundary(pos, touch.dx)) {
+    track.style.transition = 'transform ' + SPRING_DURATION + 's ' + SPRING_EASING;
+    track.style.transform = TRACK_CENTER;
     return;
   }
 
   // Velocity-adaptive threshold
-  const elapsed = Date.now() - touchStartTime || 1;
-  const velocity = Math.abs(dx) / elapsed; // px/ms
-  const distRatio = Math.abs(dx) / containerW;
-  // Fast flick (>0.5 px/ms): commit at 8%; slow drag: require 15%
+  const elapsed = Date.now() - touch.startTime || 1;
+  const velocity = Math.abs(touch.dx) / elapsed; // px/ms
+  const distRatio = Math.abs(touch.dx) / touch.width;
   const velT = Math.max(0, Math.min(1, (velocity - 0.1) / 0.4));
-  const threshold = 0.15 - velT * 0.07;
+  const threshold = SWIPE_COMMIT_SLOW - velT * SWIPE_COMMIT_RANGE;
 
   if (distRatio > threshold) {
-    slideTo(dx < 0 ? 1 : -1, velocity);
+    slideTo(touch.dx < 0 ? 1 : -1, velocity);
   } else {
     // Snap back — duration proportional to how far we dragged
     const snapDur = Math.max(0.15, Math.min(0.3, distRatio * 2));
     const snapEase = reduceMotion ? 'cubic-bezier(0.16,1,0.3,1)' : 'cubic-bezier(0.25,1.1,0.35,1)';
     track.style.transition = 'transform ' + snapDur + 's ' + snapEase;
-    track.style.transform = 'translateX(-33.333%)';
+    track.style.transform = TRACK_CENTER;
     setPanelTransitions(snapDur);
     clearPanelEffects();
   }
@@ -498,5 +522,22 @@ window.addEventListener('popstate', (e) => {
 });
 
 // --- INIT ---
+// Seed cache from server-inlined chapter data (eliminates initial fetch round-trip)
+try {
+  const pre = document.getElementById('preloaded');
+  if (pre) {
+    const d = JSON.parse(pre.textContent);
+    if (d.book && d.ch && d.verses?.length) {
+      chapterCache.set(d.book + '/' + d.ch, { verses: d.verses });
+    }
+  }
+} catch {}
+
 fillAllPanels();
 history.replaceState({ pos }, '', '/' + toSlug(BOOKS[ALL[pos].bi]) + '/' + (ALL[pos].ch + 1));
+
+// Prefetch chapters 2 steps ahead/behind on idle
+(window.requestIdleCallback || (cb => setTimeout(cb, 200)))(() => {
+  prefetchAdjacent(pos, 1);
+  prefetchAdjacent(pos, -1);
+});

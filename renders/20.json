@@ -264,135 +264,423 @@
     "t": 1774858961642
   },
   "2:0": {
-    "rendering": "There is a time for everything, and a season for every matter under heaven.",
-    "note": "The Hebrew word for \"time\" here is et, which carries the sense of an appointed or fitting moment rather than just the ticking clock, echoing the ordered rhythm of creation in Genesis 1 where God separates and appoints times and purposes. This poem in Ecclesiastes invites us to embrace the beautiful, sometimes painful, seasons of human life as part of the unified story where the Creator weaves all things toward their ultimate fulfillment in Jesus, who entered our time to redeem it.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "For everything there is a season, and a time for every matter under heaven.",
+    "note": "The Hebrew word for \"season\" (zeman) echoes the appointed times of Israel's festivals, reminding us that even life's ordinary rhythms belong to God's ordering.",
+    "v": "ff54612cf1f0",
+    "t": 1774862851918
   },
   "2:1": {
-    "rendering": "A time to give birth, and a time to die. A time to plant, and a time to uproot what is planted.",
-    "note": "The Hebrew word 'et' (time) repeats like a steady drumbeat, framing all of human life within God's appointed rhythms, much like the ordered cycles of creation in Genesis 1. This poem echoes the image-of-God mandate to 'be fruitful and multiply' and to cultivate the ground, yet holds both life and death, planting and uprooting, in tension, pointing forward to the one who would enter our time-bound story to bring new creation out of death.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "A time to be born, and a time to die. A time to plant, and a time to uproot what is planted.",
+    "note": "The Hebrew repeats \"time\" like a steady drumbeat, inviting us to meditate on the ordered seasons of life under the sun rather than rage against them.",
+    "v": "ff54612cf1f0",
+    "t": 1774862851918
   },
   "2:2": {
-    "rendering": "A time to tear down and a time to build up, a time to kill and a time to heal.",
-    "note": "The Hebrew word for \"time\" here, et, carries a sense of the right or appointed moment, echoing the rhythms of creation and covenant in Genesis where God both tears down chaos to build order and brings life out of death. This verse sits at the heart of Ecclesiastes' meditation on the seasons of human existence under the sun, pointing forward to Jesus who embodies both tearing down the old order in his death and building up new creation in his resurrection.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "a time to kill, and a time to heal; a time to tear down, and a time to build up;",
+    "note": "The Hebrew pairs opposites in rhythmic balance, showing how the Teacher sees every human action as having its God-appointed season under the sun.",
+    "v": "ff54612cf1f0",
+    "t": 1774862851918
   },
   "2:3": {
     "rendering": "A time to weep, and a time to laugh, a time to mourn, and a time to dance.",
-    "note": "This verse sits in the poem's rhythmic catalog of 'times' that together portray the full range of human experience under the sun, echoing the creation pattern of order amid apparent chaos, much like the alternating seasons of joy and sorrow that mark Israel's story from exodus joy to exile lament and back again.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "note": "The four verbs form two pairs of opposites, echoing the poem's rhythm of human emotion under heaven's seasons.",
+    "v": "ff54612cf1f0",
+    "t": 1774862851918
   },
   "2:4": {
-    "rendering": "a time to throw stones away, and a time to gather stones together; a time to embrace, and a time to refrain from embracing.",
-    "note": "The Hebrew word for \"stones\" (evenim) echoes the story of Israel's ancestors building altars and memorials with stones to mark moments when heaven and earth overlapped. This verse sits in the poem's rhythm of opposites, inviting us to notice the wisdom of discerning the right moment in the human story, a wisdom that finds its ultimate expression in Jesus who knew when to gather his friends close and when to release them into the world.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "A time to throw stones away, and a time to gather stones together; a time to embrace, and a time to refrain from embracing.",
+    "note": "The Hebrew pairs of actions echo ancient Near Eastern treaty language, where scattering and gathering stones could signal war or peace.",
+    "v": "ff54612cf1f0",
+    "t": 1774862851918
   },
   "2:5": {
-    "rendering": "A time to search and a time to give up searching, a time to keep and a time to throw away.",
-    "note": "The Hebrew word for \"search\" here (baqash) echoes throughout the book as humanity's restless quest for meaning under the sun, while \"give up\" carries the sense of letting go or losing something precious. This pairs with the next line's keep-and-throw-away rhythm, inviting us into the wisdom of knowing when to hold tightly to God's gifts and when to release them, a tension that finds its ultimate resolution in Jesus who both seeks the lost and teaches us to lose our lives for his sake.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "A time to seek, and a time to lose; a time to keep, and a time to throw away.",
+    "note": "The Hebrew word for \"lose\" (le'abed) echoes the serpent's curse in Genesis 3, where humanity begins the long labor of losing what it seeks to keep.",
+    "v": "ff54612cf1f0",
+    "t": 1774862851918
   },
   "2:6": {
-    "rendering": "A time to tear and a time to mend, a time to be silent and a time to speak.",
-    "note": "The Hebrew word for “tear” (qaraʿ) echoes the dramatic rending of garments in grief or repentance throughout the Old Testament, from Joshua and David to the prophets. In the unified story, this pairs with the later moment when the temple veil is torn from top to bottom at Jesus’ death, signaling the end of one era of separation and the beginning of new access between heaven and earth.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "A time to tear and a time to mend, a time to keep silent and a time to speak.",
+    "note": "The Hebrew pairs \"tear\" with \"sew\" and \"silence\" with \"speak,\" echoing the ancient practice of ripping garments in grief and repairing them in hope.",
+    "v": "ff54612cf1f0",
+    "t": 1774862851918
   },
   "2:7": {
     "rendering": "a time to love and a time to hate, a time for war and a time for peace.",
-    "note": "The Hebrew word for \"time\" here (et) echoes throughout the poem, painting seasons as part of the ordered rhythm of God's good world, yet one that feels frustratingly out of our control. This pairs love with hate and war with peace in ways that startle us, reminding us that even the darkest human realities have their place under the sun, until the Prince of Peace arrives to finally reorder all things.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "note": "The Hebrew pairs these opposites with the same rhythmic structure as the rest of the poem, showing even enmity and conflict belong inside God's ordered seasons.",
+    "v": "ff54612cf1f0",
+    "t": 1774862851918
   },
   "2:8": {
-    "rendering": "What advantage does the worker have in exchange for the work he does?",
-    "note": "This question echoes the word \"profit\" or \"advantage\" (yitron in Hebrew) that runs like a refrain through Ecclesiastes, probing whether human toil under the sun adds up to anything lasting. It sits at the hinge of the famous poem on seasons, inviting us to wonder if our labor fits into a larger pattern only the Creator fully sees, a thread that later finds its answer in the New Testament vision of work offered to the Lord.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "What gain does the worker have from all his toil?",
+    "note": "The word for \"gain\" here echoes the merchant's profit in Proverbs, but Qohelet keeps finding zero return on life's hardest labor.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853097
   },
   "2:9": {
-    "rendering": "I have seen the task that God has given to the children of humanity to be busy with.",
-    "note": "The word translated \"task\" here is the same Hebrew word for \"business\" or \"occupation\" that appears throughout Ecclesiastes, echoing the frustration of humanity's endless toil under the sun. This verse sits at the heart of the poem on seasons, showing how God has woven time and labor into the human experience, a pattern that finds its deeper resolution in Jesus who invites us to rest from our striving.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "I have seen the task that God has given to the sons of man to be occupied with.",
+    "note": "The word \"task\" echoes the heavy labor God assigned Adam after Eden, framing human toil as a divine gift meant to shape us.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853097
   },
   "2:10": {
-    "rendering": "He has made everything beautiful in its time. He has also put eternity into their hearts, yet so that no one can find out the work that God has done from beginning to end.",
-    "note": "The Hebrew word 'olam' here, often translated 'eternity,' carries the sense of hidden, distant time that stretches beyond our grasp. This verse sits at the center of Ecclesiastes' poem about seasons, showing how God has wired humans with an awareness of the full sweep of time while keeping the bigger picture veiled, a theme that echoes through Israel's story of exile and return, and finds its resolution in Jesus who reveals the end from the beginning.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "He has made everything beautiful in its time. He has also put eternity into the human heart, yet so that no one can find out the work that God does from beginning to end.",
+    "note": "The word for \"eternity\" is olam, which carries the sense of hidden duration, so God plants a longing for what lies beyond our grasp.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853097
   },
   "2:11": {
     "rendering": "I know that there is nothing better for them than to be glad and to do good in their lives.",
-    "note": "The key Hebrew word here for \"good\" (tov) echoes God's repeated declaration in Genesis 1 that creation is \"good,\" inviting us to participate in that original goodness through simple joy and moral action even under the sun. This verse sits at the heart of Ecclesiastes' wisdom, showing how the Preacher finds fleeting but real meaning in the rhythms of time by embracing what God has given, a thread that later finds its full expression in Jesus' invitation to abundant life amid the brokenness of our world.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "note": "The ancient sage anchors fleeting joy in simple, repeatable action, not endless striving.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853097
   },
   "2:12": {
-    "rendering": "And also that everyone should eat and drink and find good in all their toil. This is a gift from God.",
-    "note": "The Hebrew word for \"gift\" here is the same one used for the divine favor that rests on humanity in the creation story. Amid the poem's rhythmic cycles of time in Ecclesiastes 3, this verse echoes Genesis 1-2, where God gifts humanity the good work of stewarding creation and enjoying its fruit, a thread of divine generosity that runs through the whole biblical story and finds its fullest expression in Jesus.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "and also that everyone should eat and drink and find satisfaction in all their toil, this is God's gift.",
+    "note": "The phrase \"God's gift\" echoes the repeated refrain of enjoyment as a divine endowment, inviting us to receive simple pleasures with open hands rather than grasping for control.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853097
   },
   "2:13": {
-    "rendering": "I know that everything God does will last forever. Nothing can be added to it, and nothing can be taken away from it. God has done this so that people will stand in awe before him.",
-    "note": "The word for \"forever\" here is olam, and the Preacher is playing with the idea that God's works stand outside the endless cycles of toil and death described in the rest of the book. This verse quietly echoes the creation account where God declares his work \"very good\" and sets boundaries that cannot be undone, pointing forward to the unified biblical theme that the Creator is faithfully stitching together a story that will not unravel, ultimately revealed in Jesus as the one through whom all things hold together.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "I know that everything God does will last forever. Nothing can be added to it, and nothing can be taken from it. God has made it so that people will fear him.",
+    "note": "The Hebrew verb for \"last forever\" echoes the creation command to \"be fruitful and multiply,\" showing God's works as an unchangeable, ongoing project that evokes awe.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853097
   },
   "2:14": {
-    "rendering": "Whatever has been, it is already; and whatever is going to be, it was already. And God seeks out what has been pursued.",
-    "note": "The Hebrew word for \"seeks out\" (baqash) carries the sense of God carefully investigating or even \"driving after\" what has been driven away, a subtle echo of his pursuit of humanity after the exile-like scattering of Genesis 3. This verse sits at the center of Ecclesiastes' poem on times and seasons, revealing how the Teacher sees the relentless cycles of life not as meaningless repetition but as something God himself is actively weaving into his unified story that will one day find its resolution in Jesus, the one who steps into time to redeem what was lost.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "What has been is now, and what is to be has already been, and God seeks out what is pursued.",
+    "note": "The Hebrew verb for \"seeks out\" carries the sense of God pursuing and summoning even the past, pulling every fleeting moment back into his presence.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853097
   },
   "2:15": {
-    "rendering": "I saw something else under the sun: in the place of justice there was wickedness, and in the place of righteousness there was wickedness.",
-    "note": "The Teacher stares straight at the twisted places where human systems meant to uphold justice and righteousness have instead become engines of oppression, a pattern that echoes the fractured image-of-God rule we see from Genesis 3 onward. This observation sits at the heart of Ecclesiastes' wisdom, holding the tension between the good order God designed and the crooked reality we experience until the Messiah comes to set all things right.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "I saw under the sun that in the place of justice there was wickedness, and in the place of righteousness there was wickedness.",
+    "note": "The repeated \"place of\" wordplay highlights how even the seats of power meant for justice have been overtaken by evil.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853098
   },
   "2:16": {
-    "rendering": "I said in my heart, God will judge the righteous and the wicked, for there is a time for every matter and for every deed.",
-    "note": "The Hebrew word for \"time\" here, et, echoes the poem's refrain from earlier in the chapter, creating a subtle wordplay that ties human activity to divine order. This verse holds the tension between the apparent randomness of life under the sun and the ancient hope of a coming judge, a thread that weaves through Israel's story and finds its surprising fulfillment when Jesus steps into history as the one appointed to judge the living and the dead.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "I said in my heart, God will judge the righteous and the wicked, for there is a time for every purpose and every work.",
+    "note": "The word for \"purpose\" here echoes the \"season\" of verse 1, hinting that even apparent chaos has its appointed moment under divine scrutiny.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853992
   },
   "2:17": {
-    "rendering": "I said in my heart concerning the sons of man, that God is testing them, and that they might see they are but animals.",
-    "note": "The Hebrew word for \"animals\" here is behemah, the same term used in Genesis 1 for the livestock and wild beasts God made on day six, right before forming humans as his image. Qohelet stares at the shared fate of death that humans and animals have in common, and he wonders if this is God's way of exposing our illusion of superiority, a thread that runs from creation's goodness through the curse of Genesis 3 and finds its ultimate resolution when the Son of Man comes as the true image who shares our flesh yet defeats death for us all.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "I said in my heart concerning the sons of man, that God is testing them and that they might see they are but beasts themselves.",
+    "note": "The Hebrew word for \"beast\" (behemah) deliberately echoes the creation account, reminding us humans share the same breath and fate as animals.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853992
   },
   "2:18": {
-    "rendering": "For the fate of the sons of man and the fate of the beast is one fate. As one dies, so dies the other. They all have one breath. Man has no advantage over the beast, for all is vapour.",
-    "note": "The Hebrew word for \"fate\" (miqreh) here plays on the idea of \"happening\" or \"meeting,\" echoing the Teacher's earlier observation that death is the great equalizer that levels every human project, much like how the flood in Genesis 6-9 showed all flesh sharing the same breath and returning to dust.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "For the fate of the sons of man and the fate of the beasts is the same fate: as one dies, so dies the other, and they all have one breath, and the advantage of man over the beast is nothing, for all is vapour.",
+    "note": "The Hebrew word for breath, ruach, is the same life-giving wind given to humanity in Genesis 2 and to animals in Genesis 1, underscoring our shared creatureliness.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853992
   },
   "2:19": {
-    "rendering": "All go to one place. All are from the dust, and all return to dust.",
-    "note": "The Teacher echoes Genesis 3:19 word for word, where humanity's rebellion leads to the ground (adamah) reclaiming the human (adam). This shared fate of dust-to-dust binds all creatures in the unified story of creation, curse, and mortality, a thread that finds its surprising resolution when the last Adam rises from the dust, conquering the grave.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "All go to one place. All are from the dust, and all return to dust again.",
+    "note": "The word \"dust\" echoes Genesis 3:19, where humanity's return to the ground after the fall is pronounced.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853992
   },
   "2:20": {
-    "rendering": "Who knows whether the spirit of the sons of man goes upward and the spirit of the animal goes down into the earth?",
-    "note": "The Hebrew word ruach, meaning both breath and spirit, creates a haunting wordplay here as Qohelet stares at the shared fate of humans and animals under the sun, their life-breath returning to dust. This question echoes Genesis 2-3 and the cursed ground of exile, pressing us to wonder if there is any lasting distinction between image-bearers and beasts, a tension the unified biblical story will resolve when Jesus breathes new resurrection life into humanity.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "Who knows whether the human spirit rises upward and the animal spirit goes down into the earth?",
+    "note": "The rhetorical question echoes the skepticism of Genesis 2-3, where humans and animals both return to dust, challenging easy assumptions about what separates us.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853992
   },
   "2:21": {
-    "rendering": "So I saw that there is nothing better for a person than to rejoice in their work, because that is their portion. For who can bring them to see what will be after them?",
-    "note": "The Hebrew word for \"portion\" (cheleq) echoes the language of Israel's inheritance in the land, yet here the Preacher locates our true share right in the work and joy of the present moment under the sun. This verse sits at the climax of the poem on time in chapter 3, inviting us to embrace the gift of today while the larger biblical story quietly points forward to the day when the curse on toil is lifted and our labor participates in God's new creation.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846924830
+    "rendering": "So I saw that there is nothing better than for a person to rejoice in his work, because that is his portion. For who can bring him to see what will be after him?",
+    "note": "The word \"portion\" echoes the inheritance language of the Promised Land, turning ordinary toil into the only lasting inheritance we get under the sun.",
+    "v": "ff54612cf1f0",
+    "t": 1774862853992
+  },
+  "5:0": {
+    "rendering": "There is an evil that I have seen under the sun, and it weighs heavy on humanity.",
+    "note": "The Hebrew word for \"evil\" here carries the sense of something grievous or oppressive, not just moral wrong, echoing the teacher's earlier laments in chapters 4 and 5.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688028
+  },
+  "5:1": {
+    "rendering": "A man to whom God gives riches, wealth, and honor so that he lacks nothing his heart desires, yet God does not give him power to enjoy them, but a stranger eats them instead. This is vapour, and a grievous sickness.",
+    "note": "The wordplay on \"enjoy\" (literally \"eat\") turns the stranger's literal feasting into a bitter echo of the man's wasted abundance.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688028
+  },
+  "5:2": {
+    "rendering": "If a man fathers a hundred children and lives many years, so that his days are many, but his soul is not satisfied with good, and he also has no burial, I say that a miscarriage is better off than he.",
+    "note": "The word for \"soul\" here is nefesh, the throat or appetite, exposing how even a long fruitful life can choke on endless dissatisfaction.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688028
+  },
+  "5:3": {
+    "rendering": "For he comes into emptiness and he goes back into darkness, and his name is covered over with darkness.",
+    "note": "The Hebrew word for \"emptiness\" here is hebel, the book's signature term for vapour or breath, echoing how every human life, no matter its length, slips away like mist.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688028
+  },
+  "5:4": {
+    "rendering": "Even though it never saw the sun or knew anything, it has more rest than he does.",
+    "note": "The stillborn child finds rest in the grave while the wealthy miser finds none, a stark ancient contrast between nonexistence and restless life.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688028
+  },
+  "5:5": {
+    "rendering": "Even if he lives two thousand years twice over, yet enjoys no good, do not all go to the one place?",
+    "note": "The doubled \"two thousand years\" echoes the vast lifespans of Genesis patriarchs, yet Qoheleth insists even that longevity collapses into the same death that swallows everyone.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688028
+  },
+  "5:6": {
+    "rendering": "All of a person's toil is for their mouth, yet their appetite is never satisfied.",
+    "note": "The Hebrew word for \"appetite\" (nefesh) also means soul, hinting that endless work fails to fill our deepest hunger.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688028
+  },
+  "5:7": {
+    "rendering": "For what advantage has the wise person over the fool, or what advantage has the poor person who knows how to walk before the living?",
+    "note": "The word for \"advantage\" echoes the book's opening question about what is truly profitable under the sun.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688028
+  },
+  "4:0": {
+    "rendering": "Guard your steps when you go to the house of God. To draw near to listen is better than to offer the sacrifice of fools, for they do not know that they are doing evil.",
+    "note": "The Hebrew word for \"guard\" echoes the same command given at Sinai to keep distance from the mountain, turning worship into a place that still demands holy caution.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688052
+  },
+  "4:1": {
+    "rendering": "Do not be hasty with your mouth, and do not let your heart rush to bring a word before God. For God is in heaven and you are on the earth, therefore let your words be few.",
+    "note": "The word for \"hasty\" echoes the snake's rush in Genesis 3, urging measured speech before the God who is utterly above us.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688052
+  },
+  "4:2": {
+    "rendering": "For a dream comes with many worries, and the voice of a fool with many words.",
+    "note": "The Hebrew pairs \"dream\" with \"anxiety\" and \"fool\" with \"many words,\" exposing how restless busyness often masks emptiness.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688052
+  },
+  "4:3": {
+    "rendering": "When you make a vow to God, do not delay to fulfill it. He takes no pleasure in fools. Fulfill the vow you have made.",
+    "note": "The Hebrew word for vow echoes the same root used for Jacob's urgent promise at Bethel, turning a personal commitment into a mirror for how seriously God treats our words.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688052
+  },
+  "4:4": {
+    "rendering": "It is better that you should not vow than that you should vow and not pay.",
+    "note": "The Teacher echoes Deuteronomy's warnings about vows, exposing how our words can trap us in the ancient world of binding oaths.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688052
+  },
+  "4:5": {
+    "rendering": "Do not let your mouth bring guilt on your flesh, and do not say before the messenger that it was a mistake. Why should God be angry at your voice and destroy the work of your hands?",
+    "note": "The Hebrew word for \"messenger\" here is the same as \"angel,\" hinting that your rash vow reaches God's heavenly court.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688052
+  },
+  "4:6": {
+    "rendering": "For in the multitude of dreams and many words there is emptiness. Rather, fear God.",
+    "note": "The Hebrew word for \"emptiness\" here is the same hevel that opens the book, linking vain chatter and wishful dreams to the book's core theme of fleeting vapour.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688052
+  },
+  "4:7": {
+    "rendering": "If you see the poor oppressed in a province, and justice and right taken away, do not be shocked at the matter, for one official watches over another, and higher ones over them.",
+    "note": "The verse exposes a pyramid of bureaucratic oppression in the ancient world, where each layer exploits the one below.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688052
+  },
+  "3:0": {
+    "rendering": "I saw all the oppressions that are done under the sun, and look, the tears of the oppressed, with no one to comfort them. Power was on the side of their oppressors, and they had no one to comfort them.",
+    "note": "The repeated phrase \"no one to comfort them\" echoes the lament language of Lamentations, turning a wisdom observation into a communal cry of pain.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688198
+  },
+  "3:1": {
+    "rendering": "So I praised the dead, who have already died, more than the living, who are still alive.",
+    "note": "Qohelet turns ancient honor for the living on its head, echoing Job's longing for the grave as refuge from endless toil.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688198
+  },
+  "3:2": {
+    "rendering": "But better than both is the one who has not yet been, who has not seen the evil deeds that are done under the sun.",
+    "note": "This shocking escalation names the unborn as luckiest, exposing how thoroughly the Preacher sees oppression and toil as woven into the fabric of life under the sun.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688198
+  },
+  "3:3": {
+    "rendering": "I saw that all toil and all skill in work spring from one person's envy of another. This too is vapour, a chasing after wind.",
+    "note": "The Hebrew word for \"envy\" here carries the double edge of zeal and jealousy, revealing how even our best work can be poisoned by comparison.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688198
+  },
+  "3:4": {
+    "rendering": "The fool folds his hands and eats his own flesh.",
+    "note": "This proverb plays on the image of a lazy man whose idle hands lead to self-destruction, echoing the Hebrew wordplay between \"folds\" and consuming himself in poverty.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688198
+  },
+  "3:5": {
+    "rendering": "Better is a handful of quietness than two fists full of toil and chasing after wind.",
+    "note": "The Hebrew wordplay on \"handful\" versus \"two fists\" paints a picture of grasping versus resting, echoing the book's wisdom that frantic accumulation is just wind-chasing.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688198
+  },
+  "3:6": {
+    "rendering": "Again I saw something pointless under the sun: there was one person without a second, he had neither son nor brother, yet there was no end to all his toil, and his eye was never satisfied with riches.",
+    "note": "The Hebrew word for \"pointless\" (hebel) echoes the book's opening breath-like vapour, exposing how solitary striving devours life without anyone to share the fruit.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688198
+  },
+  "3:7": {
+    "rendering": "There is one who is alone, with no second, and he has neither son nor brother. Yet there is no end to all his toil, and his eyes are not satisfied with riches. For whom am I toiling, he asks, and depriving my soul of good? This also is vapour, a chasing after wind.",
+    "note": "The Hebrew word for alone echoes the creation cry in Genesis 2 that it is not good for the human to be alone, yet this solitary striver chooses isolation for more stuff.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688198
+  },
+  "5:8": {
+    "rendering": "Better is the sight of the eyes than the wandering of the soul. This too is vapour, and a chasing after wind.",
+    "note": "The Hebrew pits \"seeing with the eyes\" against the soul's restless roaming, a wisdom jab at endless desire that echoes the book's opening chase after wind.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688816
+  },
+  "5:9": {
+    "rendering": "Whatever exists has already been named, and what a human being is has been known. He cannot contend with the one who is stronger than he.",
+    "note": "The Hebrew word for \"named\" echoes Genesis 2, where God names humanity, reminding us our limits were set from the very beginning.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688816
+  },
+  "5:10": {
+    "rendering": "The more words there are, the more emptiness increases. What profit does that bring a person?",
+    "note": "The Hebrew word for \"words\" (debarim) also means \"things,\" so this line plays on how both talk and possessions multiply futility.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688816
+  },
+  "5:11": {
+    "rendering": "For who knows what is good for a person in life, during the few days of his fleeting life that pass like a shadow? Who can tell a person what will happen under the sun after him?",
+    "note": "The Hebrew word for \"shadow\" echoes the fleeting breath of Genesis 1, underscoring how human plans dissolve before the Creator's hidden purposes.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688816
+  },
+  "4:8": {
+    "rendering": "A double yield comes from the land: the king himself is served by the field.",
+    "note": "The Hebrew word for \"profit\" echoes throughout the book, yet here the land itself quietly yields more than human schemes.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688921
+  },
+  "4:9": {
+    "rendering": "Whoever loves silver will never have enough silver, and whoever loves wealth will never have enough income. This too is vapour.",
+    "note": "The word for \"wealth\" here echoes the abundance God promises in the Torah, yet the Teacher shows how chasing it leads only to vapour.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688921
+  },
+  "4:10": {
+    "rendering": "As goods increase, so do those who consume them. What advantage then does the owner have, except to watch them with his own eyes?",
+    "note": "The Hebrew word for \"increase\" echoes the creation mandate to multiply, but here it twists into futility, as more only means more mouths to feed.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688921
+  },
+  "4:11": {
+    "rendering": "The sleep of the worker is sweet, whether he eats little or much, but the abundance of the rich will not let him sleep.",
+    "note": "This proverb plays on the Hebrew word for \"sweet\" sleep, contrasting the simple laborer's rest with the rich man's insomnia caused by worry over his overflowing possessions.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688921
+  },
+  "4:12": {
+    "rendering": "There is a sickening evil I have seen under the sun: riches hoarded by their owner to his own harm.",
+    "note": "The Hebrew word for \"sickening\" (chalah) echoes the pain of childbirth, turning hoarded wealth into a grotesque self-wound.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688921
+  },
+  "4:13": {
+    "rendering": "Those riches are lost through a bad venture. When he fathers a son, there is nothing in his hand to give him.",
+    "note": "The Hebrew word for \"bad venture\" (ra'ah) echoes the \"evil\" that Qohelet sees under the sun, turning wealth into vapour that vanishes like breath.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688921
+  },
+  "4:14": {
+    "rendering": "As he came out from his mother's womb, naked he will return, going as he came. He gains no profit from his toil that he can carry in his hand.",
+    "note": "The Hebrew word for \"profit\" here echoes the book's opening question, \"What does a person gain?\"",
+    "v": "ff54612cf1f0",
+    "t": 1774865688921
+  },
+  "4:15": {
+    "rendering": "This also is a sickening evil: exactly as he came, so shall he go, and what profit does he have who toils for the wind?",
+    "note": "The Hebrew word for \"sickening\" (choli) echoes the \"vanity\" of 1:2, painting toil as a nauseating wind-chase with nothing to show.",
+    "v": "ff54612cf1f0",
+    "t": 1774865688921
+  },
+  "4:16": {
+    "rendering": "All his days he eats in darkness, with much vexation and sickness and resentment.",
+    "note": "The Hebrew word for \"vexation\" echoes the \"striving after wind\" that haunts the book, painting a portrait of joyless existence under the sun.",
+    "v": "ff54612cf1f0",
+    "t": 1774865689927
+  },
+  "4:17": {
+    "rendering": "Look, what I have seen to be good and fitting is this: to eat and to drink and to find satisfaction in all one's toil under the sun during the few days of life that God has given him, for this is his lot.",
+    "note": "The Hebrew word for \"lot\" here echoes the dividing of the promised land, suggesting that joyful work is the inheritance God allots each person under the sun.",
+    "v": "ff54612cf1f0",
+    "t": 1774865689927
+  },
+  "4:18": {
+    "rendering": "Moreover, for every person to whom God has given riches and wealth, and has given him the power to eat from it and to take his portion and to rejoice in his toil, this is a gift of God.",
+    "note": "The phrase \"gift of God\" echoes the same Hebrew word used for the \"portion\" in Ecclesiastes 3:22 and 9:9, showing joy in daily work as one of the few reliable anchors in a vapour-filled life.",
+    "v": "ff54612cf1f0",
+    "t": 1774865689927
+  },
+  "4:19": {
+    "rendering": "For he will not much remember the days of his life, because God keeps him occupied with the joy of his heart.",
+    "note": "The Hebrew word for \"keeps him occupied\" carries the idea of God answering or responding to the person's heart, turning fleeting days into absorbed joy.",
+    "v": "ff54612cf1f0",
+    "t": 1774865689927
+  },
+  "3:8": {
+    "rendering": "Two are better than one, because they have a good reward for their toil.",
+    "note": "The Hebrew word for \"two\" (shenayim) echoes the creation pattern of paired companions in Genesis, where solitude is declared \"not good.\"",
+    "v": "ff54612cf1f0",
+    "t": 1774865690011
+  },
+  "3:9": {
+    "rendering": "For if they fall, one will lift up his companion. But woe to the one who falls alone, for there is no one to lift him up.",
+    "note": "The Hebrew word for \"companion\" here echoes the creation mandate for a fitting helper, showing how ancient wisdom values mutual rescue over rugged independence.",
+    "v": "ff54612cf1f0",
+    "t": 1774865690011
+  },
+  "3:10": {
+    "rendering": "Also, if two lie down together, they keep warm. But how can one person keep warm alone?",
+    "note": "The Hebrew verb for \"keep warm\" echoes the same word used for a man \"clinging\" to his wife in Genesis 2:24, quietly linking solitary toil back to the original design for human companionship.",
+    "v": "ff54612cf1f0",
+    "t": 1774865690011
+  },
+  "3:11": {
+    "rendering": "Though one person can be overpowered, two can stand back to back and defend themselves. A three-stranded cord cannot be torn apart quickly.",
+    "note": "The Hebrew word for \"cord\" here echoes the creation language of \"twining\" in Genesis, suggesting that human community participates in the Creator's own work of binding strength together.",
+    "v": "ff54612cf1f0",
+    "t": 1774865690011
+  },
+  "3:12": {
+    "rendering": "Better is a poor but wise youth than an old and foolish king who no longer knows how to take advice.",
+    "note": "The Hebrew word for \"youth\" here echoes the same term used for young Joseph and young David, hinting that true wisdom often emerges from the overlooked rather than the established.",
+    "v": "ff54612cf1f0",
+    "t": 1774865690011
+  },
+  "3:13": {
+    "rendering": "For he came out of prison to become king, even though he was born poor in his kingdom.",
+    "note": "This proverb spotlights a shocking reversal: a nobody from prison outrises a foolish king, echoing Joseph's rags-to-riches rise in Genesis.",
+    "v": "ff54612cf1f0",
+    "t": 1774865690011
+  },
+  "3:14": {
+    "rendering": "I saw all the living who walk under the sun with the youth who rises up in place of the old king.",
+    "note": "The Hebrew word for \"youth\" echoes the same term used for the vulnerable young successor in 4:13, hinting that even fresh power will one day grow old and be replaced.",
+    "v": "ff54612cf1f0",
+    "t": 1774865690011
+  },
+  "3:15": {
+    "rendering": "There was no end to all the people before him. Yet those who come later will not rejoice in him. This too is vapour, and a chasing after wind.",
+    "note": "The word \"before\" (Hebrew lipnei) creates a wordplay on both \"in front of\" and \"in the presence of,\" highlighting how quickly a leader's popularity fades.",
+    "v": "ff54612cf1f0",
+    "t": 1774865690011
   }
 }
