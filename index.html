@@ -19,7 +19,13 @@
 <div id="mobile-content">
   <div id="header"></div>
   <div id="reading">
-    <div class="panel" id="content"></div>
+    <div id="swipe-container">
+      <div id="swipe-track">
+        <div class="ch-panel"><div class="chapter-scroll"></div></div>
+        <div class="ch-panel"><div class="chapter-scroll"></div></div>
+        <div class="ch-panel"><div class="chapter-scroll"></div></div>
+      </div>
+    </div>
   </div>
   <div id="nav">
     <div id="book-list"></div>
@@ -49,45 +55,42 @@ const CHAPTERS = [
   28,16,24,21,28,16,16,13,6,6,4,4,5,3,6,4,3,1,13,5,5,3,5,1,1,1,22
 ];
 
-let chapterIndex = [], totalChapters = 0, pos = 0, loadId = 0;
+const ALL = [];
+CHAPTERS.forEach((n, bi) => { for (let c = 0; c < n; c++) ALL.push({ bi, ch: c }); });
+const TOTAL = ALL.length;
 
+let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 0);
+let sliding = false;
+
+const track = document.getElementById('swipe-track');
+const container = document.getElementById('swipe-container');
 const header = document.getElementById('header');
-const reading = document.getElementById('reading');
-const content = document.getElementById('content');
 const nav = document.getElementById('nav');
 const bookList = document.getElementById('book-list');
 const loading = document.getElementById('loading');
 
-// Build chapter index
-for (let b = 0; b < 66; b++) {
-  for (let c = 0; c < CHAPTERS[b]; c++) {
-    chapterIndex.push({ book: b, chapter: c });
-  }
-  totalChapters += CHAPTERS[b];
-}
+// panels[0]=prev, panels[1]=current, panels[2]=next — rotated in place
+const panels = Array.from(track.children);
 
-// Start at Ecclesiastes 1
-for (let i = 0; i < chapterIndex.length; i++) {
-  if (chapterIndex[i].book === 20 && chapterIndex[i].chapter === 0) { pos = i; break; }
-}
+function lbl(p) { const e = ALL[p]; return BOOKS[e.bi] + ' ' + (e.ch + 1); }
+function updateHeader() { header.textContent = lbl(pos); document.title = lbl(pos); }
 
-// Nav
+// --- NAV ---
 header.addEventListener('click', () => {
-  const ch = chapterIndex[pos];
+  if (sliding) return;
+  const curBi = ALL[pos].bi;
   bookList.innerHTML = '';
   for (let b = 0; b < 66; b++) {
     const item = document.createElement('div');
-    item.className = 'book-item' + (b === ch.book ? ' current' : '');
+    item.className = 'book-item' + (b === curBi ? ' current' : '');
     item.textContent = BOOKS[b];
     item.addEventListener('click', e => {
       e.stopPropagation();
-      if (b !== ch.book) {
-        for (let i = 0; i < chapterIndex.length; i++) {
-          if (chapterIndex[i].book === b && chapterIndex[i].chapter === 0) { pos = i; break; }
-        }
-        loadChapter();
-      }
       nav.style.display = 'none';
+      if (b !== curBi) {
+        const np = ALL.findIndex(a => a.bi === b && a.ch === 0);
+        if (np >= 0) { pos = np; fillAllPanels(); }
+      }
     });
     bookList.appendChild(item);
   }
@@ -98,57 +101,159 @@ header.addEventListener('click', () => {
 
 nav.addEventListener('click', () => { nav.style.display = 'none'; });
 
-// Swipe
-let swipeX = 0;
-reading.addEventListener('touchstart', e => { swipeX = e.touches[0].clientX; }, { passive: true });
-reading.addEventListener('touchend', e => {
-  const dx = e.changedTouches[0].clientX - swipeX;
-  if (Math.abs(dx) < 60) return;
-  if (dx < 0 && pos < totalChapters - 1) { pos++; loadChapter(); }
-  if (dx > 0 && pos > 0) { pos--; loadChapter(); }
-}, { passive: true });
+// --- RENDER ---
+function renderVersesInto(scroll, verses) {
+  for (const v of verses) {
+    const wrap = document.createElement('div');
+    wrap.className = 'verse-wrap';
+    const vText = document.createElement('div');
+    vText.textContent = v.rendering;
+    wrap.appendChild(vText);
+    const nEl = document.createElement('div');
+    nEl.className = 'note';
+    nEl.textContent = v.note;
+    wrap.appendChild(nEl);
+    wrap.addEventListener('click', () => wrap.classList.toggle('expanded'));
+    scroll.appendChild(wrap);
+  }
+  const spacer = document.createElement('div');
+  spacer.className = 'spacer';
+  scroll.appendChild(spacer);
+}
 
-// Load chapter
-async function loadChapter() {
-  const id = ++loadId;
-  content.innerHTML = '';
-  content.scrollTop = 0;
-  const ch = chapterIndex[pos];
-  const bookName = BOOKS[ch.book];
-  const chNum = ch.chapter + 1;
-  header.textContent = bookName + ' ' + chNum;
-  loading.style.display = 'block';
+// Fill a single panel with chapter content
+async function fillPanel(panel, p) {
+  const scroll = document.createElement('div');
+  scroll.className = 'chapter-scroll';
+  scroll.dataset.p = p;
+  panel.innerHTML = '';
+  panel.appendChild(scroll);
+  if (p === null || p < 0 || p >= TOTAL) return;
+
+  const e = ALL[p];
+  const bookName = BOOKS[e.bi];
+  const chNum = e.ch + 1;
 
   try {
     const res = await fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}`);
-    if (loadId !== id) return;
-    if (!res.ok) { loading.style.display = 'none'; return; }
+    if (!scroll.isConnected || scroll.dataset.p != p) return;
+    if (!res.ok) return;
     const { verses } = await res.json();
-    loading.style.display = 'none';
-
-    for (const v of verses) {
-      const wrap = document.createElement('div');
-      wrap.className = 'verse-wrap';
-      const vText = document.createElement('div');
-      vText.textContent = v.rendering;
-      wrap.appendChild(vText);
-      const nEl = document.createElement('div');
-      nEl.className = 'note';
-      nEl.textContent = v.note;
-      wrap.appendChild(nEl);
-      wrap.addEventListener('click', () => wrap.classList.toggle('expanded'));
-      content.appendChild(wrap);
-    }
-
-    const spacer = document.createElement('div');
-    spacer.className = 'spacer';
-    content.appendChild(spacer);
-  } catch {
-    loading.style.display = 'none';
-  }
+    if (!scroll.isConnected || scroll.dataset.p != p) return;
+    renderVersesInto(scroll, verses);
+  } catch {}
 }
 
-loadChapter();
+// Fill all 3 panels from scratch (used for init + nav jumps)
+function fillAllPanels() {
+  fillPanel(panels[0], pos > 0 ? pos - 1 : null);
+  fillPanel(panels[1], pos);
+  fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
+  resetTrack();
+  updateHeader();
+}
+
+// Reset track to center position with no transition
+function resetTrack() {
+  track.style.transition = 'none';
+  track.style.transform = 'translateX(-33.333%)';
+  // Force reflow so the browser applies transition:none before any future transition
+  track.offsetWidth;
+}
+
+// --- SWIPE ---
+function slideTo(dir) {
+  if (sliding) return;
+  const np = pos + dir;
+  if (np < 0 || np >= TOTAL) {
+    // Rubber-band: snap back
+    track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
+    track.style.transform = 'translateX(-33.333%)';
+    return;
+  }
+  sliding = true;
+
+  // Animate to the destination panel
+  track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
+  track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
+
+  // Wait for transition to finish
+  function onDone() {
+    clearTimeout(safety);
+    track.removeEventListener('transitionend', onDone);
+
+    pos = np;
+    updateHeader();
+
+    // Rotate panels in DOM so the destination panel becomes the center.
+    // The content the user is looking at is NEVER destroyed.
+    if (dir === 1) {
+      // Swiped left (next): move first panel to end
+      track.appendChild(panels[0]);
+      panels.push(panels.shift());
+    } else {
+      // Swiped right (prev): move last panel to beginning
+      track.insertBefore(panels[2], panels[0]);
+      panels.unshift(panels.pop());
+    }
+
+    // Snap track back to center — content stays in place because we rotated
+    resetTrack();
+
+    // Only fill the single off-screen panel that needs new content
+    if (dir === 1) {
+      fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
+    } else {
+      fillPanel(panels[0], pos > 0 ? pos - 1 : null);
+    }
+
+    sliding = false;
+  }
+
+  track.addEventListener('transitionend', onDone, { once: true });
+  const safety = setTimeout(onDone, 400);
+}
+
+// --- TOUCH HANDLING ---
+let sx = 0, sy = 0, dx = 0, drag = false, horiz = null;
+
+container.addEventListener('touchstart', e => {
+  if (sliding) return;
+  sx = e.touches[0].clientX;
+  sy = e.touches[0].clientY;
+  dx = 0; drag = true; horiz = null;
+  track.style.transition = 'none';
+}, { passive: true });
+
+container.addEventListener('touchmove', e => {
+  if (!drag || sliding) return;
+  const mx = e.touches[0].clientX - sx;
+  const my = e.touches[0].clientY - sy;
+  if (horiz === null && (Math.abs(mx) > 6 || Math.abs(my) > 6)) {
+    horiz = Math.abs(mx) > Math.abs(my);
+  }
+  if (horiz === false) { drag = false; return; }
+  if (horiz) {
+    e.preventDefault();
+    dx = mx;
+    track.style.transform = 'translateX(' + (-33.333 + dx / container.offsetWidth * 33.333) + '%)';
+  }
+}, { passive: false });
+
+container.addEventListener('touchend', () => {
+  if (!drag || !horiz) { drag = false; return; }
+  drag = false;
+  const thr = container.offsetWidth * 0.15;
+  if (dx < -thr) slideTo(1);
+  else if (dx > thr) slideTo(-1);
+  else {
+    track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
+    track.style.transform = 'translateX(-33.333%)';
+  }
+});
+
+// --- INIT ---
+fillAllPanels();
 </script>
 </body>
 </html>
