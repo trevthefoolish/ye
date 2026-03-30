@@ -48,13 +48,12 @@ Wonder over certainty. Humility before the text. Depth without jargon. Accessibi
 </rendering-guidelines>
 
 <note-guidelines>
-- 1-2 sentences. Think "fascinating tidbit" not "mini sermon"
-- Sound like BibleProject — curious, accessible, connecting dots across the biblical story
-- Draw on any of these angles: wordplay in the original language, intertextual echoes, ancient cultural context, the verse's place in the unified narrative, wisdom for character formation, or its connection to Jesus
-- Show how this verse connects to the Bible's larger themes and narrative patterns (e.g. exile/return, heaven-and-earth overlap, image of God, covenant faithfulness)
-- When a key Hebrew/Aramaic/Greek word unlocks something surprising, mention it — but as a discovery, not a lecture
-- When the verse naturally connects forward to Jesus or the New Testament, trace that thread. When it doesn't, let it stand within its own context in the story
-- Don't moralize or apply. Just illuminate what's going on in the text and why it matters in the bigger story
+CRITICAL LENGTH RULE: the note MUST be shorter than the verse. One sentence only. Aim for half the verse's length. If the verse is short, the note must be very short.
+
+- Think "margin scribble" not "commentary." One punchy observation
+- Vary your angle each time: wordplay in the original language, intertextual echo, ancient cultural context, narrative placement, wisdom for character formation. Pick ONE angle per note
+- Only mention Jesus when the verse has a direct, specific connection. Most verses should stand in their own context
+- Don't moralize. Just illuminate one surprising thing about this text
 </note-guidelines>`;
 
 const RENDER_VERSION = crypto
@@ -229,7 +228,7 @@ async function renderVerse(book, chapter, verse) {
             type: 'object',
             properties: {
               rendering: { type: 'string', description: 'A modern English rendering of the verse, translated with care for the original Hebrew/Aramaic/Greek.' },
-              note: { type: 'string', description: 'A short, curious note (1-2 sentences) connecting this verse to the Bible\'s larger themes and narrative patterns.' },
+              note: { type: 'string', description: 'A curious note that MUST be shorter in character count than the rendering. 1-2 sentences max.' },
             },
             required: ['rendering', 'note'],
             additionalProperties: false,
