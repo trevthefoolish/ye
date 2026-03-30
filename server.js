@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { minify } = require('terser');
+const { log, router: logRouter } = require('./logger');
+const analyticsRouter = require('./analytics');
 
 // --- Bible data ---
 const { books: BOOKS, verses: VERSES } = require('./data/bible.json');
@@ -27,7 +29,7 @@ let JS_HASH;
 
 const app = express();
 const XAI_API_KEY = process.env.XAI_API_KEY;
-if (!XAI_API_KEY) { console.error('XAI_API_KEY env var is required'); process.exit(1); }
+if (!XAI_API_KEY) { log.error('missing_api_key'); process.exit(1); }
 const RENDERS_DIR = path.join(__dirname, 'renders');
 if (!fs.existsSync(RENDERS_DIR)) fs.mkdirSync(RENDERS_DIR);
 
@@ -101,9 +103,37 @@ app.use((req, res, next) => {
 });
 
 app.use(compression());
+app.use(logRouter);
+app.use(analyticsRouter);
 
 // --- Health check (before static, no compression overhead) ---
 app.get('/health', (req, res) => { res.status(200).send('ok'); });
+
+// --- SEO: robots.txt ---
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(
+    'User-agent: *\nAllow: /\nSitemap: https://www.vapourware.ai/sitemap.xml\n'
+  );
+});
+
+// --- SEO: sitemap.xml ---
+let sitemapCache = null;
+app.get('/sitemap.xml', (req, res) => {
+  if (!sitemapCache) {
+    const urls = ['  <url><loc>https://www.vapourware.ai/</loc></url>'];
+    for (let b = 0; b < BOOKS.length; b++) {
+      const slug = BOOKS[b].toLowerCase().replace(/ /g, '-');
+      for (let c = 1; c <= CHAPTERS[b]; c++) {
+        urls.push(`  <url><loc>https://www.vapourware.ai/${slug}/${c}</loc></url>`);
+      }
+    }
+    sitemapCache = '<?xml version="1.0" encoding="UTF-8"?>\n'
+      + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+      + urls.join('\n') + '\n</urlset>';
+  }
+  res.setHeader('Cache-Control', CACHE_ONE_DAY);
+  res.type('application/xml').send(sitemapCache);
+});
 
 // --- Fingerprinted static assets with immutable caching ---
 app.get('/app.:hash.js', (req, res) => {
@@ -136,7 +166,7 @@ function saveCache(bookIndex, cache) {
   fs.promises.writeFile(
     path.join(RENDERS_DIR, `${bookIndex}.json`),
     JSON.stringify(cache, null, 2)
-  ).catch(err => console.error('cache write failed:', err));
+  ).catch(err => log.error('cache_write_failed', { book: bookIndex, err: err.message }));
 }
 
 // --- Shared helpers ---
@@ -203,12 +233,22 @@ async function renderVerse(book, chapter, verse) {
   if (!r.ok) throw new Error(data.error?.message || 'render failed');
   const raw = data.choices?.[0]?.message?.content;
   if (typeof raw !== 'string') throw new Error('unexpected API response shape');
-  const parsed = JSON.parse(raw);
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    log.error('api_json_malformed', { book, chapter, verse, raw: raw.slice(0, 200) });
+    throw new Error('malformed JSON from API');
+  }
   if (typeof parsed.rendering !== 'string' || typeof parsed.note !== 'string') {
     throw new Error('malformed verse rendering');
   }
   parsed.rendering = cleanText(parsed.rendering);
   parsed.note = cleanText(parsed.note);
+  // Model quality feedback: note should be shorter than rendering
+  if (parsed.note.length >= parsed.rendering.length) {
+    log.warn('note_too_long', { book, chapter, verse, noteLen: parsed.note.length, renderLen: parsed.rendering.length });
+  }
   return parsed;
 }
 
@@ -255,11 +295,14 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
       const results = await Promise.allSettled(
         batch.map(v => renderVerse(bookName, chNum, v + 1).then(r => ({ v, r })))
       );
-      for (const result of results) {
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
         if (result.status === 'fulfilled') {
           const { v, r } = result.value;
           verses[v] = { rendering: r.rendering, note: r.note };
           cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
+        } else {
+          log.warn('verse_render_failed', { book: bookName, ch: chNum, verse: batch[j] + 1, reason: result.reason?.message || String(result.reason) });
         }
       }
     }
@@ -301,21 +344,51 @@ let INDEX_HTML;
 const DEFAULT_DESC = 'The Bible rendered in modern English. Every verse, every note, illuminated.';
 const ORIGIN = 'https://www.vapourware.ai';
 
+function buildJsonLd(bookName, chNum, slug, canonical) {
+  if (!bookName) {
+    return JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'vapourware.ai',
+      url: ORIGIN,
+      description: DEFAULT_DESC,
+    });
+  }
+  return JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    name: bookName + ' ' + chNum,
+    url: canonical,
+    isPartOf: { '@type': 'Book', name: 'The Bible' },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: ORIGIN + '/' },
+        { '@type': 'ListItem', position: 2, name: bookName, item: ORIGIN + '/' + slug + '/1' },
+        { '@type': 'ListItem', position: 3, name: 'Chapter ' + chNum },
+      ],
+    },
+  });
+}
+
 app.get('{*path}', (req, res) => {
   let title = 'vapourware.ai';
   let ogTitle = 'vapourware.ai';
   let desc = DEFAULT_DESC;
   let canonical = ORIGIN;
   let preloadData = '';
+  let jsonLd = buildJsonLd();
   try {
     const parts = decodeURIComponent(req.path).split('/').filter(Boolean);
     if (parts.length === 2) {
       const ref = resolveChapter(parts[0], parts[1]);
       if (ref) {
         const { bookIndex, bookName, chNum } = ref;
+        const slug = parts[0].toLowerCase();
         title = bookName + ' ' + chNum;
         ogTitle = bookName + ' ' + chNum;
-        canonical = ORIGIN + '/' + parts[0].toLowerCase() + '/' + chNum;
+        canonical = ORIGIN + '/' + slug + '/' + chNum;
+        jsonLd = buildJsonLd(bookName, chNum, slug, canonical);
         // Pull chapter data from cache
         const { verses, missing } = getChapterVerses(bookIndex, chNum);
         if (missing.length === 0 && verses.length > 0) {
@@ -333,13 +406,14 @@ app.get('{*path}', (req, res) => {
         }
       }
     }
-  } catch {}
+  } catch (e) { log.warn('path_parse_failed', { path: req.path, err: e.message }); }
   const html = INDEX_HTML
     .replace('<title>vapourware.ai</title>', '<title>' + escapeHtml(title) + '</title>')
     .replace(/__OG_TITLE__/g, escapeHtml(ogTitle))
     .replace(/__META_DESC__/g, escapeHtml(desc))
     .replace(/__CANONICAL__/g, escapeHtml(canonical))
-    .replace('<!--PRELOAD_DATA-->', preloadData);
+    .replace('<!--PRELOAD_DATA-->', preloadData)
+    .replace('<!--JSON_LD-->', '<script type="application/ld+json">' + jsonLd + '</script>');
   res.type('html').send(html);
 });
 
@@ -350,14 +424,14 @@ const PORT = process.env.PORT || 3000;
     const result = await minify(JS_RAW, { compress: true, mangle: true });
     if (result.code) {
       JS_SRC = result.code;
-      console.log(`JS minified: ${JS_RAW.length} → ${JS_SRC.length} bytes`);
+      log.info('js_minified', { from: JS_RAW.length, to: JS_SRC.length });
     }
   } catch (e) {
-    console.warn('JS minification failed, serving unminified:', e.message);
+    log.warn('minify_failed', { err: e.message });
   }
   JS_HASH = crypto.createHash('sha256').update(JS_SRC).digest('hex').slice(0, 10);
   INDEX_HTML = INDEX_RAW
     .replace('src="/app.js"', `src="/app.${JS_HASH}.js"`)
     .replace('<!--PRELOAD-->', `<link rel="preload" href="/app.${JS_HASH}.js" as="script">`);
-  app.listen(PORT, () => console.log(`vapourware.ai → http://localhost:${PORT}`));
+  app.listen(PORT, () => log.info('server_started', { port: PORT }));
 })();

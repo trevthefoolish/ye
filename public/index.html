@@ -111,6 +111,7 @@
 <meta name="twitter:description" content="__META_DESC__">
 <meta name="twitter:image" content="https://www.vapourware.ai/apple-touch-icon.png">
 <!--PRELOAD-->
+<!--JSON_LD-->
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -127,22 +128,22 @@
 </div>
 
 <div id="mobile-content">
-  <div id="header"></div>
-  <div id="reading">
+  <header id="header" role="banner"></header>
+  <main id="reading">
     <div id="swipe-container">
-      <div id="edge-glow-left" class="edge-glow"></div>
-      <div id="edge-glow-right" class="edge-glow"></div>
-      <div id="swipe-track">
-        <div class="ch-panel"><div class="chapter-scroll"></div></div>
-        <div class="ch-panel"><div class="chapter-scroll"></div></div>
-        <div class="ch-panel"><div class="chapter-scroll"></div></div>
+      <div id="edge-glow-left" class="edge-glow" aria-hidden="true"></div>
+      <div id="edge-glow-right" class="edge-glow" aria-hidden="true"></div>
+      <div id="swipe-track" aria-live="polite">
+        <article class="ch-panel"><div class="chapter-scroll"></div></article>
+        <article class="ch-panel"><div class="chapter-scroll"></div></article>
+        <article class="ch-panel"><div class="chapter-scroll"></div></article>
       </div>
     </div>
-  </div>
-  <div id="nav">
-    <div id="book-list"></div>
+  </main>
+  <nav id="nav" role="navigation" aria-label="Book and chapter navigation">
+    <div id="book-list" role="list"></div>
     <div class="nav-spacer"></div>
-  </div>
+  </nav>
 </div>
 
 <script id="config" type="application/json">__CONFIG__</script>

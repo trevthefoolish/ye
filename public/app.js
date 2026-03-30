@@ -2,6 +2,21 @@ const { books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION } = JSON.parse(
   document.getElementById('config').textContent
 );
 
+// --- Analytics & error reporting ---
+let viewCount = 0;
+function beacon(url, payload) {
+  try {
+    const body = JSON.stringify(payload);
+    const blob = new Blob([body], { type: 'application/json' });
+    if (navigator.sendBeacon) navigator.sendBeacon(url, blob);
+    else fetch(url, { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {});
+  } catch {}
+}
+function ev(type, data) { beacon('/api/ev', { type, ...data }); }
+function reportError(type, msg) { beacon('/api/log', { type, msg: String(msg).slice(0, 500), url: location.pathname }); }
+window.onerror = (msg, src, line, col) => { reportError('onerror', msg + ' at ' + src + ':' + line + ':' + col); };
+window.addEventListener('unhandledrejection', e => { reportError('unhandled', e.reason?.message || String(e.reason)); });
+
 const ALL = [];
 CHAPTERS.forEach((n, bi) => { for (let c = 0; c < n; c++) ALL.push({ bi, ch: c }); });
 const TOTAL = ALL.length;
@@ -56,7 +71,7 @@ function prefetchAdjacent(p, dir) {
   if (ahead >= 0 && ahead < TOTAL) {
     const e = ALL[ahead];
     const idle = window.requestIdleCallback || (cb => setTimeout(cb, 100));
-    idle(() => fetchChapter(BOOKS[e.bi], e.ch + 1).catch(() => {}));
+    idle(() => fetchChapter(BOOKS[e.bi], e.ch + 1).catch(err => reportError('prefetch', err.message)));
   }
 }
 
@@ -72,7 +87,7 @@ function posFromPath() {
         if (idx >= 0) return idx;
       }
     }
-  } catch {}
+  } catch (e) { reportError('url_parse', e.message); }
   return ALL.findIndex(a => a.bi === 20 && a.ch === 0);
 }
 
@@ -98,6 +113,8 @@ function updateHeader() {
     history.pushState({ pos }, '', url);
   }
   header.textContent = text;
+  viewCount++;
+  ev('view', { book: BOOKS[e.bi], ch: e.ch + 1 });
 }
 
 // Scroll-linked header shadow
@@ -139,12 +156,12 @@ header.addEventListener('click', () => {
       const pill = document.createElement('span');
       pill.className = 'chapter-pill' + (b === curBi && c === curCh + 1 ? ' current' : '');
       pill.textContent = c;
-      pill.addEventListener('click', ev => {
-        ev.stopPropagation();
+      pill.addEventListener('click', e => {
+        e.stopPropagation();
         closeNav();
         if (b === curBi && c === curCh + 1) return;
         const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
-        if (np >= 0) { pos = np; navJump(); }
+        if (np >= 0) { pos = np; ev('nav', { method: 'tap' }); navJump(); }
       });
       grid.appendChild(pill);
     }
@@ -152,13 +169,15 @@ header.addEventListener('click', () => {
     wrap.appendChild(grid);
     item.appendChild(wrap);
 
+    item.setAttribute('aria-expanded', 'false');
     name.addEventListener('click', e => {
       e.stopPropagation();
       const wasExpanded = item.classList.contains('expanded');
       // Collapse any other expanded book
       const prev = bookList.querySelector('.book-item.expanded');
-      if (prev && prev !== item) prev.classList.remove('expanded');
+      if (prev && prev !== item) { prev.classList.remove('expanded'); prev.setAttribute('aria-expanded', 'false'); }
       item.classList.toggle('expanded', !wasExpanded);
+      item.setAttribute('aria-expanded', String(!wasExpanded));
     });
     bookList.appendChild(item);
   }
@@ -166,6 +185,7 @@ header.addEventListener('click', () => {
   const currentItem = bookList.querySelector('.current');
   if (currentItem) {
     currentItem.classList.add('expanded');
+    currentItem.setAttribute('aria-expanded', 'true');
   }
   navOpen = true;
   history.pushState({ nav: true, pos }, '');
@@ -191,9 +211,11 @@ function renderVersesInto(scroll, verses) {
     nInner.textContent = v.note;
     nEl.appendChild(nInner);
     wrap.appendChild(nEl);
+    wrap.setAttribute('aria-expanded', 'false');
     wrap.addEventListener('click', () => {
       if (sliding || touch.horiz) return;
-      wrap.classList.toggle('expanded');
+      const expanded = wrap.classList.toggle('expanded');
+      wrap.setAttribute('aria-expanded', String(expanded));
     });
     scroll.appendChild(wrap);
   }
@@ -220,6 +242,7 @@ async function fillPanel(panel, p) {
   const key = `${bookName}/${chNum}`;
   const willFade = !chapterCache.has(key);
   if (willFade) {
+    scroll.setAttribute('aria-busy', 'true');
     for (let i = 0; i < SKELETON_WIDTHS.length; i++) {
       const line = document.createElement('div');
       line.className = 'skeleton-line';
@@ -241,6 +264,7 @@ async function fillPanel(panel, p) {
       scroll.appendChild(msg);
       return;
     }
+    scroll.removeAttribute('aria-busy');
     scroll.replaceChildren();
     renderVersesInto(scroll, verses);
     // Restore saved scroll position
@@ -256,8 +280,9 @@ async function fillPanel(panel, p) {
         scroll.style.transition = '';
       }, { once: true });
     }
-  } catch {
+  } catch (err) {
     if (stale()) return;
+    reportError('chapter_load', bookName + ' ' + chNum + ': ' + err.message);
     scroll.replaceChildren();
     const msg = document.createElement('div');
     msg.className = 'empty-msg';
@@ -408,6 +433,7 @@ function slideTo(dir, velocity) {
     }
 
     pos = np;
+    ev('nav', { method: 'swipe' });
     updateHeader();
 
     if (dir === 1) {
@@ -558,7 +584,7 @@ try {
       chapterCache.set(d.book + '/' + d.ch, { verses: d.verses });
     }
   }
-} catch {}
+} catch (e) { reportError('preload_parse', e.message); }
 
 fillAllPanels();
 history.replaceState({ pos }, '', '/' + toSlug(BOOKS[ALL[pos].bi]) + '/' + (ALL[pos].ch + 1));
@@ -567,4 +593,21 @@ history.replaceState({ pos }, '', '/' + toSlug(BOOKS[ALL[pos].bi]) + '/' + (ALL[
 (window.requestIdleCallback || (cb => setTimeout(cb, 200)))(() => {
   prefetchAdjacent(pos, 1);
   prefetchAdjacent(pos, -1);
+});
+
+// Session depth: report how many chapters read when leaving
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && viewCount > 0) {
+    ev('session', { depth: viewCount });
+  }
+});
+
+// Performance metrics after first paint
+requestAnimationFrame(() => {
+  setTimeout(() => {
+    const navEntry = performance.getEntriesByType('navigation')[0];
+    if (navEntry) {
+      ev('perf', { loadMs: navEntry.loadEventEnd - navEntry.startTime, ttiMs: navEntry.domInteractive - navEntry.startTime });
+    }
+  }, 0);
 });
