@@ -1,24 +1,24 @@
 :root {
   --bg: #e9e9eb;
-  --text: #1b1212;
-  --text-muted: rgba(27,18,18,0.4);
+  --text: #2c2c2c;
+  --text-muted: rgba(44,44,44,0.4);
   --fade: #e9e9eb;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0e0e0e;
-    --text: #d4d4d4;
-    --text-muted: rgba(212,212,212,0.35);
+    --text: #c8c8c8;
+    --text-muted: rgba(200,200,200,0.35);
     --fade: #0e0e0e;
   }
 }
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 17px;
-  line-height: 28px;
+  font-size: 18px;
+  line-height: 30px;
   font-weight: 400;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.01em;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -29,7 +29,7 @@ body {
   overscroll-behavior: none;
 }
 ::selection {
-  background: rgba(27,18,18,0.12);
+  background: rgba(44,44,44,0.12);
 }
 @media (prefers-color-scheme: dark) {
   ::selection { background: rgba(212,212,212,0.15); }
@@ -56,7 +56,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 56px;
+  padding: 36px;
 }
 #desktop-gate .notch {
   position: absolute;
@@ -83,7 +83,7 @@ body {
 
 /* Header */
 #header {
-  padding: 44px 56px 0 56px;
+  padding: 36px 36px 0 36px;
   font-weight: 500;
   cursor: pointer;
   background: var(--bg);
@@ -111,7 +111,7 @@ body {
   content: '';
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  height: 80px;
+  height: 100px;
   background: linear-gradient(transparent, var(--fade));
   z-index: 10;
   pointer-events: none;
@@ -139,17 +139,17 @@ body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 32px 56px 0 56px;
+  padding: 36px 36px 0 36px;
 }
 
 .verse-wrap {
-  padding-bottom: 28px;
+  padding-bottom: 36px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 .note {
   color: var(--text-muted);
-  padding-top: 8px;
+  padding-top: 12px;
   display: none;
 }
 .verse-wrap.expanded .note { display: block; }
@@ -163,7 +163,7 @@ body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
-  padding: 0 56px;
+  padding: 0 36px;
   background: var(--bg);
   z-index: 20;
 }
@@ -173,7 +173,7 @@ body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
-.book-item:first-child { padding-top: 44px; }
+.book-item:first-child { padding-top: 36px; }
 .book-item:active { opacity: 0.4; }
 .book-item.current { font-weight: 500; }
 .nav-spacer { height: 100px; }
