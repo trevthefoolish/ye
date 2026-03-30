@@ -7,6 +7,9 @@ const { minify } = require('terser');
 const { log, router: logRouter } = require('./logger');
 const analyticsRouter = require('./analytics');
 
+// --- App version ---
+const APP_VERSION = require('./package.json').version;
+
 // --- Bible data ---
 const { books: BOOKS, verses: VERSES } = require('./data/bible.json');
 const CHAPTERS = VERSES.map(v => v.length);
@@ -107,7 +110,7 @@ app.use(logRouter);
 app.use(analyticsRouter);
 
 // --- Health check (before static, no compression overhead) ---
-app.get('/health', (req, res) => { res.status(200).send('ok'); });
+app.get('/health', (req, res) => { res.json({ status: 'ok', version: APP_VERSION }); });
 
 // --- SEO: robots.txt ---
 app.get('/robots.txt', (req, res) => {
@@ -332,11 +335,12 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', CACHE_ONE_DAY);
-  res.json({ version: RENDER_VERSION, model: RENDER_MODEL });
+  res.json({ version: RENDER_VERSION, model: RENDER_MODEL, appVersion: APP_VERSION });
 });
 
-const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION }).replace(/<\//g, '<\\/');
+const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION, v: APP_VERSION }).replace(/<\//g, '<\\/');
 const INDEX_RAW = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
+  .replace('__APP_VERSION__', APP_VERSION)
   .replace('__CONFIG__', CONFIG_JSON)
   .replace('<link rel="stylesheet" href="/style.css">', '<style>' + CSS_SRC + '</style>');
 let INDEX_HTML;
@@ -433,5 +437,5 @@ const PORT = process.env.PORT || 3000;
   INDEX_HTML = INDEX_RAW
     .replace('src="/app.js"', `src="/app.${JS_HASH}.js"`)
     .replace('<!--PRELOAD-->', `<link rel="preload" href="/app.${JS_HASH}.js" as="script">`);
-  app.listen(PORT, () => log.info('server_started', { port: PORT }));
+  app.listen(PORT, () => log.info('server_started', { port: PORT, version: APP_VERSION }));
 })();

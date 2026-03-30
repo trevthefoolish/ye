@@ -1,5 +1,7 @@
 # vapourware.ai
 
+Current version: **v0.0.1**
+
 Guide for AI agents working on vapourware.ai — a mobile-first Bible reader that renders every verse in modern English with scholarly margin notes via Grok. The name plays on *hevel* (vapour) from Ecclesiastes 1:2. The project is intentionally small, frameworkless, and deeply opinionated about its theological voice.
 
 ## Architecture

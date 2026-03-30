@@ -1,5 +1,7 @@
 # vapourware.ai
 
+**v0.0.1**
+
 *Absolute vapour, says the Teacher, absolute vapour. Everything is vapour.*
 — Ecclesiastes 1:2
 
