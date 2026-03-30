@@ -68,15 +68,18 @@ function fromSlug(slug) { return slug.replace(/-/g, ' '); }
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 
 function posFromPath() {
-  const parts = decodeURIComponent(window.location.pathname).split('/').filter(Boolean);
-  if (parts.length === 2) {
-    const bookName = fromSlug(parts[0]);
-    const ch = parseInt(parts[1]);
-    const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
-    if (bi !== -1 && ch >= 1 && ch <= CHAPTERS[bi]) {
-      return ALL.findIndex(a => a.bi === bi && a.ch === ch - 1);
+  try {
+    const parts = decodeURIComponent(window.location.pathname).split('/').filter(Boolean);
+    if (parts.length === 2) {
+      const bookName = fromSlug(parts[0]);
+      const ch = parseInt(parts[1]);
+      const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
+      if (bi !== -1 && ch >= 1 && ch <= CHAPTERS[bi]) {
+        const idx = ALL.findIndex(a => a.bi === bi && a.ch === ch - 1);
+        if (idx >= 0) return idx;
+      }
     }
-  }
+  } catch {}
   return ALL.findIndex(a => a.bi === 20 && a.ch === 0);
 }
 
@@ -166,11 +169,24 @@ async function fillPanel(panel, p) {
   try {
     const res = await fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}`);
     if (!scroll.isConnected || scroll.dataset.p != p) return;
-    if (!res.ok) return;
+    if (!res.ok) throw new Error('fetch failed');
     const { verses } = await res.json();
     if (!scroll.isConnected || scroll.dataset.p != p) return;
+    if (!verses || verses.length === 0) {
+      const msg = document.createElement('div');
+      msg.className = 'empty-msg';
+      msg.textContent = 'This chapter is still being rendered. Try again shortly.';
+      scroll.appendChild(msg);
+      return;
+    }
     renderVersesInto(scroll, verses);
-  } catch {}
+  } catch {
+    if (!scroll.isConnected || scroll.dataset.p != p) return;
+    const msg = document.createElement('div');
+    msg.className = 'empty-msg';
+    msg.textContent = 'Could not load this chapter. Try again shortly.';
+    scroll.appendChild(msg);
+  }
 }
 
 // Fill all 3 panels from scratch (used for init + nav jumps)

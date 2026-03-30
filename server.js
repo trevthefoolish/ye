@@ -141,8 +141,26 @@ const VERSES = [
   [20,29,22,11,14,17,17,13,21,11,19,17,18,20,8,21,18,24,21,15,27,21]
 ];
 
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+app.disable('x-powered-by');
+
+// --- Security headers ---
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'unsafe-inline'; style-src 'self'");
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+  next();
+});
+
 app.use(compression());
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
 
 function loadCache(bookIndex) {
   const file = path.join(RENDERS_DIR, `${bookIndex}.json`);
@@ -185,17 +203,54 @@ async function renderVerse(book, chapter, verse) {
   });
   const data = await r.json();
   if (!r.ok) throw new Error(data.error?.message || 'render failed');
-  const parsed = JSON.parse(data.choices[0].message.content);
+  const raw = data.choices?.[0]?.message?.content;
+  if (typeof raw !== 'string') throw new Error('unexpected API response shape');
+  const parsed = JSON.parse(raw);
+  if (typeof parsed.rendering !== 'string' || typeof parsed.note !== 'string') {
+    throw new Error('malformed verse rendering');
+  }
   parsed.rendering = parsed.rendering.replaceAll('—', ', ').replaceAll('vapor', 'vapour');
   parsed.note = parsed.note.replaceAll('—', ', ').replaceAll('vapor', 'vapour');
   return parsed;
 }
 
+// --- Rate limiting (30 req/min per IP) ---
+const rateMap = new Map();
+const RATE_WINDOW = 60_000;
+const RATE_LIMIT = 30;
+
+function rateLimit(req, res) {
+  const ip = req.ip;
+  const now = Date.now();
+  let entry = rateMap.get(ip);
+  if (!entry || now - entry.start > RATE_WINDOW) {
+    entry = { start: now, count: 0 };
+    rateMap.set(ip, entry);
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT) {
+    res.status(429).json({ error: 'too many requests' });
+    return false;
+  }
+  return true;
+}
+
+// Clean stale entries every 5 minutes
+setInterval(() => {
+  const cutoff = Date.now() - RATE_WINDOW;
+  for (const [ip, entry] of rateMap) {
+    if (entry.start < cutoff) rateMap.delete(ip);
+  }
+}, 5 * 60_000);
+
 app.get('/api/chapter/:book/:chapter', async (req, res) => {
+  if (!rateLimit(req, res)) return;
+
   const { book, chapter } = req.params;
   const bookIndex = BOOKS.indexOf(book);
   if (bookIndex === -1) return res.status(400).json({ error: 'unknown book' });
   const chNum = parseInt(chapter);
+  if (!Number.isFinite(chNum) || chNum < 1) return res.status(400).json({ error: 'invalid chapter' });
   const verseCount = VERSES[bookIndex]?.[chNum - 1];
   if (!verseCount) return res.status(400).json({ error: 'invalid chapter' });
 
@@ -235,21 +290,23 @@ app.get('/api/version', (req, res) => {
   res.json({ version: RENDER_VERSION, model: RENDER_MODEL });
 });
 
-const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 
 app.get('{*path}', (req, res) => {
-  const parts = decodeURIComponent(req.path).split('/').filter(Boolean);
   let title = 'vapourware.ai';
-  if (parts.length === 2) {
-    const bookName = parts[0].replace(/-/g, ' ');
-    const ch = parseInt(parts[1]);
-    const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
-    if (bi !== -1 && ch >= 1 && ch <= (VERSES[bi]?.length || 0)) {
-      title = BOOKS[bi] + ' ' + ch;
+  try {
+    const parts = decodeURIComponent(req.path).split('/').filter(Boolean);
+    if (parts.length === 2) {
+      const bookName = parts[0].replace(/-/g, ' ');
+      const ch = parseInt(parts[1]);
+      const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
+      if (bi !== -1 && ch >= 1 && ch <= (VERSES[bi]?.length || 0)) {
+        title = BOOKS[bi] + ' ' + ch;
+      }
     }
-  }
-  res.type('html').send(INDEX_HTML.replace('<title>vapourware.ai</title>', '<title>' + title + '</title>'));
+  } catch {}
+  res.type('html').send(INDEX_HTML.replace('<title>vapourware.ai</title>', '<title>' + escapeHtml(title) + '</title>'));
 });
 
 const PORT = process.env.PORT || 3000;
