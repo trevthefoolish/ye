@@ -88,10 +88,10 @@ const bookList = document.getElementById('book-list');
 // panels[0]=prev, panels[1]=current, panels[2]=next — rotated in place
 const panels = Array.from(track.children);
 
-function lbl(p) { const e = ALL[p]; return BOOKS[e.bi] + ' ' + (e.ch + 1); }
+function chapterLabel(p) { const e = ALL[p]; return BOOKS[e.bi] + ' ' + (e.ch + 1); }
 function updateHeader() {
   const e = ALL[pos];
-  const text = lbl(pos);
+  const text = chapterLabel(pos);
   document.title = text;
   const url = '/' + toSlug(BOOKS[e.bi]) + '/' + (e.ch + 1);
   if (window.location.pathname !== url) {
@@ -140,7 +140,7 @@ header.addEventListener('click', () => {
   const curBi = ALL[pos].bi;
   const curCh = ALL[pos].ch;
   bookList.replaceChildren();
-  for (let b = 0; b < 66; b++) {
+  for (let b = 0; b < BOOKS.length; b++) {
     const item = document.createElement('div');
     item.className = 'book-item' + (b === curBi ? ' current' : '');
     const name = document.createElement('span');

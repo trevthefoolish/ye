@@ -78,7 +78,6 @@ const RENDER_VERSION = crypto
   .digest('hex')
   .slice(0, 12);
 
-
 function cleanText(s) {
   return s.replaceAll('\u2014', ', ').replaceAll('vapor', 'vapour');
 }
