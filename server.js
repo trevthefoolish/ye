@@ -4,6 +4,11 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
+// --- Asset fingerprinting ---
+const CSS_SRC = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
+const JS_SRC = fs.readFileSync(path.join(__dirname, 'public', 'app.js'), 'utf8');
+const JS_HASH = crypto.createHash('sha256').update(JS_SRC).digest('hex').slice(0, 10);
+
 const app = express();
 const XAI_API_KEY = process.env.XAI_API_KEY;
 if (!XAI_API_KEY) { console.error('XAI_API_KEY env var is required'); process.exit(1); }
@@ -156,7 +161,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'");
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
@@ -164,6 +169,17 @@ app.use((req, res, next) => {
 });
 
 app.use(compression());
+
+// --- Health check (before static, no compression overhead) ---
+app.get('/health', (req, res) => { res.status(200).send('ok'); });
+
+// --- Fingerprinted static assets with immutable caching ---
+const IMMUTABLE = 'public, max-age=31536000, immutable';
+app.get(`/app.${JS_HASH}.js`, (req, res) => {
+  res.setHeader('Cache-Control', IMMUTABLE);
+  res.type('js').send(JS_SRC);
+});
+
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 function loadCache(bookIndex) {
@@ -288,7 +304,19 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
     saveCache(bookIndex, cache);
   }
 
-  res.json({ verses });
+  const body = JSON.stringify({ verses });
+
+  // Cache fully-rendered chapters (no missing verses = deterministic response)
+  if (missing.length === 0) {
+    const etag = '"' + crypto.createHash('sha256').update(body).digest('hex').slice(0, 16) + '"';
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('ETag', etag);
+    if (req.headers['if-none-match'] === etag) {
+      return res.status(304).end();
+    }
+  }
+
+  res.type('json').send(body);
 });
 
 app.get('/api/version', (req, res) => {
@@ -298,7 +326,10 @@ app.get('/api/version', (req, res) => {
 const CHAPTERS = VERSES.map(v => v.length);
 const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS }).replace(/<\//g, '<\\/');
 const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
-  .replace('__CONFIG__', CONFIG_JSON);
+  .replace('__CONFIG__', CONFIG_JSON)
+  .replace('<link rel="stylesheet" href="/style.css">', '<style>' + CSS_SRC + '</style>')
+  .replace('src="/app.js"', `src="/app.${JS_HASH}.js"`)
+  .replace('<!--PRELOAD-->', `<link rel="preload" href="/app.${JS_HASH}.js" as="script">`);
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 
 app.get('{*path}', (req, res) => {
