@@ -65,41 +65,99 @@ const bookList = document.getElementById('book-list');
 const panels = Array.from(track.children);
 
 function lbl(p) { const e = ALL[p]; return BOOKS[e.bi] + ' ' + (e.ch + 1); }
-function updateHeader() {
+function updateHeader(animate) {
   const e = ALL[pos];
-  header.textContent = lbl(pos);
-  document.title = lbl(pos);
+  const text = lbl(pos);
+  document.title = text;
   const url = '/' + toSlug(BOOKS[e.bi]) + '/' + (e.ch + 1);
   if (window.location.pathname !== url) {
     history.pushState({ pos }, '', url);
   }
+  if (animate && header.textContent && header.textContent !== text) {
+    header.style.opacity = '0';
+    setTimeout(() => {
+      header.textContent = text;
+      header.style.opacity = '1';
+    }, 100);
+  } else {
+    header.textContent = text;
+  }
+}
+
+// Scroll-linked header shadow
+function bindScrollShadow() {
+  const scrollEl = panels[1].querySelector('.chapter-scroll');
+  if (!scrollEl) return;
+  header.classList.toggle('scrolled', scrollEl.scrollTop > 0);
+  scrollEl.addEventListener('scroll', () => {
+    header.classList.toggle('scrolled', scrollEl.scrollTop > 0);
+  }, { passive: true });
 }
 
 // --- NAV ---
+function closeNav() { nav.classList.remove('open'); }
+
+function buildChapterGrid(item, b, curBi, curCh) {
+  const grid = document.createElement('div');
+  grid.className = 'chapter-grid';
+  for (let c = 1; c <= CHAPTERS[b]; c++) {
+    const pill = document.createElement('span');
+    pill.className = 'chapter-pill' + (b === curBi && c === curCh + 1 ? ' current' : '');
+    pill.textContent = c;
+    pill.addEventListener('click', ev => {
+      ev.stopPropagation();
+      closeNav();
+      if (b === curBi && c === curCh + 1) return; // already here
+      const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
+      if (np >= 0) { pos = np; fillAllPanels(); }
+    });
+    grid.appendChild(pill);
+  }
+  item.appendChild(grid);
+}
+
 header.addEventListener('click', () => {
   if (sliding) return;
   const curBi = ALL[pos].bi;
+  const curCh = ALL[pos].ch;
   bookList.replaceChildren();
   for (let b = 0; b < 66; b++) {
     const item = document.createElement('div');
     item.className = 'book-item' + (b === curBi ? ' current' : '');
-    item.textContent = BOOKS[b];
-    item.addEventListener('click', e => {
+    const name = document.createElement('span');
+    name.className = 'book-name';
+    name.textContent = BOOKS[b];
+    item.appendChild(name);
+    name.addEventListener('click', e => {
       e.stopPropagation();
-      nav.style.display = 'none';
-      if (b !== curBi) {
+      // Single-chapter books: navigate or close
+      if (CHAPTERS[b] === 1) {
+        if (b === curBi) { closeNav(); return; }
+        closeNav();
         const np = ALL.findIndex(a => a.bi === b && a.ch === 0);
         if (np >= 0) { pos = np; fillAllPanels(); }
+        return;
       }
+      // Multi-chapter: toggle chapter grid
+      const existing = item.querySelector('.chapter-grid');
+      if (existing) { existing.remove(); return; }
+      // Collapse any other expanded book
+      const prev = bookList.querySelector('.chapter-grid');
+      if (prev) prev.remove();
+      buildChapterGrid(item, b, curBi, curCh);
     });
     bookList.appendChild(item);
   }
-  nav.style.display = 'block';
-  const currentEl = bookList.querySelector('.current');
-  if (currentEl) currentEl.scrollIntoView({ block: 'center' });
+  // Auto-expand current book's chapters
+  const currentItem = bookList.querySelector('.current');
+  if (currentItem && CHAPTERS[curBi] > 1) {
+    buildChapterGrid(currentItem, curBi, curBi, curCh);
+  }
+  nav.classList.add('open');
+  if (currentItem) currentItem.scrollIntoView({ block: 'center' });
 });
 
-nav.addEventListener('click', () => { nav.style.display = 'none'; });
+nav.addEventListener('click', closeNav);
 
 // --- RENDER ---
 function renderVersesInto(scroll, verses) {
@@ -112,7 +170,10 @@ function renderVersesInto(scroll, verses) {
     wrap.appendChild(vText);
     const nEl = document.createElement('div');
     nEl.className = 'note';
-    nEl.textContent = v.note;
+    const nInner = document.createElement('div');
+    nInner.className = 'note-inner';
+    nInner.textContent = v.note;
+    nEl.appendChild(nInner);
     wrap.appendChild(nEl);
     wrap.addEventListener('click', () => wrap.classList.toggle('expanded'));
     scroll.appendChild(wrap);
@@ -136,21 +197,44 @@ async function fillPanel(panel, p) {
   const bookName = BOOKS[e.bi];
   const chNum = e.ch + 1;
 
+  // Show skeleton while loading (only for non-cached content)
+  const key = `${bookName}/${chNum}`;
+  const willFade = !chapterCache.has(key);
+  if (willFade) {
+    const widths = [100, 85, 92, 78, 95, 60];
+    for (let i = 0; i < 6; i++) {
+      const line = document.createElement('div');
+      line.className = 'skeleton-line';
+      line.style.width = widths[i] + '%';
+      scroll.appendChild(line);
+    }
+  }
+
   try {
     const data = await fetchChapter(bookName, chNum);
     if (stale()) return;
     const { verses } = data;
     if (stale()) return;
     if (!verses || verses.length === 0) {
+      scroll.replaceChildren();
       const msg = document.createElement('div');
       msg.className = 'empty-msg';
       msg.textContent = 'This chapter is still being rendered. Try again shortly.';
       scroll.appendChild(msg);
       return;
     }
+    scroll.replaceChildren();
     renderVersesInto(scroll, verses);
+    // Fade in content that was behind a skeleton
+    if (willFade) {
+      scroll.style.opacity = '0';
+      scroll.offsetWidth;
+      scroll.style.transition = 'opacity 0.2s ease-out';
+      scroll.style.opacity = '1';
+    }
   } catch {
     if (stale()) return;
+    scroll.replaceChildren();
     const msg = document.createElement('div');
     msg.className = 'empty-msg';
     msg.textContent = 'Could not load this chapter. Try again shortly.';
@@ -164,7 +248,8 @@ function fillAllPanels() {
   fillPanel(panels[1], pos);
   fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
   resetTrack();
-  updateHeader();
+  updateHeader(true);
+  bindScrollShadow();
 }
 
 // Reset track to center position with no transition
@@ -176,45 +261,42 @@ function resetTrack() {
 }
 
 // --- SWIPE ---
-function slideTo(dir) {
+function slideTo(dir, velocity) {
   if (sliding) return;
   const np = pos + dir;
   if (np < 0 || np >= TOTAL) {
-    // Rubber-band: snap back
-    track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
+    // Rubber-band: spring back with a gentle settle curve
+    track.style.transition = 'transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)';
     track.style.transform = 'translateX(-33.333%)';
     return;
   }
   sliding = true;
 
-  // Animate to the destination panel
-  track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
+  // Scale duration with velocity: fast flick ~150ms, slow drag ~300ms
+  const vel = velocity || 0;
+  const dur = Math.max(0.12, Math.min(0.35, 0.3 / (1 + vel * 2)));
+
+  track.style.transition = 'transform ' + dur + 's cubic-bezier(0.16,1,0.3,1)';
   track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
 
-  // Wait for transition to finish
   function onDone() {
     clearTimeout(safety);
     track.removeEventListener('transitionend', onDone);
 
     pos = np;
-    updateHeader();
+    updateHeader(true);
 
-    // Rotate panels in DOM so the destination panel becomes the center.
-    // The content the user is looking at is NEVER destroyed.
     if (dir === 1) {
-      // Swiped left (next): move first panel to end
       track.appendChild(panels[0]);
       panels.push(panels.shift());
     } else {
-      // Swiped right (prev): move last panel to beginning
       track.insertBefore(panels[2], panels[0]);
       panels.unshift(panels.pop());
     }
 
-    // Snap track back to center — content stays in place because we rotated
     resetTrack();
+    bindScrollShadow();
 
-    // Only fill the single off-screen panel that needs new content
     if (dir === 1) {
       fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
     } else {
@@ -225,17 +307,19 @@ function slideTo(dir) {
   }
 
   track.addEventListener('transitionend', onDone, { once: true });
-  const safety = setTimeout(onDone, 400);
+  const safety = setTimeout(onDone, dur * 1000 + 100);
 }
 
 // --- TOUCH HANDLING ---
 let sx = 0, sy = 0, dx = 0, drag = false, horiz = null;
+let touchStartTime = 0;
 
 container.addEventListener('touchstart', e => {
   if (sliding) return;
   sx = e.touches[0].clientX;
   sy = e.touches[0].clientY;
   dx = 0; drag = true; horiz = null;
+  touchStartTime = Date.now();
   track.style.transition = 'none';
 }, { passive: true });
 
@@ -250,18 +334,46 @@ container.addEventListener('touchmove', e => {
   if (horiz) {
     e.preventDefault();
     dx = mx;
-    track.style.transform = 'translateX(' + (-33.333 + dx / container.offsetWidth * 33.333) + '%)';
+    // Rubber-band at boundaries: diminishing returns via sqrt
+    let visualDx = dx;
+    const atStart = pos === 0 && dx > 0;
+    const atEnd = pos === TOTAL - 1 && dx < 0;
+    if (atStart || atEnd) {
+      const sign = dx > 0 ? 1 : -1;
+      visualDx = sign * Math.sqrt(Math.abs(dx)) * 3;
+    }
+    track.style.transform = 'translateX(' + (-33.333 + visualDx / container.offsetWidth * 33.333) + '%)';
   }
 }, { passive: false });
 
 container.addEventListener('touchend', () => {
   if (!drag || !horiz) { drag = false; return; }
   drag = false;
-  const thr = container.offsetWidth * 0.15;
-  if (dx < -thr) slideTo(1);
-  else if (dx > thr) slideTo(-1);
-  else {
-    track.style.transition = 'transform 0.3s cubic-bezier(0.16,1,0.3,1)';
+
+  // Boundary: just spring back
+  const atStart = pos === 0 && dx > 0;
+  const atEnd = pos === TOTAL - 1 && dx < 0;
+  if (atStart || atEnd) {
+    track.style.transition = 'transform 0.4s cubic-bezier(0.25,0.46,0.45,0.94)';
+    track.style.transform = 'translateX(-33.333%)';
+    return;
+  }
+
+  // Velocity-adaptive threshold
+  const elapsed = Date.now() - touchStartTime || 1;
+  const velocity = Math.abs(dx) / elapsed; // px/ms
+  const w = container.offsetWidth;
+  const distRatio = Math.abs(dx) / w;
+  // Fast flick (>0.5 px/ms): commit at 8%; slow drag: require 15%
+  const velT = Math.max(0, Math.min(1, (velocity - 0.1) / 0.4));
+  const threshold = 0.15 - velT * 0.07;
+
+  if (distRatio > threshold) {
+    slideTo(dx < 0 ? 1 : -1, velocity);
+  } else {
+    // Snap back — duration proportional to how far we dragged
+    const snapDur = Math.max(0.15, Math.min(0.3, distRatio * 2));
+    track.style.transition = 'transform ' + snapDur + 's cubic-bezier(0.16,1,0.3,1)';
     track.style.transform = 'translateX(-33.333%)';
   }
 });
