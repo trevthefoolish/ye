@@ -141,6 +141,10 @@ const VERSES = [
   [20,29,22,11,14,17,17,13,21,11,19,17,18,20,8,21,18,24,21,15,27,21]
 ];
 
+function cleanText(s) {
+  return s.replaceAll('\u2014', ', ').replaceAll('vapor', 'vapour');
+}
+
 function escapeHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -152,7 +156,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'unsafe-inline'; style-src 'self'");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'");
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
@@ -160,7 +164,7 @@ app.use((req, res, next) => {
 });
 
 app.use(compression());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 function loadCache(bookIndex) {
   const file = path.join(RENDERS_DIR, `${bookIndex}.json`);
@@ -175,6 +179,7 @@ async function renderVerse(book, chapter, verse) {
   const ref = `${book} ${chapter}:${verse}`;
   const r = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
+    signal: AbortSignal.timeout(30_000),
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${XAI_API_KEY}` },
     body: JSON.stringify({
       model: RENDER_MODEL,
@@ -209,8 +214,8 @@ async function renderVerse(book, chapter, verse) {
   if (typeof parsed.rendering !== 'string' || typeof parsed.note !== 'string') {
     throw new Error('malformed verse rendering');
   }
-  parsed.rendering = parsed.rendering.replaceAll('—', ', ').replaceAll('vapor', 'vapour');
-  parsed.note = parsed.note.replaceAll('—', ', ').replaceAll('vapor', 'vapour');
+  parsed.rendering = cleanText(parsed.rendering);
+  parsed.note = cleanText(parsed.note);
   return parsed;
 }
 
@@ -283,14 +288,17 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
     saveCache(bookIndex, cache);
   }
 
-  res.json({ verses: verses.filter(Boolean) });
+  res.json({ verses });
 });
 
 app.get('/api/version', (req, res) => {
   res.json({ version: RENDER_VERSION, model: RENDER_MODEL });
 });
 
-const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+const CHAPTERS = VERSES.map(v => v.length);
+const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS }).replace(/<\//g, '<\\/');
+const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
+  .replace('__CONFIG__', CONFIG_JSON);
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 
 app.get('{*path}', (req, res) => {
