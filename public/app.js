@@ -111,7 +111,11 @@ function bindScrollShadow() {
 }
 
 // --- NAV ---
-function closeNav() { nav.style.display = 'none'; }
+var navOpen = false;
+function closeNav() {
+  navOpen = false;
+  nav.style.display = 'none';
+}
 
 function buildChapterGrid(item, b) {
   const curBi = ALL[pos].bi;
@@ -172,6 +176,8 @@ header.addEventListener('click', () => {
   if (currentItem && CHAPTERS[curBi] > 1) {
     buildChapterGrid(currentItem, curBi);
   }
+  navOpen = true;
+  history.pushState({ nav: true, pos }, '');
   nav.style.display = 'block';
   if (currentItem) currentItem.scrollIntoView({ block: 'center' });
 });
@@ -194,7 +200,10 @@ function renderVersesInto(scroll, verses) {
     nInner.textContent = v.note;
     nEl.appendChild(nInner);
     wrap.appendChild(nEl);
-    wrap.addEventListener('click', () => wrap.classList.toggle('expanded'));
+    wrap.addEventListener('click', () => {
+      if (sliding || touch.horiz) return;
+      wrap.classList.toggle('expanded');
+    });
     scroll.appendChild(wrap);
   }
   const spacer = document.createElement('div');
@@ -252,6 +261,9 @@ async function fillPanel(panel, p) {
       scroll.offsetWidth;
       scroll.style.transition = 'opacity 0.2s ease-out';
       scroll.style.opacity = '1';
+      scroll.addEventListener('transitionend', () => {
+        scroll.style.transition = '';
+      }, { once: true });
     }
   } catch {
     if (stale()) return;
@@ -263,8 +275,20 @@ async function fillPanel(panel, p) {
   }
 }
 
+function saveCurrentScroll() {
+  const scroll = panels[1].querySelector('.chapter-scroll');
+  if (scroll && scroll.dataset.p != null) {
+    const p = parseInt(scroll.dataset.p);
+    if (!isNaN(p)) {
+      scrollPositions.set(p, scroll.scrollTop);
+      if (scrollPositions.size > SCROLL_LRU_MAX) scrollPositions.delete(scrollPositions.keys().next().value);
+    }
+  }
+}
+
 const reading = document.getElementById('reading');
 function navJump() {
+  saveCurrentScroll();
   if (reduceMotion) { fillAllPanels(); return; }
   reading.style.transition = 'opacity 0.15s ease-out';
   reading.style.opacity = '0';
@@ -282,6 +306,7 @@ function fillAllPanels() {
   fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
   resetTrack();
   updateHeader();
+  header.classList.remove('scrolled');
   bindScrollShadow();
 }
 
@@ -475,6 +500,15 @@ function applyDrag() {
   if (pos === TOTAL - 1 && touch.dx < 0) edgeR.style.opacity = glowAmt;
 }
 
+container.addEventListener('touchcancel', () => {
+  if (!touch.drag) return;
+  touch.drag = false;
+  if (touch.rafId) { cancelAnimationFrame(touch.rafId); touch.rafId = null; }
+  edgeL.style.opacity = '0';
+  edgeR.style.opacity = '0';
+  springBack();
+});
+
 container.addEventListener('touchend', () => {
   if (!touch.drag || !touch.horiz) { touch.drag = false; return; }
   touch.drag = false;
@@ -513,11 +547,13 @@ container.addEventListener('touchend', () => {
 
 // --- POPSTATE (back/forward) ---
 window.addEventListener('popstate', (e) => {
+  // If nav overlay is open, back button closes it
+  if (navOpen) { closeNav(); return; }
   if (sliding) return;
   const newPos = e.state?.pos ?? posFromPath();
   if (newPos !== pos && newPos >= 0 && newPos < TOTAL) {
     pos = newPos;
-    fillAllPanels();
+    navJump();
   }
 });
 

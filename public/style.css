@@ -1,11 +1,13 @@
 :root {
+  --base: 6px;
+  --radius: calc(2 * var(--base));
+  --pad: calc(6 * var(--base));
+  --fade-out: calc(3 * var(--pad));
   --bg: #e9e9eb;
   --bg-glass: rgba(233,233,235,0.82);
   --text: #2c2c2c;
   --text-muted: rgba(44,44,44,0.4);
   --fade: #e9e9eb;
-  --pad: 36px;
-  --radius: 12px;
   --active-bg: rgba(0,0,0,0.04);
 }
 @media (prefers-color-scheme: dark) {
@@ -21,8 +23,8 @@
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 18px;
-  line-height: 30px;
+  font-size: calc(3 * var(--base));
+  line-height: calc(5 * var(--base));
   font-weight: 400;
   letter-spacing: 0.01em;
   color: var(--text);
@@ -42,7 +44,6 @@ body {
 }
 
 /* Shared tap-target active state */
-.verse-wrap:active,
 .book-name:active,
 .chapter-pill:active {
   background-color: var(--active-bg);
@@ -65,13 +66,13 @@ body {
 }
 #desktop-gate .domain {
   color: var(--text);
-  margin-bottom: 6px;
+  margin-bottom: var(--base);
 }
 #desktop-gate .phone {
   width: 280px;
   height: 560px;
   border: 2px solid var(--text-muted);
-  border-radius: 36px;
+  border-radius: var(--pad);
   position: relative;
   display: flex;
   align-items: center;
@@ -79,11 +80,11 @@ body {
 }
 #desktop-gate .notch {
   position: absolute;
-  top: 12px;
+  top: var(--radius);
   left: 50%;
   transform: translateX(-50%);
   width: 80px;
-  height: 24px;
+  height: calc(4 * var(--base));
   background: var(--bg);
   border: 2px solid var(--text-muted);
   border-radius: var(--radius);
@@ -100,7 +101,7 @@ body {
 
 /* Header */
 #header {
-  padding: calc(12px + env(safe-area-inset-top, 24px)) var(--pad) 0 var(--pad);
+  padding: max(var(--pad), calc(var(--radius) + env(safe-area-inset-top, 0px))) var(--pad) 0 var(--pad);
   font-weight: 500;
   cursor: pointer;
   background: var(--bg);
@@ -127,7 +128,7 @@ body {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
-  height: 28px;
+  height: var(--pad);
   background: linear-gradient(var(--fade), transparent);
   z-index: 10;
   pointer-events: none;
@@ -136,7 +137,7 @@ body {
   content: '';
   position: absolute;
   bottom: 0; left: 0; right: 0;
-  height: 100px;
+  height: var(--fade-out);
   background: linear-gradient(transparent, var(--fade));
   z-index: 10;
   pointer-events: none;
@@ -146,7 +147,7 @@ body {
 #swipe-container { height: 100%; overflow: hidden; position: relative; }
 .edge-glow {
   position: absolute;
-  top: 0; bottom: 0; width: 60px;
+  top: 0; bottom: 0; width: calc(10 * var(--base));
   pointer-events: none;
   opacity: 0;
   z-index: 11;
@@ -186,7 +187,6 @@ body {
   margin-right: calc(-1 * var(--radius));
   padding-left: var(--radius);
   padding-right: var(--radius);
-  transition: background-color 0.08s ease-out;
 }
 .note {
   display: grid;
@@ -197,18 +197,17 @@ body {
   overflow: hidden;
   color: var(--text-muted);
   opacity: 0;
-  padding-top: 0;
-  transition: opacity 0.2s ease-out, padding-top 0.3s ease-out;
+  padding-top: var(--radius);
+  transition: opacity 0.2s ease-out;
 }
 .verse-wrap.expanded .note {
   grid-template-rows: 1fr;
 }
 .verse-wrap.expanded .note-inner {
   opacity: 1;
-  padding-top: var(--radius);
-  transition: opacity 0.2s 0.05s ease-out, padding-top 0.3s ease-out;
+  transition: opacity 0.2s 0.1s ease-out;
 }
-.spacer { height: calc(120px + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
+.spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
 
 /* Nav (fullscreen overlay) */
 #nav {
@@ -223,11 +222,11 @@ body {
   z-index: 20;
 }
 .book-item {
-  padding: 10px 0;
+  padding: var(--radius) 0;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
-.book-item:first-child { padding-top: var(--pad); }
+.book-item:first-child { padding-top: max(var(--pad), calc(var(--radius) + env(safe-area-inset-top, 0px))); }
 .book-name {
   cursor: pointer;
   display: inline-block;
@@ -241,7 +240,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: var(--radius) 0 4px 0;
+  padding: var(--radius) 0 0 0;
 }
 .chapter-pill {
   width: var(--pad);
@@ -256,10 +255,10 @@ body {
   color: var(--text-muted);
 }
 .chapter-pill.current { font-weight: 500; color: var(--text); }
-.nav-spacer { height: 100px; }
+.nav-spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); }
 
 .skeleton-line {
-  height: 18px;
+  height: calc(3 * var(--base));
   margin-bottom: var(--radius);
   border-radius: 4px;
   background: var(--text);
