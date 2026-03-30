@@ -238,58 +238,18 @@ app.get('/api/version', (req, res) => {
 const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 
-const ABOUT_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>vapourware.ai</title>
-<style>
-:root { --bg: #e9e9eb; --text: #2c2c2c; --text-muted: rgba(44,44,44,0.4); }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0e0e0e; --text: #c8c8c8; --text-muted: rgba(200,200,200,0.35); }
-}
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: 18px; line-height: 30px; font-weight: 400; letter-spacing: 0.01em;
-  color: var(--text); background: var(--bg);
-  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
-  padding: 36px; max-width: 540px;
-}
-h1 { font-size: 18px; font-weight: 500; margin-bottom: 36px; text-transform: uppercase; letter-spacing: 0.05em; }
-p { margin-bottom: 24px; }
-.muted { color: var(--text-muted); }
-</style>
-</head>
-<body>
-<h1>vapourware.ai</h1>
-<p>Every verse of the Bible, rendered into modern English by an AI trained to read Scripture as a unified story that leads to Jesus.</p>
-<p>Each rendering is paired with a short note connecting the verse to the Bible's larger themes and narrative patterns, drawing on the original Hebrew, Aramaic, and Greek, ancient cultural context, and intertextual echoes across the whole canon.</p>
-<p>The theological framework is inspired by BibleProject's seven lenses: messianic, communal, human and divine, ancient, unified, wisdom, and meditation. Wonder over certainty. Humility before the text. Depth without jargon.</p>
-<p class="muted">The name comes from Ecclesiastes. The Hebrew word hevel, the book's thesis, means vapour, breath, mist. Absolute vapour, says the Teacher. Everything is vapour.</p>
-</body>
-</html>`;
-
-app.get('/vapourware', (req, res) => {
-  res.type('html').send(ABOUT_HTML);
-});
-
 app.get('{*path}', (req, res) => {
   const parts = decodeURIComponent(req.path).split('/').filter(Boolean);
-  if (parts.length === 0) {
-    return res.type('html').send(INDEX_HTML);
-  }
+  let title = 'vapourware.ai';
   if (parts.length === 2) {
     const bookName = parts[0].replace(/-/g, ' ');
     const ch = parseInt(parts[1]);
     const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
     if (bi !== -1 && ch >= 1 && ch <= (VERSES[bi]?.length || 0)) {
-      const title = BOOKS[bi] + ' ' + ch;
-      return res.type('html').send(INDEX_HTML.replace('<title>vapourware.ai</title>', '<title>' + title + '</title>'));
+      title = BOOKS[bi] + ' ' + ch;
     }
   }
-  res.status(404).type('html').send(ABOUT_HTML);
+  res.type('html').send(INDEX_HTML.replace('<title>vapourware.ai</title>', '<title>' + title + '</title>'));
 });
 
 const PORT = process.env.PORT || 3000;
