@@ -55,6 +55,7 @@ function posFromPath() {
 
 let pos = posFromPath();
 let sliding = false;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const track = document.getElementById('swipe-track');
 const container = document.getElementById('swipe-container');
@@ -89,64 +90,102 @@ function bindScrollShadow() {
 // --- NAV ---
 function closeNav() { nav.classList.remove('open'); }
 
-function buildChapterGrid(item, b, curBi, curCh) {
+function collapseGrid(wrap, instant) {
+  if (!wrap) return;
+  if (instant) { wrap.remove(); return; }
+  wrap.classList.remove('expanded');
+  const safety = setTimeout(() => { if (wrap.isConnected) wrap.remove(); }, 350);
+  wrap.addEventListener('transitionend', () => { clearTimeout(safety); wrap.remove(); }, { once: true });
+}
+
+function buildChapterGrid(item, b) {
+  const curBi = ALL[pos].bi;
+  const curCh = ALL[pos].ch;
+  const wrap = document.createElement('div');
+  wrap.className = 'chapter-grid-wrap';
   const grid = document.createElement('div');
   grid.className = 'chapter-grid';
   for (let c = 1; c <= CHAPTERS[b]; c++) {
     const pill = document.createElement('span');
     pill.className = 'chapter-pill' + (b === curBi && c === curCh + 1 ? ' current' : '');
     pill.textContent = c;
-    pill.addEventListener('click', ev => {
-      ev.stopPropagation();
+    pill.addEventListener('click', () => {
       closeNav();
-      if (b === curBi && c === curCh + 1) return; // already here
+      const liveBi = ALL[pos].bi;
+      const liveCh = ALL[pos].ch;
+      if (b === liveBi && c === liveCh + 1) return; // already here
       const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
       if (np >= 0) { pos = np; fillAllPanels(); }
     });
     grid.appendChild(pill);
   }
-  item.appendChild(grid);
+  wrap.appendChild(grid);
+  wrap.addEventListener('click', e => e.stopPropagation());
+  item.appendChild(wrap);
+  requestAnimationFrame(() => wrap.classList.add('expanded'));
 }
+
+let bookListBuilt = false;
 
 header.addEventListener('click', () => {
   if (sliding) return;
   const curBi = ALL[pos].bi;
-  const curCh = ALL[pos].ch;
-  bookList.replaceChildren();
-  for (let b = 0; b < 66; b++) {
-    const item = document.createElement('div');
-    item.className = 'book-item' + (b === curBi ? ' current' : '');
-    const name = document.createElement('span');
-    name.className = 'book-name';
-    name.textContent = BOOKS[b];
-    item.appendChild(name);
-    name.addEventListener('click', e => {
-      e.stopPropagation();
-      // Single-chapter books: navigate or close
-      if (CHAPTERS[b] === 1) {
-        if (b === curBi) { closeNav(); return; }
-        closeNav();
-        const np = ALL.findIndex(a => a.bi === b && a.ch === 0);
-        if (np >= 0) { pos = np; fillAllPanels(); }
-        return;
-      }
-      // Multi-chapter: toggle chapter grid
-      const existing = item.querySelector('.chapter-grid');
-      if (existing) { existing.remove(); return; }
-      // Collapse any other expanded book
-      const prev = bookList.querySelector('.chapter-grid');
-      if (prev) prev.remove();
-      buildChapterGrid(item, b, curBi, curCh);
-    });
-    bookList.appendChild(item);
+
+  if (!bookListBuilt) {
+    // Build once
+    for (let b = 0; b < 66; b++) {
+      const item = document.createElement('div');
+      item.className = 'book-item';
+      item.dataset.book = b;
+      const name = document.createElement('span');
+      name.className = 'book-name';
+      name.textContent = BOOKS[b];
+      item.appendChild(name);
+      name.addEventListener('click', e => {
+        e.stopPropagation();
+        const bi = b;
+        const liveBi = ALL[pos].bi;
+        // Single-chapter books: navigate or close
+        if (CHAPTERS[bi] === 1) {
+          if (bi === liveBi) { closeNav(); return; }
+          closeNav();
+          const np = ALL.findIndex(a => a.bi === bi && a.ch === 0);
+          if (np >= 0) { pos = np; fillAllPanels(); }
+          return;
+        }
+        // Multi-chapter: toggle chapter grid
+        const existing = item.querySelector('.chapter-grid-wrap');
+        if (existing) { collapseGrid(existing); return; }
+        // Collapse any other expanded book
+        const prev = bookList.querySelector('.chapter-grid-wrap');
+        collapseGrid(prev);
+        buildChapterGrid(item, bi);
+      });
+      bookList.appendChild(item);
+    }
+    bookListBuilt = true;
   }
+
+  // Update current states
+  bookList.querySelectorAll('.book-item').forEach(el => {
+    const b = parseInt(el.dataset.book);
+    el.classList.toggle('current', b === curBi);
+  });
+  // Remove any lingering grids instantly (nav was closed)
+  bookList.querySelectorAll('.chapter-grid-wrap').forEach(w => w.remove());
+
   // Auto-expand current book's chapters
   const currentItem = bookList.querySelector('.current');
   if (currentItem && CHAPTERS[curBi] > 1) {
-    buildChapterGrid(currentItem, curBi, curBi, curCh);
+    buildChapterGrid(currentItem, curBi);
   }
+
   nav.classList.add('open');
-  if (currentItem) currentItem.scrollIntoView({ block: 'center' });
+  if (currentItem) {
+    requestAnimationFrame(() => {
+      currentItem.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' });
+    });
+  }
 });
 
 nav.addEventListener('click', closeNav);
@@ -253,7 +292,6 @@ function resetTrack() {
 }
 
 // --- GPU EFFECTS ---
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function applyPanelEffects(progress) {
   if (reduceMotion) return;

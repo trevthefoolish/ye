@@ -191,7 +191,6 @@ body {
   top: 0; left: 0; right: 0; bottom: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
   padding: 0 36px;
   background: var(--bg);
   z-index: 20;
@@ -199,6 +198,24 @@ body {
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.2s ease-out, visibility 0.2s;
+}
+#nav::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 28px;
+  background: linear-gradient(var(--fade), transparent);
+  z-index: 21;
+  pointer-events: none;
+}
+#nav::after {
+  content: '';
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 100px;
+  background: linear-gradient(transparent, var(--fade));
+  z-index: 21;
+  pointer-events: none;
 }
 #nav.open {
   opacity: 1;
@@ -211,14 +228,30 @@ body {
   user-select: none;
 }
 .book-item:first-child { padding-top: 36px; }
-.book-name { cursor: pointer; }
-.book-name:active { opacity: 0.4; transform: translateX(4px); display: inline-block; }
+.book-name { cursor: pointer; display: inline-block; transition: opacity 0.1s ease-out, transform 0.1s ease-out; }
+.book-name:active { opacity: 0.4; transform: translateX(4px); }
 .book-item.current { font-weight: 500; }
+.chapter-grid-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out;
+}
+.chapter-grid-wrap.expanded {
+  grid-template-rows: 1fr;
+}
 .chapter-grid {
+  overflow: hidden;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease-out, padding 0.3s ease-out;
+}
+.chapter-grid-wrap.expanded .chapter-grid {
+  opacity: 1;
   padding: 12px 0 4px 0;
+  transition: opacity 0.2s 0.05s ease-out, padding 0.3s ease-out;
 }
 .chapter-pill {
   width: 36px;
@@ -234,6 +267,15 @@ body {
 }
 .chapter-pill:active { opacity: 0.4; }
 .chapter-pill.current { font-weight: 500; color: var(--text); }
+#book-list {
+  transform: translateY(8px);
+  opacity: 0;
+  transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+}
+#nav.open #book-list {
+  transform: translateY(0);
+  opacity: 1;
+}
 .nav-spacer { height: 100px; }
 
 .skeleton-line {
