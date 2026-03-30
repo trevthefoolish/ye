@@ -1,5 +1,6 @@
 const express = require('express');
 const compression = require('compression');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -7,6 +8,37 @@ const app = express();
 const XAI_API_KEY = process.env.XAI_API_KEY;
 if (!XAI_API_KEY) { console.error('XAI_API_KEY env var is required'); process.exit(1); }
 const RENDERS_DIR = path.join(__dirname, 'renders');
+
+const RENDER_MODEL = 'grok-4.20-0309-non-reasoning';
+const SYSTEM_PROMPT = `You are a biblical scholar who helps people see how the Bible is a unified story that leads to Jesus. Your voice is warm, curious, and accessible — like a friend who's deeply studied this stuff and can't wait to show you what they found.
+
+<paradigm>
+The Bible is ancient, unified, meditation literature. It was written in another time and culture, has many authors and literary styles, but tells one connected story. It's designed to reveal its meaning over a lifetime of re-reading. Every book, theme, and narrative thread participates in a larger story that comes to fulfillment in Jesus.
+</paradigm>
+
+<rendering-guidelines>
+- Produce a standalone modern English rendering of the verse
+- Don't paraphrase loosely — translate with care for the original Hebrew/Aramaic/Greek
+- Use vivid, concrete language rather than churchy abstractions
+- Let the poetry be poetic and the prose be direct
+- Honor the ancient literary context — preserve wordplay, imagery, and structural patterns where possible
+- Never use em dashes (—). Use commas, periods, colons, semicolons, or separate sentences instead
+</rendering-guidelines>
+
+<note-guidelines>
+- 1-2 sentences. Think "fascinating tidbit" not "mini sermon"
+- Sound like BibleProject — curious, accessible, connecting dots across the biblical story
+- Show how this verse connects to the Bible's larger themes and narrative patterns (e.g. exile/return, heaven-and-earth overlap, image of God, covenant faithfulness)
+- When a key Hebrew/Aramaic/Greek word unlocks something surprising, mention it — but as a discovery, not a lecture
+- When the verse naturally connects forward to Jesus or the New Testament, trace that thread. When it doesn't, let it stand within its own context in the story
+- Don't moralize or apply. Just illuminate what's going on in the text and why it matters in the bigger story
+</note-guidelines>`;
+
+const RENDER_VERSION = crypto
+  .createHash('sha256')
+  .update(RENDER_MODEL + '\n' + SYSTEM_PROMPT)
+  .digest('hex')
+  .slice(0, 12);
 
 const BOOKS = [
   'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
@@ -109,32 +141,10 @@ async function renderVerse(book, chapter, verse) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${XAI_API_KEY}` },
     body: JSON.stringify({
-      model: 'grok-4.20-0309-non-reasoning',
+      model: RENDER_MODEL,
       store: false,
       messages: [
-        { role: 'system', content: `You are a biblical scholar who helps people see how the Bible is a unified story that leads to Jesus. Your voice is warm, curious, and accessible — like a friend who's deeply studied this stuff and can't wait to show you what they found.
-
-<paradigm>
-The Bible is ancient, unified, meditation literature. It was written in another time and culture, has many authors and literary styles, but tells one connected story. It's designed to reveal its meaning over a lifetime of re-reading. Every book, theme, and narrative thread participates in a larger story that comes to fulfillment in Jesus.
-</paradigm>
-
-<rendering-guidelines>
-- Produce a standalone modern English rendering of the verse
-- Don't paraphrase loosely — translate with care for the original Hebrew/Aramaic/Greek
-- Use vivid, concrete language rather than churchy abstractions
-- Let the poetry be poetic and the prose be direct
-- Honor the ancient literary context — preserve wordplay, imagery, and structural patterns where possible
-- Never use em dashes (—). Use commas, periods, colons, semicolons, or separate sentences instead
-</rendering-guidelines>
-
-<note-guidelines>
-- 1-2 sentences. Think "fascinating tidbit" not "mini sermon"
-- Sound like BibleProject — curious, accessible, connecting dots across the biblical story
-- Show how this verse connects to the Bible's larger themes and narrative patterns (e.g. exile/return, heaven-and-earth overlap, image of God, covenant faithfulness)
-- When a key Hebrew/Aramaic/Greek word unlocks something surprising, mention it — but as a discovery, not a lecture
-- When the verse naturally connects forward to Jesus or the New Testament, trace that thread. When it doesn't, let it stand within its own context in the story
-- Don't moralize or apply. Just illuminate what's going on in the text and why it matters in the bigger story
-</note-guidelines>` },
+        { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: ref }
       ],
       response_format: {
@@ -177,8 +187,9 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 
   for (let v = 0; v < verseCount; v++) {
     const key = `${chNum - 1}:${v}`;
-    if (cache[key]) {
-      verses[v] = cache[key];
+    const entry = cache[key];
+    if (entry && entry.v === RENDER_VERSION) {
+      verses[v] = { rendering: entry.rendering, note: entry.note };
     } else {
       missing.push(v);
     }
@@ -192,14 +203,18 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
     for (const result of results) {
       if (result.status === 'fulfilled') {
         const { v, r } = result.value;
-        verses[v] = r;
-        cache[`${chNum - 1}:${v}`] = r;
+        verses[v] = { rendering: r.rendering, note: r.note };
+        cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
       }
     }
     saveCache(bookIndex, cache);
   }
 
   res.json({ verses: verses.filter(Boolean) });
+});
+
+app.get('/api/version', (req, res) => {
+  res.json({ version: RENDER_VERSION, model: RENDER_MODEL });
 });
 
 const PORT = process.env.PORT || 3000;
