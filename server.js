@@ -359,7 +359,7 @@ const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'public', 'index.html'),
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 
 const DEFAULT_DESC = 'The Bible rendered in modern English. Every verse, every note, illuminated.';
-const ORIGIN = 'https://vapourware.ai';
+const ORIGIN = 'https://www.vapourware.ai';
 
 app.get('{*path}', (req, res) => {
   let title = 'vapourware.ai';
