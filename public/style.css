@@ -240,9 +240,9 @@ body {
 .book-name {
   cursor: pointer;
   display: inline-block;
-  border-radius: 8px;
-  padding: 2px 8px;
-  margin: -2px -8px;
+  border-radius: var(--base);
+  padding: calc(0.5 * var(--base)) var(--base);
+  margin: calc(-0.5 * var(--base)) calc(-1 * var(--base));
   letter-spacing: 0.05em;
 }
 .book-item.current { font-weight: 500; }
@@ -258,7 +258,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--base);
   padding: var(--radius) 0 0 0;
   opacity: 0;
   transition: opacity 0.2s ease-out;
@@ -273,7 +273,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: calc(2.5 * var(--base));
   border-radius: 50%;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -285,7 +285,7 @@ body {
 .skeleton-line {
   height: calc(3 * var(--base));
   margin-bottom: var(--radius);
-  border-radius: 4px;
+  border-radius: calc(0.5 * var(--base));
   background: var(--text);
   opacity: 0.04;
   animation: shimmer 1.8s ease-in-out infinite;
