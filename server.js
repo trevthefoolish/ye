@@ -235,5 +235,22 @@ app.get('/api/version', (req, res) => {
   res.json({ version: RENDER_VERSION, model: RENDER_MODEL });
 });
 
+const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
+
+app.get('{*path}', (req, res) => {
+  const parts = decodeURIComponent(req.path).split('/').filter(Boolean);
+  let title = 'vapourware.ai';
+  if (parts.length === 2) {
+    const bookName = parts[0].replace(/-/g, ' ');
+    const ch = parseInt(parts[1]);
+    const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
+    if (bi !== -1 && ch >= 1 && ch <= (VERSES[bi]?.length || 0)) {
+      title = BOOKS[bi] + ' ' + ch;
+    }
+  }
+  res.type('html').send(INDEX_HTML.replace('<title>vapourware.ai</title>', '<title>' + title + '</title>'));
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`vapourware.ai → http://localhost:${PORT}`));

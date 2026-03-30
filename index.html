@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>vapourware.ai</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
@@ -59,7 +59,25 @@ const ALL = [];
 CHAPTERS.forEach((n, bi) => { for (let c = 0; c < n; c++) ALL.push({ bi, ch: c }); });
 const TOTAL = ALL.length;
 
-let pos = ALL.findIndex(a => a.bi === 20 && a.ch === 0);
+function toSlug(name) { return name.replace(/ /g, '-'); }
+function fromSlug(slug) { return slug.replace(/-/g, ' '); }
+
+const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
+
+function posFromPath() {
+  const parts = decodeURIComponent(window.location.pathname).split('/').filter(Boolean);
+  if (parts.length === 2) {
+    const bookName = fromSlug(parts[0]);
+    const ch = parseInt(parts[1]);
+    const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
+    if (bi !== -1 && ch >= 1 && ch <= CHAPTERS[bi]) {
+      return ALL.findIndex(a => a.bi === bi && a.ch === ch - 1);
+    }
+  }
+  return ALL.findIndex(a => a.bi === 20 && a.ch === 0);
+}
+
+let pos = posFromPath();
 let sliding = false;
 
 const track = document.getElementById('swipe-track');
@@ -73,7 +91,15 @@ const loading = document.getElementById('loading');
 const panels = Array.from(track.children);
 
 function lbl(p) { const e = ALL[p]; return BOOKS[e.bi] + ' ' + (e.ch + 1); }
-function updateHeader() { header.textContent = lbl(pos); document.title = lbl(pos); }
+function updateHeader() {
+  const e = ALL[pos];
+  header.textContent = lbl(pos);
+  document.title = lbl(pos);
+  const url = '/' + toSlug(BOOKS[e.bi]) + '/' + (e.ch + 1);
+  if (window.location.pathname !== url) {
+    history.pushState({ pos }, '', url);
+  }
+}
 
 // --- NAV ---
 header.addEventListener('click', () => {
@@ -252,8 +278,19 @@ container.addEventListener('touchend', () => {
   }
 });
 
+// --- POPSTATE (back/forward) ---
+window.addEventListener('popstate', (e) => {
+  if (sliding) return;
+  const newPos = e.state?.pos ?? posFromPath();
+  if (newPos !== pos && newPos >= 0 && newPos < TOTAL) {
+    pos = newPos;
+    fillAllPanels();
+  }
+});
+
 // --- INIT ---
 fillAllPanels();
+history.replaceState({ pos }, '', '/' + toSlug(BOOKS[ALL[pos].bi]) + '/' + (ALL[pos].ch + 1));
 </script>
 </body>
 </html>
