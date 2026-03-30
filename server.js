@@ -350,7 +350,7 @@ app.get('/api/version', (req, res) => {
 });
 
 const CHAPTERS = VERSES.map(v => v.length);
-const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS }).replace(/<\//g, '<\\/');
+const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION }).replace(/<\//g, '<\\/');
 const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
   .replace('__CONFIG__', CONFIG_JSON)
   .replace('<link rel="stylesheet" href="/style.css">', '<style>' + CSS_SRC + '</style>')

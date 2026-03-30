@@ -1,4 +1,4 @@
-const { books: BOOKS, chapters: CHAPTERS } = JSON.parse(
+const { books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION } = JSON.parse(
   document.getElementById('config').textContent
 );
 
@@ -19,7 +19,7 @@ function fetchChapter(bookName, chNum) {
   const key = `${bookName}/${chNum}`;
   if (chapterCache.has(key)) return Promise.resolve(chapterCache.get(key));
   if (inflightFetches.has(key)) return inflightFetches.get(key);
-  const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}`)
+  const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}?v=${RENDER_VERSION}`)
     .then(res => {
       if (!res.ok) throw new Error('fetch failed');
       return res.json();
