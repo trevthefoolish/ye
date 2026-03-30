@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>vapourware.ai</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="desktop-gate">
+  <div class="msg">THIS IS DESIGNED FOR MOBILE</div>
+  <div class="phone">
+    <div class="notch"></div>
+    <div class="preview">Breath upon breath, sighs the Teacher, breath upon breath — everything is just breath.</div>
+  </div>
+</div>
+
+<div id="mobile-content">
+  <div id="header"></div>
+  <div id="reading">
+    <div class="panel" id="content"></div>
+  </div>
+  <div id="nav">
+    <div id="book-list"></div>
+    <div class="nav-spacer"></div>
+  </div>
+  <div id="loading">...</div>
+</div>
+
+<script>
+const BOOKS = [
+  'Genesis','Exodus','Leviticus','Numbers','Deuteronomy','Joshua','Judges','Ruth',
+  '1 Samuel','2 Samuel','1 Kings','2 Kings','1 Chronicles','2 Chronicles',
+  'Ezra','Nehemiah','Esther','Job','Psalms','Proverbs','Ecclesiastes',
+  'Song of Solomon','Isaiah','Jeremiah','Lamentations','Ezekiel','Daniel',
+  'Hosea','Joel','Amos','Obadiah','Jonah','Micah','Nahum','Habakkuk',
+  'Zephaniah','Haggai','Zechariah','Malachi',
+  'Matthew','Mark','Luke','John','Acts','Romans',
+  '1 Corinthians','2 Corinthians','Galatians','Ephesians','Philippians',
+  'Colossians','1 Thessalonians','2 Thessalonians','1 Timothy','2 Timothy',
+  'Titus','Philemon','Hebrews','James','1 Peter','2 Peter',
+  '1 John','2 John','3 John','Jude','Revelation'
+];
+
+const CHAPTERS = [
+  50,40,27,36,34,24,21,4,31,24,22,25,29,36,10,13,10,42,150,31,12,8,66,52,5,48,12,
+  14,3,9,1,4,7,3,3,3,2,14,4,
+  28,16,24,21,28,16,16,13,6,6,4,4,5,3,6,4,3,1,13,5,5,3,5,1,1,1,22
+];
+
+let chapterIndex = [], totalChapters = 0, pos = 0, loadId = 0;
+
+const header = document.getElementById('header');
+const reading = document.getElementById('reading');
+const content = document.getElementById('content');
+const nav = document.getElementById('nav');
+const bookList = document.getElementById('book-list');
+const loading = document.getElementById('loading');
+
+// Build chapter index
+for (let b = 0; b < 66; b++) {
+  for (let c = 0; c < CHAPTERS[b]; c++) {
+    chapterIndex.push({ book: b, chapter: c });
+  }
+  totalChapters += CHAPTERS[b];
+}
+
+// Start at Ecclesiastes 1
+for (let i = 0; i < chapterIndex.length; i++) {
+  if (chapterIndex[i].book === 20 && chapterIndex[i].chapter === 0) { pos = i; break; }
+}
+
+// Nav
+header.addEventListener('click', () => {
+  const ch = chapterIndex[pos];
+  bookList.innerHTML = '';
+  for (let b = 0; b < 66; b++) {
+    const item = document.createElement('div');
+    item.className = 'book-item' + (b === ch.book ? ' current' : '');
+    item.textContent = BOOKS[b];
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      if (b !== ch.book) {
+        for (let i = 0; i < chapterIndex.length; i++) {
+          if (chapterIndex[i].book === b && chapterIndex[i].chapter === 0) { pos = i; break; }
+        }
+        loadChapter();
+      }
+      nav.style.display = 'none';
+    });
+    bookList.appendChild(item);
+  }
+  nav.style.display = 'block';
+  const currentEl = bookList.querySelector('.current');
+  if (currentEl) currentEl.scrollIntoView({ block: 'center' });
+});
+
+nav.addEventListener('click', () => { nav.style.display = 'none'; });
+
+// Swipe
+let swipeX = 0;
+reading.addEventListener('touchstart', e => { swipeX = e.touches[0].clientX; }, { passive: true });
+reading.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - swipeX;
+  if (Math.abs(dx) < 60) return;
+  if (dx < 0 && pos < totalChapters - 1) { pos++; loadChapter(); }
+  if (dx > 0 && pos > 0) { pos--; loadChapter(); }
+}, { passive: true });
+
+// Load chapter
+async function loadChapter() {
+  const id = ++loadId;
+  content.innerHTML = '';
+  content.scrollTop = 0;
+  const ch = chapterIndex[pos];
+  const bookName = BOOKS[ch.book];
+  const chNum = ch.chapter + 1;
+  header.textContent = bookName + ' ' + chNum;
+  loading.style.display = 'block';
+
+  try {
+    const res = await fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}`);
+    if (loadId !== id) return;
+    if (!res.ok) { loading.style.display = 'none'; return; }
+    const { verses } = await res.json();
+    loading.style.display = 'none';
+
+    for (const v of verses) {
+      const wrap = document.createElement('div');
+      wrap.className = 'verse-wrap';
+      const vText = document.createElement('div');
+      vText.textContent = v.rendering;
+      wrap.appendChild(vText);
+      const nEl = document.createElement('div');
+      nEl.className = 'note';
+      nEl.textContent = v.note;
+      wrap.appendChild(nEl);
+      wrap.addEventListener('click', () => wrap.classList.toggle('expanded'));
+      content.appendChild(wrap);
+    }
+
+    const spacer = document.createElement('div');
+    spacer.className = 'spacer';
+    content.appendChild(spacer);
+  } catch {
+    loading.style.display = 'none';
+  }
+}
+
+loadChapter();
+</script>
+</body>
+</html>
