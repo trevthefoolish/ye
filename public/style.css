@@ -8,7 +8,6 @@
   --text: #2c2c2c;
   --text-muted: rgba(44,44,44,0.4);
   --fade: #e9e9eb;
-  --active-bg: rgba(0,0,0,0.04);
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -17,7 +16,6 @@
     --text: #c8c8c8;
     --text-muted: rgba(200,200,200,0.35);
     --fade: #0e0e0e;
-    --active-bg: rgba(255,255,255,0.06);
   }
 }
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -41,13 +39,6 @@ body {
 }
 @media (prefers-color-scheme: dark) {
   ::selection { background: rgba(212,212,212,0.15); }
-}
-
-/* Shared tap-target active state */
-.book-name:active,
-.chapter-pill:active {
-  background-color: var(--active-bg);
-  transition-duration: 0s;
 }
 
 /* Desktop gate */
@@ -103,6 +94,7 @@ body {
 #header {
   padding: max(var(--pad), calc(var(--radius) + env(safe-area-inset-top, 0px))) var(--pad) 0 var(--pad);
   font-weight: 500;
+  letter-spacing: 0.05em;
   cursor: pointer;
   background: var(--bg);
   position: relative;
@@ -221,6 +213,24 @@ body {
   background: var(--bg);
   z-index: 20;
 }
+#nav::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--pad);
+  background: linear-gradient(var(--fade), transparent);
+  z-index: 1;
+  pointer-events: none;
+}
+#nav::after {
+  content: '';
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--fade-out);
+  background: linear-gradient(transparent, var(--fade));
+  z-index: 1;
+  pointer-events: none;
+}
 .book-item {
   padding: var(--radius) 0;
   -webkit-tap-highlight-color: transparent;
@@ -233,14 +243,29 @@ body {
   border-radius: 8px;
   padding: 2px 8px;
   margin: -2px -8px;
-  transition: background-color 0.08s ease-out;
+  letter-spacing: 0.05em;
 }
 .book-item.current { font-weight: 500; }
+.chapter-grid-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out;
+}
+.book-item.expanded .chapter-grid-wrap {
+  grid-template-rows: 1fr;
+}
 .chapter-grid {
+  overflow: hidden;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   padding: var(--radius) 0 0 0;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+}
+.book-item.expanded .chapter-grid {
+  opacity: 1;
+  transition: opacity 0.2s 0.1s ease-out;
 }
 .chapter-pill {
   width: var(--pad);

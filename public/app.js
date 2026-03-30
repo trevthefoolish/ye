@@ -117,28 +117,6 @@ function closeNav() {
   nav.style.display = 'none';
 }
 
-function buildChapterGrid(item, b) {
-  const curBi = ALL[pos].bi;
-  const curCh = ALL[pos].ch;
-  const grid = document.createElement('div');
-  grid.className = 'chapter-grid';
-  for (let c = 1; c <= CHAPTERS[b]; c++) {
-    const pill = document.createElement('span');
-    pill.className = 'chapter-pill' + (b === curBi && c === curCh + 1 ? ' current' : '');
-    pill.textContent = c;
-    pill.addEventListener('click', ev => {
-      ev.stopPropagation();
-      closeNav();
-      if (b === curBi && c === curCh + 1) return;
-      const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
-      if (np >= 0) { pos = np; navJump(); }
-    });
-    grid.appendChild(pill);
-  }
-  grid.addEventListener('click', e => e.stopPropagation());
-  item.appendChild(grid);
-}
-
 header.addEventListener('click', () => {
   if (sliding) return;
   const curBi = ALL[pos].bi;
@@ -151,30 +129,43 @@ header.addEventListener('click', () => {
     name.className = 'book-name';
     name.textContent = BOOKS[b];
     item.appendChild(name);
+
+    // Build chapter grid (always present, animated via .expanded)
+    const wrap = document.createElement('div');
+    wrap.className = 'chapter-grid-wrap';
+    const grid = document.createElement('div');
+    grid.className = 'chapter-grid';
+    for (let c = 1; c <= CHAPTERS[b]; c++) {
+      const pill = document.createElement('span');
+      pill.className = 'chapter-pill' + (b === curBi && c === curCh + 1 ? ' current' : '');
+      pill.textContent = c;
+      pill.addEventListener('click', ev => {
+        ev.stopPropagation();
+        closeNav();
+        if (b === curBi && c === curCh + 1) return;
+        const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
+        if (np >= 0) { pos = np; navJump(); }
+      });
+      grid.appendChild(pill);
+    }
+    grid.addEventListener('click', e => e.stopPropagation());
+    wrap.appendChild(grid);
+    item.appendChild(wrap);
+
     name.addEventListener('click', e => {
       e.stopPropagation();
-      // Single-chapter books: navigate directly
-      if (CHAPTERS[b] === 1) {
-        if (b === curBi) { closeNav(); return; }
-        closeNav();
-        const np = ALL.findIndex(a => a.bi === b && a.ch === 0);
-        if (np >= 0) { pos = np; navJump(); }
-        return;
-      }
-      // Multi-chapter: toggle chapter grid
-      const existing = item.querySelector('.chapter-grid');
-      if (existing) { existing.remove(); return; }
-      // Collapse any other expanded grid
-      const prev = bookList.querySelector('.chapter-grid');
-      if (prev) prev.remove();
-      buildChapterGrid(item, b);
+      const wasExpanded = item.classList.contains('expanded');
+      // Collapse any other expanded book
+      const prev = bookList.querySelector('.book-item.expanded');
+      if (prev && prev !== item) prev.classList.remove('expanded');
+      item.classList.toggle('expanded', !wasExpanded);
     });
     bookList.appendChild(item);
   }
-  // Auto-expand current book's chapters
+  // Auto-expand current book
   const currentItem = bookList.querySelector('.current');
-  if (currentItem && CHAPTERS[curBi] > 1) {
-    buildChapterGrid(currentItem, curBi);
+  if (currentItem) {
+    currentItem.classList.add('expanded');
   }
   navOpen = true;
   history.pushState({ nav: true, pos }, '');
