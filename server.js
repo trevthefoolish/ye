@@ -8,6 +8,7 @@ const app = express();
 const XAI_API_KEY = process.env.XAI_API_KEY;
 if (!XAI_API_KEY) { console.error('XAI_API_KEY env var is required'); process.exit(1); }
 const RENDERS_DIR = path.join(__dirname, 'renders');
+if (!fs.existsSync(RENDERS_DIR)) fs.mkdirSync(RENDERS_DIR);
 
 const RENDER_MODEL = 'grok-4.20-0309-non-reasoning';
 const SYSTEM_PROMPT = `You are a biblical scholar who helps people see how the Bible is a unified story that leads to Jesus. Your voice is warm, curious, and accessible — like a friend who's deeply studied this stuff and can't wait to show you what they found.
