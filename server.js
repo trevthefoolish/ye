@@ -182,13 +182,29 @@ app.get(`/app.${JS_HASH}.js`, (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
+// --- In-memory cache layer over disk ---
+const memCache = new Map();
+const etagCache = new Map(); // bookIndex:chapterKey → { body, etag }
+
 function loadCache(bookIndex) {
+  if (memCache.has(bookIndex)) return memCache.get(bookIndex);
   const file = path.join(RENDERS_DIR, `${bookIndex}.json`);
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return {}; }
+  let data;
+  try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { data = {}; }
+  memCache.set(bookIndex, data);
+  return data;
 }
 
 function saveCache(bookIndex, cache) {
-  fs.writeFileSync(path.join(RENDERS_DIR, `${bookIndex}.json`), JSON.stringify(cache, null, 2));
+  memCache.set(bookIndex, cache);
+  // Invalidate pre-computed ETags for this book
+  for (const key of etagCache.keys()) {
+    if (key.startsWith(bookIndex + ':')) etagCache.delete(key);
+  }
+  fs.promises.writeFile(
+    path.join(RENDERS_DIR, `${bookIndex}.json`),
+    JSON.stringify(cache, null, 2)
+  ).catch(err => console.error('cache write failed:', err));
 }
 
 async function renderVerse(book, chapter, verse) {
@@ -289,16 +305,20 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
     }
   }
 
-  // Render missing verses in parallel
+  // Render missing verses in batches (limit concurrency to avoid API rate limits)
   if (missing.length > 0) {
-    const results = await Promise.allSettled(
-      missing.map(v => renderVerse(book, chNum, v + 1).then(r => ({ v, r })))
-    );
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        const { v, r } = result.value;
-        verses[v] = { rendering: r.rendering, note: r.note };
-        cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
+    const CONCURRENCY = 8;
+    for (let i = 0; i < missing.length; i += CONCURRENCY) {
+      const batch = missing.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(v => renderVerse(book, chNum, v + 1).then(r => ({ v, r })))
+      );
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const { v, r } = result.value;
+          verses[v] = { rendering: r.rendering, note: r.note };
+          cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
+        }
       }
     }
     saveCache(bookIndex, cache);
@@ -306,12 +326,18 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 
   const body = JSON.stringify({ verses });
 
-  // Cache fully-rendered chapters (no missing verses = deterministic response)
+  // Cache fully-rendered chapters with pre-computed ETag
   if (missing.length === 0) {
-    const etag = '"' + crypto.createHash('sha256').update(body).digest('hex').slice(0, 16) + '"';
+    const cacheKey = `${bookIndex}:${chNum}`;
+    let cached = etagCache.get(cacheKey);
+    if (!cached || cached.body !== body) {
+      const etag = '"' + crypto.createHash('sha256').update(body).digest('hex').slice(0, 16) + '"';
+      cached = { body, etag };
+      etagCache.set(cacheKey, cached);
+    }
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.setHeader('ETag', etag);
-    if (req.headers['if-none-match'] === etag) {
+    res.setHeader('ETag', cached.etag);
+    if (req.headers['if-none-match'] === cached.etag) {
       return res.status(304).end();
     }
   }
@@ -320,6 +346,7 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 });
 
 app.get('/api/version', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=86400');
   res.json({ version: RENDER_VERSION, model: RENDER_MODEL });
 });
 

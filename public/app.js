@@ -11,6 +11,32 @@ function fromSlug(slug) { return slug.replace(/-/g, ' '); }
 
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 
+// --- Client-side chapter cache + request deduplication ---
+const chapterCache = new Map();
+const inflightFetches = new Map();
+
+function fetchChapter(bookName, chNum) {
+  const key = `${bookName}/${chNum}`;
+  if (chapterCache.has(key)) return Promise.resolve(chapterCache.get(key));
+  if (inflightFetches.has(key)) return inflightFetches.get(key);
+  const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}`)
+    .then(res => {
+      if (!res.ok) throw new Error('fetch failed');
+      return res.json();
+    })
+    .then(data => {
+      if (data.verses?.length) chapterCache.set(key, data);
+      inflightFetches.delete(key);
+      return data;
+    })
+    .catch(err => {
+      inflightFetches.delete(key);
+      throw err;
+    });
+  inflightFetches.set(key, promise);
+  return promise;
+}
+
 function posFromPath() {
   try {
     const parts = decodeURIComponent(window.location.pathname).split('/').filter(Boolean);
@@ -111,10 +137,9 @@ async function fillPanel(panel, p) {
   const chNum = e.ch + 1;
 
   try {
-    const res = await fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}`);
+    const data = await fetchChapter(bookName, chNum);
     if (stale()) return;
-    if (!res.ok) throw new Error('fetch failed');
-    const { verses } = await res.json();
+    const { verses } = data;
     if (stale()) return;
     if (!verses || verses.length === 0) {
       const msg = document.createElement('div');
