@@ -65,7 +65,7 @@ const bookList = document.getElementById('book-list');
 const panels = Array.from(track.children);
 
 function lbl(p) { const e = ALL[p]; return BOOKS[e.bi] + ' ' + (e.ch + 1); }
-function updateHeader(animate) {
+function updateHeader() {
   const e = ALL[pos];
   const text = lbl(pos);
   document.title = text;
@@ -73,15 +73,7 @@ function updateHeader(animate) {
   if (window.location.pathname !== url) {
     history.pushState({ pos }, '', url);
   }
-  if (animate && header.textContent && header.textContent !== text) {
-    header.style.opacity = '0';
-    setTimeout(() => {
-      header.textContent = text;
-      header.style.opacity = '1';
-    }, 100);
-  } else {
-    header.textContent = text;
-  }
+  header.textContent = text;
 }
 
 // Scroll-linked header shadow
@@ -248,7 +240,7 @@ function fillAllPanels() {
   fillPanel(panels[1], pos);
   fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
   resetTrack();
-  updateHeader(true);
+  updateHeader();
   bindScrollShadow();
 }
 
@@ -346,7 +338,7 @@ function slideTo(dir, velocity) {
     track.removeEventListener('transitionend', onDone);
 
     pos = np;
-    updateHeader(true);
+    updateHeader();
 
     if (dir === 1) {
       track.appendChild(panels[0]);
