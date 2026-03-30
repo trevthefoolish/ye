@@ -358,8 +358,14 @@ const INDEX_HTML = fs.readFileSync(path.join(__dirname, 'public', 'index.html'),
   .replace('<!--PRELOAD-->', `<link rel="preload" href="/app.${JS_HASH}.js" as="script">`);
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 
+const DEFAULT_DESC = 'The Bible rendered in modern English. Every verse, every note, illuminated.';
+const ORIGIN = 'https://vapourware.ai';
+
 app.get('{*path}', (req, res) => {
   let title = 'vapourware.ai';
+  let ogTitle = 'vapourware.ai';
+  let desc = DEFAULT_DESC;
+  let canonical = ORIGIN;
   try {
     const parts = decodeURIComponent(req.path).split('/').filter(Boolean);
     if (parts.length === 2) {
@@ -367,11 +373,27 @@ app.get('{*path}', (req, res) => {
       const ch = parseInt(parts[1]);
       const bi = BOOKS_LOWER.indexOf(bookName.toLowerCase());
       if (bi !== -1 && ch >= 1 && ch <= (VERSES[bi]?.length || 0)) {
-        title = BOOKS[bi] + ' ' + ch;
+        const book = BOOKS[bi];
+        title = book + ' ' + ch;
+        ogTitle = book + ' ' + ch;
+        canonical = ORIGIN + '/' + parts[0].toLowerCase() + '/' + ch;
+        // Pull first verse rendering from cache for a real description
+        const cache = loadCache(bi);
+        const firstVerse = cache[`${ch - 1}:0`];
+        if (firstVerse && firstVerse.rendering && firstVerse.v === RENDER_VERSION) {
+          desc = firstVerse.rendering;
+        } else {
+          desc = book + ' ' + ch + ', rendered in modern English with scholarly notes.';
+        }
       }
     }
   } catch {}
-  res.type('html').send(INDEX_HTML.replace('<title>vapourware.ai</title>', '<title>' + escapeHtml(title) + '</title>'));
+  const html = INDEX_HTML
+    .replace('<title>vapourware.ai</title>', '<title>' + escapeHtml(title) + '</title>')
+    .replace(/__OG_TITLE__/g, escapeHtml(ogTitle))
+    .replace(/__META_DESC__/g, escapeHtml(desc))
+    .replace(/__CANONICAL__/g, escapeHtml(canonical));
+  res.type('html').send(html);
 });
 
 const PORT = process.env.PORT || 3000;

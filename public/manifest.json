@@ -1,0 +1,13 @@
+{
+  "name": "vapourware.ai",
+  "short_name": "vapourware",
+  "description": "The Bible rendered in modern English",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e9e9eb",
+  "theme_color": "#e9e9eb",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
