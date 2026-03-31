@@ -62,6 +62,12 @@ function sanitize(data) {
 
 const analyticsRouter = express.Router();
 
+function parseCookie(header, name) {
+  if (!header) return null;
+  const match = header.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 analyticsRouter.post('/api/ev', express.json({ limit: '1kb' }), (req, res) => {
   const { type, ...data } = req.body || {};
   if (!VALID_TYPES.has(type)) return res.status(400).end();
@@ -69,11 +75,20 @@ analyticsRouter.post('/api/ev', express.json({ limit: '1kb' }), (req, res) => {
 
   const anonId = crypto.createHash('sha256').update(req.ip + dateStr()).digest('hex').slice(0, 8);
 
+  // Session cookie: reuse existing or generate new
+  let sid = parseCookie(req.headers.cookie, 'sid');
+  if (!sid || !/^[0-9a-f]{8}$/.test(sid)) {
+    sid = crypto.randomBytes(4).toString('hex');
+  }
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  res.setHeader('Set-Cookie', 'sid=' + sid + '; Path=/api/ev; Max-Age=1800; HttpOnly; SameSite=Strict' + secure);
+
   writeLine(ANALYTICS_DIR, {
     ts: new Date().toISOString(),
     source: 'analytics',
     type,
     aid: anonId,
+    sid,
     ...sanitize(data),
   });
   res.status(204).end();
@@ -87,4 +102,4 @@ setInterval(() => {
   cleanupLogs(ANALYTICS_DIR, 30);
 }, 86400000);
 
-module.exports = { log, logRouter, analyticsRouter };
+module.exports = { log, logRouter, analyticsRouter, parseCookie };

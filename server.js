@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { minify } = require('terser');
-const { log, logRouter, analyticsRouter } = require('./logger');
+const { log, logRouter, analyticsRouter, parseCookie } = require('./logger');
 const createRateLimiter = require('./rateLimit');
 
 // --- App version ---
@@ -85,6 +85,8 @@ const RENDER_VERSION = crypto
   .digest('hex')
   .slice(0, 12);
 
+function toSlug(name) { return name.toLowerCase().replace(/ /g, '-'); }
+
 function cleanText(s) {
   return s.replaceAll('\u2014', ', ').replaceAll('vapor', 'vapour');
 }
@@ -126,7 +128,7 @@ app.get('/sitemap.xml', (req, res) => {
   if (!sitemapCache) {
     const urls = ['  <url><loc>https://www.vapourware.ai/</loc></url>'];
     for (let b = 0; b < BOOKS.length; b++) {
-      const slug = BOOKS[b].toLowerCase().replace(/ /g, '-');
+      const slug = toSlug(BOOKS[b]);
       for (let c = 1; c <= CHAPTERS[b]; c++) {
         urls.push(`  <url><loc>https://www.vapourware.ai/${slug}/${c}</loc></url>`);
       }
@@ -378,6 +380,22 @@ function buildJsonLd(bookName, chNum, slug, canonical) {
 }
 
 app.get('{*path}', (req, res) => {
+  // Redirect root visits to remembered chapter
+  const rawPath = decodeURIComponent(req.path);
+  const pathParts = rawPath.split('/').filter(Boolean);
+  if (pathParts.length === 0) {
+    const lastPos = parseCookie(req.headers.cookie, 'lastPos');
+    if (lastPos) {
+      const [biStr, chStr] = lastPos.split(':');
+      const bi = parseInt(biStr);
+      const ch = parseInt(chStr);
+      if (Number.isFinite(bi) && bi >= 0 && bi < BOOKS.length
+          && Number.isFinite(ch) && ch >= 0 && ch < CHAPTERS[bi]) {
+        return res.redirect(302, '/' + toSlug(BOOKS[bi]) + '/' + (ch + 1));
+      }
+    }
+  }
+
   let title = 'vapourware.ai';
   let ogTitle = 'vapourware.ai';
   let desc = DEFAULT_DESC;
@@ -385,7 +403,7 @@ app.get('{*path}', (req, res) => {
   let preloadData = '';
   let jsonLd = buildJsonLd();
   try {
-    const parts = decodeURIComponent(req.path).split('/').filter(Boolean);
+    const parts = pathParts.length ? pathParts : decodeURIComponent(req.path).split('/').filter(Boolean);
     if (parts.length === 2) {
       const ref = resolveChapter(parts[0], parts[1]);
       if (ref) {

@@ -75,7 +75,7 @@ function onTransition(el, prop, timeoutMs, fn) {
   }, timeoutMs);
 }
 
-function toSlug(name) { return name.replace(/ /g, '-'); }
+function toSlug(name) { return name.toLowerCase().replace(/ /g, '-'); }
 function fromSlug(slug) { return slug.replace(/-/g, ' '); }
 
 const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
@@ -129,6 +129,17 @@ function posFromPath() {
       }
     }
   } catch (e) { reportError('url_parse', e.message); }
+  // Try restoring last position from cookie before falling back to default
+  try {
+    const m = document.cookie.match(/(?:^|;\s*)lastPos=(\d+):(\d+)/);
+    if (m) {
+      const bi = parseInt(m[1]), ch = parseInt(m[2]);
+      if (bi >= 0 && bi < BOOKS.length && ch >= 0 && ch < CHAPTERS[bi]) {
+        const idx = ALL.findIndex(a => a.bi === bi && a.ch === ch);
+        if (idx >= 0) return idx;
+      }
+    }
+  } catch {}
   return ALL.findIndex(a => a.bi === 20 && a.ch === 0); // default: Ecclesiastes 1
 }
 
@@ -153,6 +164,7 @@ function updateHeader() {
     history.pushState({ pos }, '', url);
   }
   header.textContent = text;
+  document.cookie = 'lastPos=' + e.bi + ':' + e.ch + ';path=/;max-age=31536000;SameSite=Lax' + (location.protocol === 'https:' ? ';Secure' : '');
   viewCount++;
   ev('view', { book: BOOKS[e.bi], ch: e.ch + 1 });
 }
