@@ -205,7 +205,6 @@ body {
 
 /* Nav (fullscreen overlay) */
 #nav {
-  display: none;
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   overflow-y: auto;
@@ -214,6 +213,19 @@ body {
   padding: 0 var(--pad);
   background: var(--bg);
   z-index: 20;
+  visibility: hidden;
+}
+#nav.open, #nav.curtain {
+  visibility: visible;
+}
+#book-list {
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+#nav.open #book-list {
+  opacity: 1;
+  transform: translateY(0);
 }
 #nav::before {
   content: '';
@@ -280,7 +292,9 @@ body {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   color: var(--text-muted);
+  transition: transform 0.1s ease-out, background 0.1s ease-out;
 }
+.chapter-pill:active { transform: scale(0.85); background: var(--text-muted); }
 .chapter-pill.current { font-weight: 500; color: var(--text); }
 .nav-spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); }
 

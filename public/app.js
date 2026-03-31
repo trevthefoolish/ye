@@ -131,12 +131,25 @@ function bindScrollShadow() {
 // --- NAV ---
 var navOpen = false;
 function closeNav() {
+  if (!navOpen) return;
   navOpen = false;
-  nav.style.display = 'none';
+  nav.classList.remove('open');
+  nav.classList.add('curtain');
+  function onFaded(e) {
+    if (e && e.propertyName !== 'opacity') return;
+    bookList.removeEventListener('transitionend', onFaded);
+    clearTimeout(safety);
+    if (!navOpen) nav.classList.remove('curtain');
+  }
+  bookList.addEventListener('transitionend', onFaded);
+  const safety = setTimeout(() => {
+    bookList.removeEventListener('transitionend', onFaded);
+    if (!navOpen) nav.classList.remove('curtain');
+  }, 250);
 }
 
 header.addEventListener('click', () => {
-  if (sliding) return;
+  if (sliding || navOpen) return;
   const curBi = ALL[pos].bi;
   const curCh = ALL[pos].ch;
   bookList.replaceChildren();
@@ -159,10 +172,32 @@ header.addEventListener('click', () => {
       pill.textContent = c;
       pill.addEventListener('click', e => {
         e.stopPropagation();
-        closeNav();
-        if (b === curBi && c === curCh + 1) return;
+        if (b === curBi && c === curCh + 1) { closeNav(); return; }
         const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
-        if (np >= 0) { pos = np; ev('nav', { method: 'tap' }); navJump(); }
+        if (np < 0) return;
+        navOpen = false;
+        if (reduceMotion) {
+          nav.classList.remove('open', 'curtain');
+          pos = np; ev('nav', { method: 'tap' }); saveCurrentScroll(); fillAllPanels();
+          return;
+        }
+        // Fade out book list on opaque curtain
+        nav.classList.remove('open');
+        nav.classList.add('curtain');
+        function onHidden(evt) {
+          if (evt && evt.propertyName !== 'opacity') return;
+          bookList.removeEventListener('transitionend', onHidden);
+          clearTimeout(safetyId);
+          // Swap content behind the opaque curtain
+          pos = np; ev('nav', { method: 'tap' }); saveCurrentScroll(); fillAllPanels();
+          // Lift the curtain to reveal new content
+          requestAnimationFrame(() => { nav.classList.remove('curtain'); });
+        }
+        bookList.addEventListener('transitionend', onHidden);
+        const safetyId = setTimeout(() => {
+          bookList.removeEventListener('transitionend', onHidden);
+          onHidden();
+        }, 250);
       });
       grid.appendChild(pill);
     }
@@ -179,6 +214,17 @@ header.addEventListener('click', () => {
       if (prev && prev !== item) { prev.classList.remove('expanded'); prev.setAttribute('aria-expanded', 'false'); }
       item.classList.toggle('expanded', !wasExpanded);
       item.setAttribute('aria-expanded', String(!wasExpanded));
+      // Scroll newly expanded book into view after grid animation
+      if (!wasExpanded) {
+        const onDone = (ev) => {
+          if (ev && ev.propertyName !== 'grid-template-rows') return;
+          wrap.removeEventListener('transitionend', onDone);
+          clearTimeout(safetyId);
+          item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        };
+        wrap.addEventListener('transitionend', onDone);
+        const safetyId = setTimeout(() => { wrap.removeEventListener('transitionend', onDone); item.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 350);
+      }
     });
     bookList.appendChild(item);
   }
@@ -190,7 +236,9 @@ header.addEventListener('click', () => {
   }
   navOpen = true;
   history.pushState({ nav: true, pos }, '');
-  nav.style.display = 'block';
+  nav.scrollTop = 0;
+  nav.classList.remove('curtain');
+  nav.classList.add('open');
   if (currentItem) currentItem.scrollIntoView({ block: 'center' });
 });
 
