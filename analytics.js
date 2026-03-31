@@ -3,57 +3,21 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
+const createRateLimiter = require('./rateLimit');
+const { dateStr, cleanupLogs } = require('./logUtils');
 
 const LOG_DIR = path.join(__dirname, 'logs', 'analytics');
 const RETENTION_DAYS = 30;
-const RATE_WINDOW_MS = 60000;
-const RATE_LIMIT = 60;
 
 const VALID_TYPES = new Set(['view', 'nav', 'session', 'perf', 'error']);
 
 fs.mkdirSync(LOG_DIR, { recursive: true });
 
-function dateStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-// Rate limiting per hashed IP
-const rateMap = new Map();
-
-function checkRate(ip) {
-  const now = Date.now();
-  let entry = rateMap.get(ip);
-  if (!entry || now - entry.start > RATE_WINDOW_MS) {
-    entry = { start: now, count: 0 };
-    rateMap.set(ip, entry);
-  }
-  entry.count++;
-  return entry.count <= RATE_LIMIT;
-}
-
-// Cleanup stale rate entries every 5 minutes
-setInterval(() => {
-  const cutoff = Date.now() - RATE_WINDOW_MS;
-  for (const [ip, entry] of rateMap) {
-    if (entry.start < cutoff) rateMap.delete(ip);
-  }
-}, 300000);
+const checkRate = createRateLimiter(60000, 60);
 
 // Cleanup old log files
-function cleanup() {
-  const cutoff = Date.now() - RETENTION_DAYS * 86400000;
-  try {
-    for (const f of fs.readdirSync(LOG_DIR)) {
-      if (!f.endsWith('.jsonl')) continue;
-      const d = new Date(f.replace('.jsonl', ''));
-      if (d.getTime() < cutoff) {
-        fs.unlinkSync(path.join(LOG_DIR, f));
-      }
-    }
-  } catch {}
-}
-cleanup();
-setInterval(cleanup, 86400000);
+cleanupLogs(LOG_DIR, RETENTION_DAYS);
+setInterval(() => cleanupLogs(LOG_DIR, RETENTION_DAYS), 86400000);
 
 const router = express.Router();
 

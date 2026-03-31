@@ -7,6 +7,7 @@ const path = require('path');
 const { minify } = require('terser');
 const { log, router: logRouter } = require('./logger');
 const analyticsRouter = require('./analytics');
+const createRateLimiter = require('./rateLimit');
 
 // --- App version ---
 const APP_VERSION = require('./package.json').version;
@@ -257,31 +258,15 @@ async function renderVerse(book, chapter, verse) {
 }
 
 // --- Rate limiting ---
-const rateMap = new Map();
+const checkApiRate = createRateLimiter(RATE_WINDOW_MS, RATE_LIMIT, RATE_CLEANUP_MS);
 
 function rateLimit(req, res) {
-  const ip = req.ip;
-  const now = Date.now();
-  let entry = rateMap.get(ip);
-  if (!entry || now - entry.start > RATE_WINDOW_MS) {
-    entry = { start: now, count: 0 };
-    rateMap.set(ip, entry);
-  }
-  entry.count++;
-  if (entry.count > RATE_LIMIT) {
+  if (!checkApiRate(req.ip)) {
     res.status(429).json({ error: 'too many requests' });
     return false;
   }
   return true;
 }
-
-// Clean stale entries every 5 minutes
-setInterval(() => {
-  const cutoff = Date.now() - RATE_WINDOW_MS;
-  for (const [ip, entry] of rateMap) {
-    if (entry.start < cutoff) rateMap.delete(ip);
-  }
-}, RATE_CLEANUP_MS);
 
 app.get('/api/chapter/:book/:chapter', async (req, res) => {
   if (!rateLimit(req, res)) return;

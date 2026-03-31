@@ -3,6 +3,38 @@ const { books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION } = JSON.parse(
   document.getElementById('config').textContent
 );
 
+// --- Symmetry engine: read all design tokens once at startup ---
+const SYM = (() => {
+  const s = getComputedStyle(document.documentElement);
+  const v = n => s.getPropertyValue(n).trim();
+  const f = n => parseFloat(v(n));
+  return Object.freeze({
+    durBlink: f('--dur-blink'),
+    durBreath: f('--dur-breath'), durSettle: f('--dur-settle'),
+    delayStagger: f('--delay-stagger'),
+    slideDurMin: f('--slide-dur-min'), slideDurMax: f('--slide-dur-max'),
+    springDur: f('--spring-dur'), safetyPad: f('--safety-pad'),
+    navFadeOut: f('--nav-fade-out'), navFadeIn: f('--nav-fade-in'),
+    easeOut: v('--ease-out'), easeSpring: v('--ease-spring'), easeSlide: v('--ease-slide'),
+    easeFlick: v('--ease-flick'), easeToss: v('--ease-toss'),
+    easeSnap: v('--ease-snap'),
+    depthInScale: f('--depth-in-scale'), depthOutScale: f('--depth-out-scale'),
+    depthOutDim: f('--depth-out-dim'), depthShadowX: f('--depth-shadow-x'),
+    depthShadowBlur: f('--depth-shadow-blur'),
+    depthShadowOpacity: f('--depth-shadow-opacity'),
+    depthShadowMin: f('--depth-shadow-min'),
+    swipeDirThreshold: f('--swipe-dir-threshold'),
+    swipeCommitSlow: f('--swipe-commit-slow'),
+    swipeCommitRange: f('--swipe-commit-range'),
+    rubberBandFactor: f('--rubber-band-factor'),
+    edgeGlowMax: f('--edge-glow-max'), edgeGlowDivisor: f('--edge-glow-divisor'),
+    velSlow: f('--vel-slow'), velFast: f('--vel-fast'),
+    velFlick: f('--vel-flick'), velToss: f('--vel-toss'),
+    velDurBase: f('--vel-dur-base'), velDurScale: f('--vel-dur-scale'),
+    opacitySmoke: f('--opacity-smoke'),
+  });
+})();
+
 // --- Analytics & error reporting ---
 let viewCount = 0;
 function beacon(url, payload) {
@@ -25,15 +57,23 @@ const TOTAL = ALL.length;
 // --- Constants ---
 const PREFETCH_DISTANCE = 2;
 const SCROLL_LRU_MAX = 50;
-const SWIPE_DIR_THRESHOLD = 6;
-const SWIPE_COMMIT_SLOW = 0.15;
-const SWIPE_COMMIT_RANGE = 0.07;
 const SKELETON_WIDTHS = [100, 85, 92, 78, 95, 60];
 const TRACK_CENTER = 'translateX(-33.333%)';
-const SPRING_DURATION = 0.4;
-const SPRING_EASING = 'cubic-bezier(0.25,0.46,0.45,0.94)';
-const SLIDE_DUR_MIN = 0.12;
-const SLIDE_DUR_MAX = 0.35;
+
+// Transition helper: fire fn on transitionend (filtered by prop) or safety timeout
+function onTransition(el, prop, timeoutMs, fn) {
+  function handler(e) {
+    if (e && prop && e.propertyName !== prop) return;
+    el.removeEventListener('transitionend', handler);
+    clearTimeout(safety);
+    fn();
+  }
+  el.addEventListener('transitionend', handler);
+  const safety = setTimeout(() => {
+    el.removeEventListener('transitionend', handler);
+    fn();
+  }, timeoutMs);
+}
 
 function toSlug(name) { return name.replace(/ /g, '-'); }
 function fromSlug(slug) { return slug.replace(/-/g, ' '); }
@@ -51,7 +91,7 @@ function fetchChapter(bookName, chNum) {
   if (inflightFetches.has(key)) return inflightFetches.get(key);
   const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}?v=${RENDER_VERSION}`)
     .then(res => {
-      if (!res.ok) throw new Error('fetch failed');
+      if (!res.ok) throw new Error(`fetch ${res.status}`);
       return res.json();
     })
     .then(data => {
@@ -89,12 +129,11 @@ function posFromPath() {
       }
     }
   } catch (e) { reportError('url_parse', e.message); }
-  return ALL.findIndex(a => a.bi === 20 && a.ch === 0);
+  return ALL.findIndex(a => a.bi === 20 && a.ch === 0); // default: Ecclesiastes 1
 }
 
 let pos = posFromPath();
 let sliding = false;
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const track = document.getElementById('swipe-track');
 const container = document.getElementById('swipe-container');
@@ -119,33 +158,28 @@ function updateHeader() {
 }
 
 // Scroll-linked header shadow
+let scrollAC;
 function bindScrollShadow() {
+  if (scrollAC) scrollAC.abort();
+  scrollAC = new AbortController();
   const scrollEl = panels[1].querySelector('.chapter-scroll');
   if (!scrollEl) return;
   header.classList.toggle('scrolled', scrollEl.scrollTop > 0);
   scrollEl.addEventListener('scroll', () => {
     header.classList.toggle('scrolled', scrollEl.scrollTop > 0);
-  }, { passive: true });
+  }, { passive: true, signal: scrollAC.signal });
 }
 
 // --- NAV ---
-var navOpen = false;
+let navOpen = false;
 function closeNav() {
   if (!navOpen) return;
   navOpen = false;
   nav.classList.remove('open');
   nav.classList.add('curtain');
-  function onFaded(e) {
-    if (e && e.propertyName !== 'opacity') return;
-    bookList.removeEventListener('transitionend', onFaded);
-    clearTimeout(safety);
+  onTransition(bookList, 'opacity', (SYM.durBreath + SYM.delayStagger) * 1000 + SYM.safetyPad, () => {
     if (!navOpen) nav.classList.remove('curtain');
-  }
-  bookList.addEventListener('transitionend', onFaded);
-  const safety = setTimeout(() => {
-    bookList.removeEventListener('transitionend', onFaded);
-    if (!navOpen) nav.classList.remove('curtain');
-  }, 250);
+  });
 }
 
 header.addEventListener('click', () => {
@@ -176,28 +210,13 @@ header.addEventListener('click', () => {
         const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
         if (np < 0) return;
         navOpen = false;
-        if (reduceMotion) {
-          nav.classList.remove('open', 'curtain');
-          pos = np; ev('nav', { method: 'tap' }); saveCurrentScroll(); fillAllPanels();
-          return;
-        }
         // Fade out book list on opaque curtain
         nav.classList.remove('open');
         nav.classList.add('curtain');
-        function onHidden(evt) {
-          if (evt && evt.propertyName !== 'opacity') return;
-          bookList.removeEventListener('transitionend', onHidden);
-          clearTimeout(safetyId);
-          // Swap content behind the opaque curtain
+        onTransition(bookList, 'opacity', (SYM.durBreath + SYM.delayStagger) * 1000 + SYM.safetyPad, () => {
           pos = np; ev('nav', { method: 'tap' }); saveCurrentScroll(); fillAllPanels();
-          // Lift the curtain to reveal new content
           requestAnimationFrame(() => { nav.classList.remove('curtain'); });
-        }
-        bookList.addEventListener('transitionend', onHidden);
-        const safetyId = setTimeout(() => {
-          bookList.removeEventListener('transitionend', onHidden);
-          onHidden();
-        }, 250);
+        });
       });
       grid.appendChild(pill);
     }
@@ -205,25 +224,18 @@ header.addEventListener('click', () => {
     wrap.appendChild(grid);
     item.appendChild(wrap);
 
-    item.setAttribute('aria-expanded', 'false');
     name.addEventListener('click', e => {
       e.stopPropagation();
       const wasExpanded = item.classList.contains('expanded');
       // Collapse any other expanded book
       const prev = bookList.querySelector('.book-item.expanded');
-      if (prev && prev !== item) { prev.classList.remove('expanded'); prev.setAttribute('aria-expanded', 'false'); }
+      if (prev && prev !== item) { prev.classList.remove('expanded'); }
       item.classList.toggle('expanded', !wasExpanded);
-      item.setAttribute('aria-expanded', String(!wasExpanded));
       // Scroll newly expanded book into view after grid animation
       if (!wasExpanded) {
-        const onDone = (ev) => {
-          if (ev && ev.propertyName !== 'grid-template-rows') return;
-          wrap.removeEventListener('transitionend', onDone);
-          clearTimeout(safetyId);
+        onTransition(wrap, 'grid-template-rows', SYM.durSettle * 1000 + SYM.safetyPad, () => {
           item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        };
-        wrap.addEventListener('transitionend', onDone);
-        const safetyId = setTimeout(() => { wrap.removeEventListener('transitionend', onDone); item.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 350);
+        });
       }
     });
     bookList.appendChild(item);
@@ -232,7 +244,6 @@ header.addEventListener('click', () => {
   const currentItem = bookList.querySelector('.current');
   if (currentItem) {
     currentItem.classList.add('expanded');
-    currentItem.setAttribute('aria-expanded', 'true');
   }
   navOpen = true;
   history.pushState({ nav: true, pos }, '');
@@ -260,17 +271,17 @@ function renderVersesInto(scroll, verses) {
     nInner.textContent = v.note;
     nEl.appendChild(nInner);
     wrap.appendChild(nEl);
-    wrap.setAttribute('aria-expanded', 'false');
     wrap.addEventListener('click', () => {
       if (sliding || touch.horiz) return;
-      const expanded = wrap.classList.toggle('expanded');
-      wrap.setAttribute('aria-expanded', String(expanded));
+      wrap.classList.toggle('expanded');
     });
     scroll.appendChild(wrap);
   }
   const copy = document.createElement('p');
   copy.className = 'copyright';
-  copy.innerHTML = '\u00A9 2026 vapourware.ai<br>All rights reserved.';
+  copy.textContent = '\u00A9 2026 vapourware.ai';
+  copy.appendChild(document.createElement('br'));
+  copy.appendChild(document.createTextNode('All rights reserved.'));
   scroll.appendChild(copy);
   const spacer = document.createElement('div');
   spacer.className = 'spacer';
@@ -295,7 +306,6 @@ async function fillPanel(panel, p) {
   const key = `${bookName}/${chNum}`;
   const willFade = !chapterCache.has(key);
   if (willFade) {
-    scroll.setAttribute('aria-busy', 'true');
     for (let i = 0; i < SKELETON_WIDTHS.length; i++) {
       const line = document.createElement('div');
       line.className = 'skeleton-line';
@@ -317,7 +327,6 @@ async function fillPanel(panel, p) {
       scroll.appendChild(msg);
       return;
     }
-    scroll.removeAttribute('aria-busy');
     scroll.replaceChildren();
     renderVersesInto(scroll, verses);
     // Restore saved scroll position
@@ -326,8 +335,8 @@ async function fillPanel(panel, p) {
     // Fade in content that was behind a skeleton
     if (willFade) {
       scroll.style.opacity = '0';
-      scroll.offsetWidth;
-      scroll.style.transition = 'opacity 0.2s ease-out';
+      scroll.offsetWidth; // force reflow so transition plays from opacity:0
+      scroll.style.transition = 'opacity ' + SYM.durBreath + 's ' + SYM.easeOut;
       scroll.style.opacity = '1';
       scroll.addEventListener('transitionend', () => {
         scroll.style.transition = '';
@@ -358,14 +367,13 @@ function saveCurrentScroll() {
 const reading = document.getElementById('reading');
 function navJump() {
   saveCurrentScroll();
-  if (reduceMotion) { fillAllPanels(); return; }
-  reading.style.transition = 'opacity 0.15s ease-out';
+  reading.style.transition = 'opacity ' + SYM.navFadeOut + 's ' + SYM.easeOut;
   reading.style.opacity = '0';
   setTimeout(() => {
     fillAllPanels();
-    reading.style.transition = 'opacity 0.2s ease-out';
+    reading.style.transition = 'opacity ' + SYM.navFadeIn + 's ' + SYM.easeOut;
     reading.style.opacity = '1';
-  }, 150);
+  }, SYM.navFadeOut * 1000);
 }
 
 // Fill all 3 panels from scratch (used for init + nav jumps)
@@ -383,13 +391,13 @@ function fillAllPanels() {
 function resetTrack() {
   track.style.transition = 'none';
   track.style.transform = TRACK_CENTER;
-  track.offsetWidth; // force reflow
+  track.offsetWidth; // force reflow so 'transition:none' is flushed before next frame
 }
 
 function springBack() {
-  track.style.transition = 'transform ' + SPRING_DURATION + 's ' + SPRING_EASING;
+  track.style.transition = 'transform ' + SYM.springDur + 's ' + SYM.easeSpring;
   track.style.transform = TRACK_CENTER;
-  setPanelTransitions(SPRING_DURATION);
+  setPanelTransitions(SYM.springDur);
   clearPanelEffects();
 }
 
@@ -400,24 +408,23 @@ function atBoundary(p, dx) {
 // --- GPU EFFECTS ---
 
 function applyPanelEffects(progress) {
-  if (reduceMotion) return;
   const abs = Math.min(Math.abs(progress), 1);
   const dir = progress < 0 ? 1 : -1; // 1 = forward, -1 = back
   const inIdx = dir === 1 ? 2 : 0;
   const outIdx = dir === 1 ? 0 : 2;
 
-  // Incoming: scale 0.92→1, opacity 0.6→1
-  panels[inIdx].style.transform = 'translateZ(0) scale(' + (0.92 + abs * 0.08) + ')';
-  panels[inIdx].style.opacity = 0.6 + abs * 0.4;
+  // Incoming: scale depthInScale→1, opacity smoke→1
+  panels[inIdx].style.transform = 'translateZ(0) scale(' + (SYM.depthInScale + abs * (1 - SYM.depthInScale)) + ')';
+  panels[inIdx].style.opacity = SYM.opacitySmoke + abs * (1 - SYM.opacitySmoke);
 
-  // Outgoing: scale 1→0.96, dim
-  panels[outIdx].style.transform = 'translateZ(0) scale(' + (1 - abs * 0.04) + ')';
-  panels[outIdx].style.filter = 'brightness(' + (1 - abs * 0.15) + ')';
+  // Outgoing: scale 1→depthOutScale, dim to depthOutDim
+  panels[outIdx].style.transform = 'translateZ(0) scale(' + (1 - abs * (1 - SYM.depthOutScale)) + ')';
+  panels[outIdx].style.filter = 'brightness(' + (1 - abs * (1 - SYM.depthOutDim)) + ')';
 
   // Current: directional shadow
-  const shadowX = progress * 8;
-  panels[1].style.boxShadow = abs > 0.02
-    ? shadowX + 'px 0 ' + (16 * abs) + 'px rgba(0,0,0,' + (0.12 * abs) + ')'
+  const shadowX = progress * SYM.depthShadowX;
+  panels[1].style.boxShadow = abs > SYM.depthShadowMin
+    ? shadowX + 'px 0 ' + (SYM.depthShadowBlur * abs) + 'px rgba(0,0,0,' + (SYM.depthShadowOpacity * abs) + ')'
     : 'none';
 }
 
@@ -432,8 +439,7 @@ function clearPanelEffects() {
 }
 
 function setPanelTransitions(dur) {
-  if (reduceMotion) return;
-  const t = 'transform ' + dur + 's ease-out, opacity ' + dur + 's ease-out, filter ' + dur + 's ease-out, box-shadow ' + dur + 's ease-out';
+  const t = 'transform ' + dur + 's ' + SYM.easeOut + ', opacity ' + dur + 's ' + SYM.easeOut + ', filter ' + dur + 's ' + SYM.easeOut + ', box-shadow ' + dur + 's ' + SYM.easeOut;
   for (let i = 0; i < 3; i++) panels[i].style.transition = t;
 }
 
@@ -446,34 +452,27 @@ function slideTo(dir, velocity) {
 
   // Scale duration with velocity: fast flick ~150ms, slow drag ~300ms
   const vel = velocity || 0;
-  const dur = Math.max(SLIDE_DUR_MIN, Math.min(SLIDE_DUR_MAX, 0.3 / (1 + vel * 2)));
+  const dur = Math.max(SYM.slideDurMin, Math.min(SYM.slideDurMax, SYM.velDurBase / (1 + vel * SYM.velDurScale)));
 
   // Velocity-dependent spring curves
-  let ease = 'cubic-bezier(0.16,1,0.3,1)';
-  if (!reduceMotion) {
-    if (vel > 0.6) ease = 'cubic-bezier(0.22,1.15,0.36,1)';
-    else if (vel > 0.2) ease = 'cubic-bezier(0.175,0.885,0.32,1.05)';
-  }
+  let ease = SYM.easeSlide;
+  if (vel > SYM.velFlick) ease = SYM.easeFlick;
+  else if (vel > SYM.velToss) ease = SYM.easeToss;
 
   track.style.transition = 'transform ' + dur + 's ' + ease;
   track.style.transform = 'translateX(' + (dir === 1 ? '-66.666%' : '0%') + ')';
 
   // Drive panel effects to final state
   setPanelTransitions(dur);
-  if (!reduceMotion) {
-    const inIdx = dir === 1 ? 2 : 0;
-    const outIdx = dir === 1 ? 0 : 2;
-    panels[inIdx].style.transform = 'translateZ(0) scale(1)';
-    panels[inIdx].style.opacity = '1';
-    panels[outIdx].style.transform = 'translateZ(0) scale(0.96)';
-    panels[outIdx].style.filter = 'brightness(0.85)';
-    panels[1].style.boxShadow = 'none';
-  }
+  const inIdx = dir === 1 ? 2 : 0;
+  const outIdx = dir === 1 ? 0 : 2;
+  panels[inIdx].style.transform = 'translateZ(0) scale(1)';
+  panels[inIdx].style.opacity = '1';
+  panels[outIdx].style.transform = 'translateZ(0) scale(' + SYM.depthOutScale + ')';
+  panels[outIdx].style.filter = 'brightness(' + SYM.depthOutDim + ')';
+  panels[1].style.boxShadow = 'none';
 
-  function onDone() {
-    clearTimeout(safety);
-    track.removeEventListener('transitionend', onDone);
-
+  onTransition(track, null, dur * 1000 + SYM.safetyPad, () => {
     // Save scroll position of outgoing panel
     const outPanel = panels[dir === 1 ? 0 : 2];
     const outScroll = outPanel.querySelector('.chapter-scroll');
@@ -511,10 +510,7 @@ function slideTo(dir, velocity) {
 
     // Prefetch the chapter beyond the new adjacent (warm cache for next swipe)
     prefetchAdjacent(pos, dir);
-  }
-
-  track.addEventListener('transitionend', onDone, { once: true });
-  const safety = setTimeout(onDone, dur * 1000 + 100);
+  });
 }
 
 // --- TOUCH HANDLING ---
@@ -537,7 +533,7 @@ container.addEventListener('touchmove', e => {
   if (!touch.drag || sliding) return;
   const mx = e.touches[0].clientX - touch.sx;
   const my = e.touches[0].clientY - touch.sy;
-  if (touch.horiz === null && (Math.abs(mx) > SWIPE_DIR_THRESHOLD || Math.abs(my) > SWIPE_DIR_THRESHOLD)) {
+  if (touch.horiz === null && (Math.abs(mx) > SYM.swipeDirThreshold || Math.abs(my) > SYM.swipeDirThreshold)) {
     touch.horiz = Math.abs(mx) > Math.abs(my);
   }
   if (touch.horiz === false) { touch.drag = false; return; }
@@ -555,7 +551,7 @@ function applyDrag() {
   const bounded = atBoundary(pos, touch.dx);
   if (bounded) {
     const sign = touch.dx > 0 ? 1 : -1;
-    visualDx = sign * Math.sqrt(Math.abs(touch.dx)) * 3;
+    visualDx = sign * Math.sqrt(Math.abs(touch.dx)) * SYM.rubberBandFactor;
   }
   const pct = -33.333 + visualDx / touch.width * 33.333;
   track.style.transform = 'translateX(' + pct + '%)';
@@ -565,7 +561,7 @@ function applyDrag() {
     applyPanelEffects(visualDx / touch.width);
   }
   // Edge glow at boundaries
-  const glowAmt = Math.min(0.2, Math.abs(visualDx) / 200);
+  const glowAmt = Math.min(SYM.edgeGlowMax, Math.abs(visualDx) / SYM.edgeGlowDivisor);
   if (pos === 0 && touch.dx > 0) edgeL.style.opacity = glowAmt;
   if (pos === TOTAL - 1 && touch.dx < 0) edgeR.style.opacity = glowAmt;
 }
@@ -590,7 +586,7 @@ container.addEventListener('touchend', () => {
 
   // Boundary: just spring back
   if (atBoundary(pos, touch.dx)) {
-    track.style.transition = 'transform ' + SPRING_DURATION + 's ' + SPRING_EASING;
+    track.style.transition = 'transform ' + SYM.springDur + 's ' + SYM.easeSpring;
     track.style.transform = TRACK_CENTER;
     return;
   }
@@ -599,15 +595,15 @@ container.addEventListener('touchend', () => {
   const elapsed = Date.now() - touch.startTime || 1;
   const velocity = Math.abs(touch.dx) / elapsed; // px/ms
   const distRatio = Math.abs(touch.dx) / touch.width;
-  const velT = Math.max(0, Math.min(1, (velocity - 0.1) / 0.4));
-  const threshold = SWIPE_COMMIT_SLOW - velT * SWIPE_COMMIT_RANGE;
+  const velT = Math.max(0, Math.min(1, (velocity - SYM.velSlow) / SYM.velFast));
+  const threshold = SYM.swipeCommitSlow - velT * SYM.swipeCommitRange;
 
   if (distRatio > threshold) {
     slideTo(touch.dx < 0 ? 1 : -1, velocity);
   } else {
     // Snap back — duration proportional to how far we dragged
-    const snapDur = Math.max(0.15, Math.min(0.3, distRatio * 2));
-    const snapEase = reduceMotion ? 'cubic-bezier(0.16,1,0.3,1)' : 'cubic-bezier(0.25,1.1,0.35,1)';
+    const snapDur = Math.max(SYM.durBlink, Math.min(SYM.durSettle, distRatio * 2));
+    const snapEase = SYM.easeSnap;
     track.style.transition = 'transform ' + snapDur + 's ' + snapEase;
     track.style.transform = TRACK_CENTER;
     setPanelTransitions(snapDur);

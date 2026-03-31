@@ -1,16 +1,13 @@
 // Copyright (c) 2026 vapourware.ai All rights reserved.
 const fs = require('fs');
 const path = require('path');
+const { dateStr, cleanupLogs } = require('./logUtils');
 
 const LOG_DIR = path.join(__dirname, 'logs', 'server');
 const RETENTION_DAYS = 7;
 
 // Ensure log directory exists
 fs.mkdirSync(LOG_DIR, { recursive: true });
-
-function dateStr(d) {
-  return d.toISOString().slice(0, 10);
-}
 
 function logPath(date) {
   return path.join(LOG_DIR, date + '.jsonl');
@@ -24,25 +21,12 @@ function write(level, event, data) {
     ...data,
   };
   const line = JSON.stringify(entry) + '\n';
-  fs.appendFile(logPath(dateStr(new Date())), line, () => {});
-}
-
-function cleanup() {
-  const cutoff = Date.now() - RETENTION_DAYS * 86400000;
-  try {
-    for (const f of fs.readdirSync(LOG_DIR)) {
-      if (!f.endsWith('.jsonl')) continue;
-      const d = new Date(f.replace('.jsonl', ''));
-      if (d.getTime() < cutoff) {
-        fs.unlinkSync(path.join(LOG_DIR, f));
-      }
-    }
-  } catch {}
+  fs.appendFile(logPath(dateStr()), line, () => {});
 }
 
 // Clean on startup and daily
-cleanup();
-setInterval(cleanup, 86400000);
+cleanupLogs(LOG_DIR, RETENTION_DAYS);
+setInterval(() => cleanupLogs(LOG_DIR, RETENTION_DAYS), 86400000);
 
 const log = {
   info: (event, data = {}) => write('info', event, data),
