@@ -1,31 +1,127 @@
 /* Copyright (c) 2026 vapourware.ai All rights reserved. */
 :root {
-  --base: 6px;
-  --radius: calc(2 * var(--base));
-  --pad: calc(6 * var(--base));
-  --fade-out: calc(3 * var(--pad));
-  --bg: #e9e9eb;
-  --bg-glass: rgba(233,233,235,0.82);
-  --text: #2c2c2c;
-  --text-muted: rgba(44,44,44,0.4);
-  --fade: #e9e9eb;
+  /* ── SYMMETRY ENGINE ── vapourware.ai ──
+     One scale. One place. Auditable in 30 seconds.
+     ─────────────────────────────────────────────── */
+
+  /* SPATIAL — base unit: 6px, all space derives from this */
+  --base:        6px;
+  --space-hair:  calc(0.5 * var(--base));   /*  3px — subtle accents */
+  --space-atom:  var(--base);               /*  6px — tightest gap */
+  --space-cell:  calc(2 * var(--base));     /* 12px — touch insets */
+  --space-organ: calc(6 * var(--base));     /* 36px — section rhythm */
+  --space-limb:  calc(10 * var(--base));    /* 60px — edge glows */
+  --space-body:  calc(18 * var(--base));    /* 108px — scroll fades */
+
+  /* Aliases (used 20+ times, kept for brevity) */
+  --radius:   var(--space-cell);
+  --pad:      var(--space-organ);
+  --fade-out: var(--space-body);
+
+  /* TYPOGRAPHY */
+  --font-body:     calc(3 * var(--base));     /* 18px */
+  --font-small:    calc(2.5 * var(--base));   /* 15px */
+  --line-body:     calc(5 * var(--base));     /* 30px */
+  --letter-tight:  0.01em;
+  --letter-spread: 0.05em;
+
+  /* RADIUS SCALE */
+  --radius-subtle: var(--space-hair);   /*  3px */
+  --radius-soft:   var(--space-atom);   /*  6px */
+  --radius-round:  var(--space-cell);   /* 12px */
+  --radius-pill:   var(--space-organ);  /* 36px */
+  --radius-circle: 50%;
+
+  /* TIMING — perceptual thresholds, JS reads via getComputedStyle */
+  --dur-instant:   0.1s;    /* tap feedback — below conscious notice */
+  --dur-blink:     0.15s;   /* quick fades — an eye blink */
+  --dur-breath:    0.2s;    /* standard transitions — a short breath */
+  --dur-settle:    0.3s;    /* expand/collapse — settling into place */
+  --dur-rest:      0.4s;    /* spring-back — a heartbeat */
+  --dur-drift:     1.8s;    /* shimmer/ambient — slow, rhythmic */
+  --delay-stagger: 0.1s;    /* cascade offset between siblings */
+
+  /* Swipe physics timing */
+  --slide-dur-min: 0.12s;
+  --slide-dur-max: 0.35s;
+  --spring-dur:    0.4s;
+  --nav-fade-out:  0.15s;
+  --nav-fade-in:   0.2s;
+  --safety-pad:    100;     /* ms, added to transition timeouts */
+
+  /* EASING — organic curves, natural deceleration */
+  --ease-out:     ease-out;
+  --ease-breathe: ease-in-out;
+  --ease-spring:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-slide:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-flick:   cubic-bezier(0.22, 1.15, 0.36, 1);
+  --ease-toss:    cubic-bezier(0.175, 0.885, 0.32, 1.05);
+  --ease-snap:    cubic-bezier(0.25, 1.1, 0.35, 1);
+
+  /* OPACITY — a fog scale from invisible to translucent */
+  --opacity-ghost:   0.04;
+  --opacity-whisper: 0.08;
+  --opacity-mist:    0.12;
+  --opacity-haze:    0.15;
+  --opacity-veil:    0.35;
+  --opacity-fog:     0.4;
+  --opacity-smoke:   0.6;
+  --opacity-glass:   0.82;
+
+  /* DEPTH — panel effects during swipe (unitless, for JS math) */
+  --depth-in-scale:       0.92;
+  --depth-out-scale:      0.96;
+  --depth-out-dim:        0.85;
+  --depth-shadow-x:       8;
+  --depth-shadow-blur:    16;
+  --depth-shadow-opacity: 0.12;
+  --depth-shadow-min:     0.02;
+
+  /* SWIPE PHYSICS (unitless, for JS math) */
+  --swipe-dir-threshold: 6;
+  --swipe-commit-slow:   0.15;
+  --swipe-commit-range:  0.07;
+  --rubber-band-factor:  3;
+  --edge-glow-max:       0.2;
+  --edge-glow-divisor:   200;
+  --vel-slow:      0.1;
+  --vel-fast:      0.4;
+  --vel-flick:     0.6;
+  --vel-toss:      0.2;
+  --vel-dur-base:  0.3;
+  --vel-dur-scale: 2;
+
+  /* Z-INDEX — stacking order */
+  --z-header: 5;
+  --z-fade:   10;
+  --z-glow:   11;
+  --z-nav:    20;
+
+  /* COLORS */
+  --bg:        #e9e9eb;
+  --bg-glass:  rgba(233, 233, 235, var(--opacity-glass));
+  --text:      #2c2c2c;
+  --text-muted: rgba(44, 44, 44, var(--opacity-fog));
+  --fade:      #e9e9eb;
+  --selection: rgba(44, 44, 44, var(--opacity-mist));
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e0e0e;
-    --bg-glass: rgba(14,14,14,0.82);
-    --text: #c8c8c8;
-    --text-muted: rgba(200,200,200,0.35);
-    --fade: #0e0e0e;
+    --bg:        #0e0e0e;
+    --bg-glass:  rgba(14, 14, 14, var(--opacity-glass));
+    --text:      #c8c8c8;
+    --text-muted: rgba(200, 200, 200, var(--opacity-veil));
+    --fade:      #0e0e0e;
+    --selection: rgba(212, 212, 212, var(--opacity-haze));
   }
 }
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  font-size: calc(3 * var(--base));
-  line-height: calc(5 * var(--base));
+  font-size: var(--font-body);
+  line-height: var(--line-body);
   font-weight: 400;
-  letter-spacing: 0.01em;
+  letter-spacing: var(--letter-tight);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -35,12 +131,7 @@ body {
   height: 100dvh;
   overscroll-behavior: none;
 }
-::selection {
-  background: rgba(44,44,44,0.12);
-}
-@media (prefers-color-scheme: dark) {
-  ::selection { background: rgba(212,212,212,0.15); }
-}
+::selection { background: var(--selection); }
 
 /* Desktop gate */
 #desktop-gate {
@@ -50,7 +141,7 @@ body {
   align-items: center;
   justify-content: center;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--letter-spread);
 }
 #desktop-gate .msg {
   color: var(--text-muted);
@@ -87,7 +178,7 @@ body {
 #mobile-content { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
 
 @media (min-width: 480px) {
-  #mobile-content { display: none !important; }
+  #mobile-content { display: none; }
   #desktop-gate { display: flex; }
 }
 
@@ -95,15 +186,15 @@ body {
 #header {
   padding: max(var(--pad), calc(var(--radius) + env(safe-area-inset-top, 0px))) var(--pad) 0 var(--pad);
   font-weight: 500;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--letter-spread);
   cursor: pointer;
   background: var(--bg);
   position: relative;
-  z-index: 5;
+  z-index: var(--z-header);
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
-  transition: background 0.2s ease-out;
+  transition: background var(--dur-breath) var(--ease-out);
 }
 #header.scrolled {
   background: var(--bg-glass);
@@ -123,7 +214,7 @@ body {
   top: 0; left: 0; right: 0;
   height: var(--pad);
   background: linear-gradient(var(--fade), transparent);
-  z-index: 10;
+  z-index: var(--z-fade);
   pointer-events: none;
 }
 #reading::after {
@@ -132,7 +223,7 @@ body {
   bottom: 0; left: 0; right: 0;
   height: var(--fade-out);
   background: linear-gradient(transparent, var(--fade));
-  z-index: 10;
+  z-index: var(--z-fade);
   pointer-events: none;
 }
 
@@ -140,11 +231,11 @@ body {
 #swipe-container { height: 100%; overflow: hidden; position: relative; }
 .edge-glow {
   position: absolute;
-  top: 0; bottom: 0; width: calc(10 * var(--base));
+  top: 0; bottom: 0; width: var(--space-limb);
   pointer-events: none;
   opacity: 0;
-  z-index: 11;
-  transition: opacity 0.3s ease-out;
+  z-index: var(--z-glow);
+  transition: opacity var(--dur-settle) var(--ease-out);
 }
 #edge-glow-left { left: 0; background: linear-gradient(to right, var(--text-muted), transparent); }
 #edge-glow-right { right: 0; background: linear-gradient(to left, var(--text-muted), transparent); }
@@ -184,24 +275,24 @@ body {
 .note {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s ease-out;
+  transition: grid-template-rows var(--dur-settle) var(--ease-out);
 }
 .note-inner {
   overflow: hidden;
   color: var(--text-muted);
   opacity: 0;
   padding-top: var(--radius);
-  transition: opacity 0.2s ease-out;
+  transition: opacity var(--dur-breath) var(--ease-out);
 }
 .verse-wrap.expanded .note {
   grid-template-rows: 1fr;
 }
 .verse-wrap.expanded .note-inner {
   opacity: 1;
-  transition: opacity 0.2s 0.1s ease-out;
+  transition: opacity var(--dur-breath) var(--delay-stagger) var(--ease-out);
 }
 .spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
-.copyright { text-align: center; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: var(--pad) 0 0; margin: 0; }
+.copyright { text-align: center; color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--letter-spread); padding: var(--pad) 0 0; margin: 0; }
 
 /* Nav (fullscreen overlay) */
 #nav {
@@ -212,7 +303,7 @@ body {
   overscroll-behavior-y: contain;
   padding: 0 var(--pad);
   background: var(--bg);
-  z-index: 20;
+  z-index: var(--z-nav);
   visibility: hidden;
 }
 #nav.open, #nav.curtain {
@@ -220,8 +311,8 @@ body {
 }
 #book-list {
   opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+  transform: translateY(var(--space-atom));
+  transition: opacity var(--dur-breath) var(--ease-out), transform var(--dur-breath) var(--ease-out);
 }
 #nav.open #book-list {
   opacity: 1;
@@ -254,16 +345,16 @@ body {
 .book-name {
   cursor: pointer;
   display: inline-block;
-  border-radius: var(--base);
-  padding: calc(0.5 * var(--base)) var(--base);
-  margin: calc(-0.5 * var(--base)) calc(-1 * var(--base));
-  letter-spacing: 0.05em;
+  border-radius: var(--radius-soft);
+  padding: var(--space-hair) var(--space-atom);
+  margin: calc(-1 * var(--space-hair)) calc(-1 * var(--space-atom));
+  letter-spacing: var(--letter-spread);
 }
 .book-item.current { font-weight: 500; }
 .chapter-grid-wrap {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s ease-out;
+  transition: grid-template-rows var(--dur-settle) var(--ease-out);
 }
 .book-item.expanded .chapter-grid-wrap {
   grid-template-rows: 1fr;
@@ -275,11 +366,11 @@ body {
   gap: var(--base);
   padding: var(--radius) 0 0 0;
   opacity: 0;
-  transition: opacity 0.2s ease-out;
+  transition: opacity var(--dur-breath) var(--ease-out);
 }
 .book-item.expanded .chapter-grid {
   opacity: 1;
-  transition: opacity 0.2s 0.1s ease-out;
+  transition: opacity var(--dur-breath) var(--delay-stagger) var(--ease-out);
 }
 .chapter-pill {
   width: var(--pad);
@@ -287,33 +378,33 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: calc(2.5 * var(--base));
-  border-radius: 50%;
+  font-size: var(--font-small);
+  border-radius: var(--radius-circle);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   color: var(--text-muted);
-  transition: transform 0.1s ease-out, background 0.1s ease-out;
+  transition: transform var(--dur-instant) var(--ease-out), background var(--dur-instant) var(--ease-out);
 }
 .chapter-pill:active { transform: scale(0.85); background: var(--text-muted); }
 .chapter-pill.current { font-weight: 500; color: var(--text); }
 .nav-spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); }
 
 .skeleton-line {
-  height: calc(3 * var(--base));
+  height: var(--font-body);
   margin-bottom: var(--radius);
-  border-radius: calc(0.5 * var(--base));
+  border-radius: var(--radius-subtle);
   background: var(--text);
-  opacity: 0.04;
-  animation: shimmer 1.8s ease-in-out infinite;
+  opacity: var(--opacity-ghost);
+  animation: shimmer var(--dur-drift) var(--ease-breathe) infinite;
 }
-.skeleton-line:nth-child(2) { animation-delay: 0.1s; }
-.skeleton-line:nth-child(3) { animation-delay: 0.2s; }
-.skeleton-line:nth-child(4) { animation-delay: 0.3s; }
-.skeleton-line:nth-child(5) { animation-delay: 0.4s; }
-.skeleton-line:nth-child(6) { animation-delay: 0.5s; }
+.skeleton-line:nth-child(2) { animation-delay: var(--delay-stagger); }
+.skeleton-line:nth-child(3) { animation-delay: calc(2 * var(--delay-stagger)); }
+.skeleton-line:nth-child(4) { animation-delay: calc(3 * var(--delay-stagger)); }
+.skeleton-line:nth-child(5) { animation-delay: calc(4 * var(--delay-stagger)); }
+.skeleton-line:nth-child(6) { animation-delay: calc(5 * var(--delay-stagger)); }
 @keyframes shimmer {
-  0%, 100% { opacity: 0.04; }
-  50% { opacity: 0.08; }
+  0%, 100% { opacity: var(--opacity-ghost); }
+  50% { opacity: var(--opacity-whisper); }
 }
 
 .empty-msg {
@@ -321,9 +412,3 @@ body {
   padding-top: var(--pad);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-  }
-}
