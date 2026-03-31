@@ -16,7 +16,7 @@ function cleanupLogs(dir, retentionDays) {
         fs.unlinkSync(path.join(dir, f));
       }
     }
-  } catch {}
+  } catch (err) { process.stderr.write('cleanupLogs: ' + err.message + '\n'); }
 }
 
 module.exports = { dateStr, cleanupLogs };
