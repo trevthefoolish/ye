@@ -1,3 +1,4 @@
+// Copyright (c) 2026 vapourware.ai All rights reserved.
 const fs = require('fs');
 const path = require('path');
 

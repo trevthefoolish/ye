@@ -1,3 +1,4 @@
+// Copyright (c) 2026 vapourware.ai All rights reserved.
 const express = require('express');
 const compression = require('compression');
 const crypto = require('crypto');
@@ -425,7 +426,11 @@ const PORT = process.env.PORT || 3000;
 
 (async () => {
   try {
-    const result = await minify(JS_RAW, { compress: true, mangle: true });
+    const result = await minify(JS_RAW, {
+      compress: true,
+      mangle: true,
+      format: { comments: /copyright/i },
+    });
     if (result.code) {
       JS_SRC = result.code;
       log.info('js_minified', { from: JS_RAW.length, to: JS_SRC.length });

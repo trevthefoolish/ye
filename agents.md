@@ -78,3 +78,9 @@ These are load-bearing constraints. Don't break them:
 4. Swipe between chapters — previous and next should load instantly
 5. Tap a verse to expand its note
 6. Check the server console for structured log output and any warnings
+
+---
+
+Copyright (c) 2026 vapourware.ai All rights reserved.
+
+No part of this software may be reproduced, distributed, or transmitted in any form or by any means without the prior written permission of vapourware.ai

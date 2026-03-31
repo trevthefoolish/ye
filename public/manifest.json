@@ -6,6 +6,7 @@
   "display": "standalone",
   "background_color": "#e9e9eb",
   "theme_color": "#e9e9eb",
+  "copyright": "Copyright (c) 2026 vapourware.ai All rights reserved.",
   "icons": [
     { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
     { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }

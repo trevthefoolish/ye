@@ -72,3 +72,9 @@ logger.js            Structured server logging
 analytics.js         Anonymous event analytics
 railway.json         Deployment configuration
 ```
+
+---
+
+Copyright (c) 2026 vapourware.ai All rights reserved.
+
+No part of this software may be reproduced, distributed, or transmitted in any form or by any means without the prior written permission of vapourware.ai

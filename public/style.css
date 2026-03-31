@@ -1,3 +1,4 @@
+/* Copyright (c) 2026 vapourware.ai All rights reserved. */
 :root {
   --base: 6px;
   --radius: calc(2 * var(--base));
@@ -200,6 +201,7 @@ body {
   transition: opacity 0.2s 0.1s ease-out;
 }
 .spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
+.copyright { text-align: center; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; padding: var(--pad) 0 0; margin: 0; }
 
 /* Nav (fullscreen overlay) */
 #nav {

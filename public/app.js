@@ -1,3 +1,4 @@
+/*! Copyright (c) 2026 vapourware.ai All rights reserved. */
 const { books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION } = JSON.parse(
   document.getElementById('config').textContent
 );
@@ -219,6 +220,10 @@ function renderVersesInto(scroll, verses) {
     });
     scroll.appendChild(wrap);
   }
+  const copy = document.createElement('p');
+  copy.className = 'copyright';
+  copy.innerHTML = '\u00A9 2026 vapourware.ai<br>All rights reserved.';
+  scroll.appendChild(copy);
   const spacer = document.createElement('div');
   spacer.className = 'spacer';
   scroll.appendChild(spacer);
