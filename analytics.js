@@ -32,12 +32,14 @@ router.post('/api/ev', express.json({ limit: '1kb' }), (req, res) => {
 
   const entry = {
     ts: new Date().toISOString(),
+    source: 'analytics',
     type,
     aid: anonId,
     ...sanitize(data),
   };
 
   const line = JSON.stringify(entry) + '\n';
+  process.stdout.write(line);
   fs.appendFile(path.join(LOG_DIR, dateStr() + '.jsonl'), line, () => {});
   res.status(204).end();
 });

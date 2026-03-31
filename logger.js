@@ -16,11 +16,13 @@ function logPath(date) {
 function write(level, event, data) {
   const entry = {
     ts: new Date().toISOString(),
+    source: 'server',
     level,
     event,
     ...data,
   };
   const line = JSON.stringify(entry) + '\n';
+  process.stdout.write(line);
   fs.appendFile(logPath(dateStr()), line, () => {});
 }
 
