@@ -269,7 +269,7 @@ async function renderVerseOnce(book, chapter, verse) {
   parsed.note = cleanText(parsed.note);
   // Model quality feedback: note should be shorter than rendering
   if (parsed.note.length >= parsed.rendering.length) {
-    log.warn('note_too_long', { book, chapter, verse, noteLen: parsed.note.length, renderLen: parsed.rendering.length });
+    log.debug('note_too_long', { book, chapter, verse, noteLen: parsed.note.length, renderLen: parsed.rendering.length });
   }
   return parsed;
 }
