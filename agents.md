@@ -43,7 +43,7 @@ These are load-bearing constraints. Don't break them:
 - **CSS inlined at startup** — `style.css` is read from disk and injected into the HTML template. Don't add a `<link>` tag.
 - **JS fingerprinted** — content hash in the filename, served with immutable cache headers.
 - **Dark/light via `prefers-color-scheme`** — automatic, no manual toggle. Always respect both themes.
-- **`--base: 6px` unit system** — all spacing and typography derive from this CSS custom property.
+- **Fibonacci Symmetry Engine (`--base: 3px`)** — all spacing is `Fib(n) × 3px` (3, 6, 9, 15, 24, 39, 63, 102px). Timing is `Fib(n) × 50ms`. Opacity is `Fib(n)/34`. Ratios converge on φ ≈ 1.618. See the perceptual basis comment block in `style.css :root`.
 - **HTML escaping** — `escapeHtml()` on all dynamic content injected into HTML. No exceptions.
 - **Security headers** — CSP (`default-src 'self'`), X-Frame-Options DENY, HSTS in production. Don't weaken.
 - **Rate limiting** — 30 requests/min per IP on the chapter API, 60 events/min on analytics.
@@ -54,7 +54,7 @@ These are load-bearing constraints. Don't break them:
 |---|---|
 | `server.js` | Express server, system prompt, rendering pipeline, caching, SEO, security |
 | `public/app.js` | Client SPA — swipe nav, navigator, verse expansion, prefetching, analytics |
-| `public/style.css` | All styling — theming, dark/light, animations, `--base` unit system |
+| `public/style.css` | All styling — theming, dark/light, animations, Fibonacci Symmetry Engine |
 | `public/index.html` | HTML template with config/preload placeholders and ASCII art cross |
 | `data/bible.json` | 66 books with chapter counts and per-chapter verse counts |
 | `renders/` | Cached renders per book (JSON, keyed by `chapterIndex:verseIndex`). Intentionally committed — each render costs an API call |
