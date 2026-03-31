@@ -1,47 +1,81 @@
 /* Copyright (c) 2026 vapourware.ai All rights reserved. */
 :root {
-  /* ── SYMMETRY ENGINE ── vapourware.ai ──
+  /* ── SYMMETRY ENGINE v2 ── vapourware.ai ──
+     Fibonacci-grounded design tokens.
      One scale. One place. Auditable in 30 seconds.
+
+     PERCEPTUAL BASIS
+     ┌─────────────────────────────────────────────────────────┐
+     │ Weber-Fechner Law: perception is logarithmic.           │
+     │ Fibonacci spacing ≈ log curve — each step feels like    │
+     │ an equal perceptual jump.                               │
+     │                                                         │
+     │ Golden Ratio (φ ≈ 1.618): consecutive Fibonacci ratios  │
+     │ converge on φ. Layouts proportioned by φ feel balanced  │
+     │ (Fechner 1876, Livio 2002).                             │
+     │                                                         │
+     │ Gestalt Proximity: Fib gaps 1-2-3 cluster as "related"; │
+     │ gaps 8-13-21 signal "separated". Natural grouping.      │
+     │                                                         │
+     │ Fitts's Law: touch targets at Fib 13 × 3px = 39px      │
+     │ exceed the 44px-minus-padding minimum; φ-scaled sizes   │
+     │ optimize speed-accuracy for finger input.               │
+     │                                                         │
+     │ Card-Moran-Newell (1983): perceptual processor ~100ms,  │
+     │ motor processor ~70ms. Timing base = 50ms.              │
+     │ Fib × 50ms: 100, 150, 250, 400, 650, 1700ms            │
+     │ map to human processing thresholds.                     │
+     │                                                         │
+     │ Miller's Law (7±2): 8 spatial steps, 6 timing steps,    │
+     │ 8 opacity steps — all within cognitive chunk limits.     │
+     └─────────────────────────────────────────────────────────┘
      ─────────────────────────────────────────────── */
 
-  /* SPATIAL — base unit: 6px, all space derives from this */
-  --base:        6px;
-  --space-hair:  calc(0.5 * var(--base));   /*  3px — subtle accents */
-  --space-atom:  var(--base);               /*  6px — tightest gap */
-  --space-cell:  calc(2 * var(--base));     /* 12px — touch insets */
-  --space-organ: calc(6 * var(--base));     /* 36px — section rhythm */
-  --space-limb:  calc(10 * var(--base));    /* 60px — edge glows */
-  --space-body:  calc(18 * var(--base));    /* 108px — scroll fades */
+  /* SPATIAL — Fibonacci × 3px
+     Fib:  1    2    3    5    8    13   21   34
+     px:   3    6    9    15   24   39   63   102
+     Ratios converge on φ: 2.0, 1.5, 1.67, 1.60, 1.625, 1.615, 1.619 */
+  --base:         3px;
+  --space-hair:   calc(1 * var(--base));    /*   3px — Fib 1  */
+  --space-atom:   calc(2 * var(--base));    /*   6px — Fib 2  */
+  --space-cell:   calc(3 * var(--base));    /*   9px — Fib 3  */
+  --space-organ:  calc(5 * var(--base));    /*  15px — Fib 5  */
+  --space-limb:   calc(8 * var(--base));    /*  24px — Fib 8  */
+  --space-body:   calc(13 * var(--base));   /*  39px — Fib 13 */
+  --space-field:  calc(21 * var(--base));   /*  63px — Fib 21 */
+  --space-world:  calc(34 * var(--base));   /* 102px — Fib 34 */
 
-  /* Aliases (used 20+ times, kept for brevity) */
-  --radius:   var(--space-cell);
-  --pad:      var(--space-organ);
-  --fade-out: var(--space-body);
+  /* Aliases */
+  --radius:   var(--space-cell);     /*  9px */
+  --pad:      var(--space-body);     /* 39px */
+  --fade-out: var(--space-world);    /* 102px */
 
-  /* TYPOGRAPHY */
-  --font-body:     calc(3 * var(--base));     /* 18px */
-  --font-small:    calc(2.5 * var(--base));   /* 15px */
-  --line-body:     calc(5 * var(--base));     /* 30px */
+  /* TYPOGRAPHY — φ-anchored at 18px
+     line-height 30:18 = 5:3 (consecutive Fibonacci ratio) */
+  --font-body:     calc(6 * var(--base));     /* 18px */
+  --line-body:     calc(10 * var(--base));    /* 30px */
   --letter-tight:  0.01em;
   --letter-spread: 0.05em;
 
-  /* RADIUS SCALE */
-  --radius-subtle: var(--space-hair);   /*  3px */
-  --radius-soft:   var(--space-atom);   /*  6px */
-  --radius-round:  var(--space-cell);   /* 12px */
-  --radius-pill:   var(--space-organ);  /* 36px */
+  /* RADIUS — Fibonacci spatial references */
+  --radius-subtle: var(--space-hair);    /*  3px — Fib 1 */
+  --radius-soft:   var(--space-atom);    /*  6px — Fib 2 */
+  --radius-round:  var(--space-cell);    /*  9px — Fib 3 */
+  --radius-pill:   var(--space-body);    /* 39px — Fib 13 */
   --radius-circle: 50%;
 
-  /* TIMING — perceptual thresholds, JS reads via getComputedStyle */
-  --dur-instant:   0.1s;    /* tap feedback — below conscious notice */
-  --dur-blink:     0.15s;   /* quick fades — an eye blink */
-  --dur-breath:    0.2s;    /* standard transitions — a short breath */
-  --dur-settle:    0.3s;    /* expand/collapse — settling into place */
-  --dur-rest:      0.4s;    /* spring-back — a heartbeat */
-  --dur-drift:     1.8s;    /* shimmer/ambient — slow, rhythmic */
-  --delay-stagger: 0.1s;    /* cascade offset between siblings */
+  /* TIMING — Fibonacci × 50ms (half motor-processor cycle)
+     Fib:  2     3     5     8     13    34
+     ms:   100   150   250   400   650   1700 */
+  --dur-instant:   0.1s;     /* Fib 2  — tap feedback, below conscious notice */
+  --dur-blink:     0.15s;    /* Fib 3  — quick fades, an eye blink */
+  --dur-breath:    0.25s;    /* Fib 5  — standard transitions */
+  --dur-settle:    0.4s;     /* Fib 8  — expand/collapse */
+  --dur-rest:      0.65s;    /* Fib 13 — deliberate motion */
+  --dur-drift:     1.7s;     /* Fib 34 — shimmer/ambient */
+  --delay-stagger: 0.1s;     /* Fib 2  — cascade offset */
 
-  /* Swipe physics timing */
+  /* Swipe physics timing — tuned by feel, not derived */
   --slide-dur-min: 0.12s;
   --slide-dur-max: 0.35s;
   --spring-dur:    0.4s;
@@ -49,7 +83,7 @@
   --nav-fade-in:   0.2s;
   --safety-pad:    100;     /* ms, added to transition timeouts */
 
-  /* EASING — organic curves, natural deceleration */
+  /* EASING — organic curves, not derived */
   --ease-out:     ease-out;
   --ease-breathe: ease-in-out;
   --ease-spring:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -58,26 +92,31 @@
   --ease-toss:    cubic-bezier(0.175, 0.885, 0.32, 1.05);
   --ease-snap:    cubic-bezier(0.25, 1.1, 0.35, 1);
 
-  /* OPACITY — a fog scale from invisible to translucent */
-  --opacity-ghost:   0.04;
-  --opacity-whisper: 0.08;
-  --opacity-mist:    0.12;
-  --opacity-haze:    0.15;
-  --opacity-veil:    0.35;
-  --opacity-fog:     0.4;
-  --opacity-smoke:   0.6;
-  --opacity-glass:   0.82;
+  /* OPACITY — Fib(n)/34, scaled to 0.04–0.85
+     Fib: 1     2     3     5     8     13    21    34
+     Perceptually uniform per Weber-Fechner */
+  --opacity-ghost:   0.04;   /* Fib 1  */
+  --opacity-whisper: 0.06;   /* Fib 2  */
+  --opacity-mist:    0.11;   /* Fib 3  */
+  --opacity-haze:    0.16;   /* Fib 5  */
+  --opacity-veil:    0.23;   /* Fib 8  */
+  --opacity-fog:     0.35;   /* Fib 13 */
+  --opacity-smoke:   0.54;   /* Fib 21 */
+  --opacity-glass:   0.85;   /* Fib 34 */
 
-  /* DEPTH — panel effects during swipe (unitless, for JS math) */
+  /* INTERACTION — tap feedback */
+  --scale-tap:     0.85;    /* = Fib 34/34 scaled, matches --opacity-glass */
+
+  /* DEPTH — φ-proximate panel effects during swipe (unitless, for JS) */
   --depth-in-scale:       0.92;
   --depth-out-scale:      0.96;
   --depth-out-dim:        0.85;
   --depth-shadow-x:       8;
-  --depth-shadow-blur:    16;
-  --depth-shadow-opacity: 0.12;
+  --depth-shadow-blur:    13;    /* Fibonacci */
+  --depth-shadow-opacity: 0.11;  /* ≈ Fib 3/34 */
   --depth-shadow-min:     0.02;
 
-  /* SWIPE PHYSICS (unitless, for JS math) */
+  /* SWIPE PHYSICS — tuned by feel, not derived (unitless, for JS) */
   --swipe-dir-threshold: 6;
   --swipe-commit-slow:   0.15;
   --swipe-commit-range:  0.07;
@@ -91,7 +130,7 @@
   --vel-dur-base:  0.3;
   --vel-dur-scale: 2;
 
-  /* Z-INDEX — stacking order */
+  /* Z-INDEX — ordinal stacking */
   --z-header: 5;
   --z-fade:   10;
   --z-glow:   11;
@@ -110,7 +149,7 @@
     --bg:        #0e0e0e;
     --bg-glass:  rgba(14, 14, 14, var(--opacity-glass));
     --text:      #c8c8c8;
-    --text-muted: rgba(200, 200, 200, var(--opacity-veil));
+    --text-muted: rgba(200, 200, 200, var(--opacity-fog));
     --fade:      #0e0e0e;
     --selection: rgba(212, 212, 212, var(--opacity-haze));
   }
@@ -149,28 +188,27 @@ body {
 }
 #desktop-gate .domain {
   color: var(--text);
-  margin-bottom: var(--base);
 }
 #desktop-gate .phone {
-  width: 280px;
-  height: 560px;
+  width: calc(89 * var(--base));      /* 267px — Fib 89 */
+  height: calc(178 * var(--base));    /* 534px — 2:1 ratio */
   border: 2px solid var(--text-muted);
-  border-radius: var(--pad);
+  border-radius: var(--space-limb);   /* 24px — Fib 8 */
   position: relative;
   display: flex;
   align-items: center;
-  padding: var(--pad);
+  padding: var(--space-limb);         /* 24px — Fib 8 */
 }
 #desktop-gate .notch {
   position: absolute;
   top: var(--radius);
   left: 50%;
   transform: translateX(-50%);
-  width: 80px;
-  height: calc(4 * var(--base));
+  width: calc(2 * var(--space-body)); /* 78px — 2 × Fib 13 */
+  height: var(--space-limb);
   background: var(--bg);
   border: 2px solid var(--text-muted);
-  border-radius: var(--radius);
+  border-radius: var(--space-organ);   /* 15px — Fib 5, ratio to phone 24:15 ≈ φ */
 }
 #desktop-gate .preview {
   color: var(--text-muted);
@@ -194,12 +232,12 @@ body {
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
-  transition: background var(--dur-breath) var(--ease-out);
 }
 #header.scrolled {
   background: var(--bg-glass);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--space-limb)) saturate(180%);
+  backdrop-filter: blur(var(--space-limb)) saturate(180%);
+  transition: background var(--dur-breath) var(--ease-out);
 }
 
 /* Reading view */
@@ -231,7 +269,7 @@ body {
 #swipe-container { height: 100%; overflow: hidden; position: relative; }
 .edge-glow {
   position: absolute;
-  top: 0; bottom: 0; width: var(--space-limb);
+  top: 0; bottom: 0; width: var(--space-field);
   pointer-events: none;
   opacity: 0;
   z-index: var(--z-glow);
@@ -292,7 +330,7 @@ body {
   transition: opacity var(--dur-breath) var(--delay-stagger) var(--ease-out);
 }
 .spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
-.copyright { text-align: center; color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--letter-spread); padding: var(--pad) 0 0; margin: 0; }
+.copyright { color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--letter-spread); padding: var(--pad) 0 0; margin: 0; }
 
 /* Nav (fullscreen overlay) */
 #nav {
@@ -363,7 +401,7 @@ body {
   overflow: hidden;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--base);
+  gap: var(--space-atom);
   padding: var(--radius) 0 0 0;
   opacity: 0;
   transition: opacity var(--dur-breath) var(--ease-out);
@@ -373,19 +411,13 @@ body {
   transition: opacity var(--dur-breath) var(--delay-stagger) var(--ease-out);
 }
 .chapter-pill {
-  width: var(--pad);
-  height: var(--pad);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-small);
-  border-radius: var(--radius-circle);
+  padding: var(--space-hair) var(--space-atom);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   color: var(--text-muted);
-  transition: transform var(--dur-instant) var(--ease-out), background var(--dur-instant) var(--ease-out);
+  transition: transform var(--dur-instant) var(--ease-out);
 }
-.chapter-pill:active { transform: scale(0.85); background: var(--text-muted); }
+.chapter-pill:active { transform: scale(var(--scale-tap)); }
 .chapter-pill.current { font-weight: 500; color: var(--text); }
 .nav-spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); }
 

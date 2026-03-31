@@ -9,7 +9,7 @@ const SYM = (() => {
   const v = n => s.getPropertyValue(n).trim();
   const f = n => parseFloat(v(n));
   return Object.freeze({
-    durBlink: f('--dur-blink'),
+    durInstant: f('--dur-instant'), durBlink: f('--dur-blink'),
     durBreath: f('--dur-breath'), durSettle: f('--dur-settle'),
     delayStagger: f('--delay-stagger'),
     slideDurMin: f('--slide-dur-min'), slideDurMax: f('--slide-dur-max'),
@@ -111,7 +111,7 @@ function prefetchAdjacent(p, dir) {
   const ahead = p + (dir || 1) * PREFETCH_DISTANCE;
   if (ahead >= 0 && ahead < TOTAL) {
     const e = ALL[ahead];
-    const idle = window.requestIdleCallback || (cb => setTimeout(cb, 100));
+    const idle = window.requestIdleCallback || (cb => setTimeout(cb, SYM.durInstant * 1000));
     idle(() => fetchChapter(BOOKS[e.bi], e.ch + 1).catch(err => reportError('prefetch', err.message)));
   }
 }
@@ -639,7 +639,7 @@ fillAllPanels();
 history.replaceState({ pos }, '', '/' + toSlug(BOOKS[ALL[pos].bi]) + '/' + (ALL[pos].ch + 1));
 
 // Prefetch chapters 2 steps ahead/behind on idle
-(window.requestIdleCallback || (cb => setTimeout(cb, 200)))(() => {
+(window.requestIdleCallback || (cb => setTimeout(cb, SYM.durBreath * 1000)))(() => {
   prefetchAdjacent(pos, 1);
   prefetchAdjacent(pos, -1);
 });
