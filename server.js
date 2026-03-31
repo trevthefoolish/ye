@@ -5,8 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { minify } = require('terser');
-const { log, router: logRouter } = require('./logger');
-const analyticsRouter = require('./analytics');
+const { log, logRouter, analyticsRouter } = require('./logger');
 const createRateLimiter = require('./rateLimit');
 
 // --- App version ---
@@ -108,8 +107,7 @@ app.use((req, res, next) => {
 });
 
 app.use(compression());
-app.use(logRouter);
-app.use(analyticsRouter);
+app.use(logRouter, analyticsRouter);
 
 // --- Health check (before static, no compression overhead) ---
 app.get('/health', (req, res) => { res.json({ status: 'ok', version: APP_VERSION }); });

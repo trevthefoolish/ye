@@ -46,9 +46,10 @@
   --space-world:  calc(34 * var(--base));   /* 102px — Fib 34 */
 
   /* Aliases */
-  --radius:   var(--space-cell);     /*  9px */
-  --pad:      var(--space-body);     /* 39px */
-  --fade-out: var(--space-world);    /* 102px */
+  --radius:      var(--space-cell);     /*  9px */
+  --pad:         var(--space-body);     /* 39px */
+  --fade-out:    var(--space-world);    /* 102px */
+  --safe-bottom: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px));
 
   /* TYPOGRAPHY — φ-anchored at 18px
      line-height 30:18 = 5:3 (consecutive Fibonacci ratio) */
@@ -329,7 +330,7 @@ body {
   opacity: 1;
   transition: opacity var(--dur-breath) var(--delay-stagger) var(--ease-out);
 }
-.spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); flex-shrink: 0; }
+.spacer { height: var(--safe-bottom); flex-shrink: 0; }
 .copyright { color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--letter-spread); padding: var(--pad) 0 0; margin: 0; }
 
 /* Nav (fullscreen overlay) */
@@ -362,7 +363,7 @@ body {
   top: 0; left: 0; right: 0;
   height: var(--pad);
   background: linear-gradient(var(--fade), transparent);
-  z-index: 1;
+  z-index: var(--z-fade);
   pointer-events: none;
 }
 #nav::after {
@@ -371,7 +372,7 @@ body {
   bottom: 0; left: 0; right: 0;
   height: var(--fade-out);
   background: linear-gradient(transparent, var(--fade));
-  z-index: 1;
+  z-index: var(--z-fade);
   pointer-events: none;
 }
 .book-item {
@@ -419,7 +420,6 @@ body {
 }
 .chapter-pill:active { transform: scale(var(--scale-tap)); }
 .chapter-pill.current { font-weight: 500; color: var(--text); }
-.nav-spacer { height: calc(var(--fade-out) + env(safe-area-inset-bottom, 0px)); }
 
 .skeleton-line {
   height: var(--font-body);

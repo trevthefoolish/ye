@@ -336,159 +336,303 @@
     "t": 1774859219179
   },
   "3:0": {
-    "rendering": "Now the man knew his wife Eve, and she conceived and gave birth to Cain. She said, \"I have created a man with YHWH.\"",
-    "note": "The Hebrew word for \"created\" here is qaniti, a clever wordplay on the name Cain (qayin). Eve seems to think she's participating in the image-of-God project from Genesis 1, bringing forth a human with YHWH's help, yet this first birth outside the garden quickly spirals into the first murder, showing how the human family is both carrying forward God's creative work and fracturing it at the same time.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Now the man knew Eve his wife, and she conceived and gave birth to Cain. She said, \"I have acquired a man with the Lord.\"",
+    "note": "The Hebrew wordplay between \"acquired\" (qaniti) and the name Cain hints at Eve's bold hope that this child might somehow fulfill the promise of Genesis 3:15.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454507
   },
   "3:1": {
-    "rendering": "Then she gave birth again, to his brother Abel. Now Abel became a keeper of sheep, while Cain was a worker of the ground.",
-    "note": "The names here carry echoes of the larger story: Abel's name sounds like the Hebrew word for breath or vapour, hinting at the fleeting nature of human life after Eden, while Cain's name plays on \"acquired\" as Eve says she has gotten a man with the Lord's help. Their vocations as shepherd and farmer set up the first biblical tension between different ways of working the ground, a theme that will echo through Israel's story of wandering shepherds and settled farmers, all pointing toward the ultimate human who would reconcile heaven and earth.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Later she gave birth to his brother Abel. Abel became a keeper of flocks, but Cain was a worker of the ground.",
+    "note": "The Hebrew wordplay is sharp: Abel means \"breath\" or \"futility,\" while Cain's name echoes \"acquired,\" setting up the tragic irony of the one who seems substantial becoming the murderer.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454507
   },
   "3:2": {
-    "rendering": "Now it came about, in the course of time, that Cain brought some of the fruit of the ground as an offering to the Lord.",
-    "note": "The phrase \"in the course of time\" literally reads \"at the end of days,\" an echo of the creation week's \"evening and morning\" rhythm that now carries a subtle hint of completion or testing. This first recorded act of worship after Eden sets in motion a pattern of offerings and heart posture that will echo through Israel's story, from Abel's accepted gift to the temple system, all pointing forward to the ultimate gift that reconciles the fractured human family.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "In the course of time Cain brought some of the fruit of the ground as an offering to the LORD.",
+    "note": "The Hebrew \"at the end of days\" hints this was a set time, perhaps the first harvest festival, echoing later temple rhythms.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454507
   },
   "3:3": {
-    "rendering": "And Abel, he also brought from the firstborn of his flock, even from their fat portions. And the LORD looked with favor on Abel and on his offering.",
-    "note": "The Hebrew word for \"looked with favor\" here is the same one used when God \"regards\" or \"accepts\" a person or sacrifice elsewhere in the story, creating a subtle echo of divine delight in the right kind of offering, one that foreshadows the acceptable worship of God's people and ultimately points forward to Jesus as the firstborn whose self-offering is fully pleasing to the Father.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "And Abel, for his part, brought from the firstborn of his flock and from their fat portions. And the LORD looked with favor on Abel and on his offering.",
+    "note": "The word for \"looked with favor\" is the same one used for God \"regarding\" or \"seeing\" in the flood story and the exodus, hinting that divine delight is already choosing unlikely paths through the younger brother.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454507
   },
   "3:4": {
-    "rendering": "But for Cain and his offering he had no regard. So Cain became very angry, and his face fell.",
-    "note": "The Hebrew word for \"regard\" here is the same one used when God \"looks upon\" Noah with favor in the flood story, and later when he \"regards\" Abel's offering, creating an echo of divine choice that runs through the whole Bible. This moment of rejected worship and a fallen face launches the Bible's long exploration of how humans respond when heaven-and-earth overlap doesn't go their way, a thread that will find its ultimate resolution in Jesus, the accepted offering who faces rejection yet brings reconciliation.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "But for Cain and for his offering he had no regard. So Cain became very angry, and his face fell.",
+    "note": "The same Hebrew verb for \"regard\" links God's favor here to the \"respect\" shown to Abel in verse 4, heightening the sting of divine preference.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454507
   },
   "3:5": {
-    "rendering": "Yahweh said to Cain, \"Why are you angry, and why has your face fallen?",
-    "note": "This is the first time in the Bible God directly asks someone \"why\" about their inner state, inviting Cain into a conversation about his burning resentment after his offering was not accepted. The phrase \"your face fallen\" echoes the image-of-God theme from Genesis 1, showing how quickly humanity's visible representation of the Creator can become distorted by the same kind of envy that will later fracture families, nations, and ultimately find its remedy in Jesus, the truly acceptable offering.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "The Lord said to Cain, \"Why are you angry, and why has your face fallen?\"",
+    "note": "This divine question echoes God's earlier one to Adam in the garden, probing the heart before judgment falls.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454507
   },
   "3:6": {
-    "rendering": "If you do what is good, will you not be accepted? But if you do not do what is good, sin is crouching at the door. It desires you, but you must rule over it.",
-    "note": "This is the first time the Hebrew word for \"sin\" appears in the Bible, pictured as a wild animal lurking like the serpent in Eden, echoing the earlier command to rule and subdue creation. The scene sets up a pattern of humans facing the choice between life and death, a tension that runs through the whole story until Jesus faces the ultimate test in the wilderness and overcomes where Cain could not.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "If you do well, will you not be lifted up? But if you do not do well, sin is crouching at the door, its desire is for you, yet you can rule over it.",
+    "note": "The word for \"crouching\" echoes the same verb used of the serpent in Genesis 3, hinting that the beast outside the door is the same ancient enemy now waiting to pounce.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454507
   },
   "3:7": {
     "rendering": "Cain said to his brother Abel, \"Let's go out to the field.\" And when they were in the field, Cain rose up against his brother Abel and killed him.",
-    "note": "The Hebrew word for \"rose up\" (yaqom) echoes the same root used when God \"raises up\" deliverers later in the story, but here it twists into the first murder, showing humanity's image-bearing power turned against itself right after the exile from Eden. This sibling violence sets a pattern of brother-against-brother that runs through the biblical narrative, from Jacob and Esau to Joseph and his brothers, until it finds its ultimate resolution in Jesus, the elder brother who lays down his life for his siblings instead of taking theirs.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "note": "The Hebrew literally says Cain \"rose up\" against Abel, the same verb used when God \"raised up\" humanity from the dust, twisting creation's upward movement into murder.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454507
   },
   "3:8": {
-    "rendering": "Then the Lord said to Cain, \"Where is your brother Abel?\" And he said, \"I don't know. Am I my brother's keeper?\"",
-    "note": "The word \"keeper\" echoes God's earlier command for humans to \"keep\" the garden and echoes forward to the Levites who will \"keep\" the tabernacle, revealing how Cain's refusal to watch over his brother fractures the image-of-God vocation to guard and care for one another, a thread the biblical story will keep weaving until Jesus becomes the true keeper of his people.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Then the LORD said to Cain, \"Where is your brother Abel?\" He said, \"I don't know. Am I my brother's keeper?\"",
+    "note": "Cain's evasive question twists the ancient cultural duty of a brother to protect and guard his sibling.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455761
   },
   "3:9": {
-    "rendering": "The LORD said, \"What have you done? Your brother's blood is crying out to me from the ground.\"",
-    "note": "The Hebrew word for \"crying out\" (tsa'aq) is the same urgent cry used when people call for justice in the face of violence. This scene in the ground that drank Abel's blood sets up a pattern of the earth itself bearing witness against human bloodshed, a thread that runs from here through the blood of prophets to the ultimate innocent blood that would one day speak a better word than Abel's.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "The LORD said, \"What have you done? The voice of your brother's blood is crying out to me from the ground.\"",
+    "note": "The Hebrew word for \"blood\" here is plural, \"bloods,\" evoking not just one life but all the potential generations Abel would never father.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455761
   },
   "3:10": {
-    "rendering": "So now you are cursed, driven from the ground that opened its mouth to take your brother's blood from your hand.",
-    "note": "The ground that once yielded life for Cain now rejects him, echoing the curse on the soil after Adam's rebellion yet intensified by the first human blood spilled, the word for \"cursed\" here carrying the weight of being cut off from the very source of sustenance in the ancient Near Eastern world.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Now you are cursed from the ground, which has opened its mouth to take your brother's blood from your hand.",
+    "note": "The ground that drank Abel's blood now rejects Cain, echoing the curse on Adam but intensified.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455761
   },
   "3:11": {
     "rendering": "When you work the ground, it will no longer yield its strength to you. You will be a restless wanderer on the earth.",
-    "note": "The Hebrew word for \"wanderer\" (nad) echoes the name of the land of \"Nod\" where Cain will settle, creating a wordplay that ties his identity to his fate. This curse reverses the garden's blessing of fruitful ground and human dominion, launching the Bible's long theme of exile from the land and the restless search for home that will find its resolution in Jesus, the seed who restores the blessing to the cursed ground.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "note": "The Hebrew wordplay between \"Cain\" and \"qaniti\" (I have acquired) echoes in the curse that the ground will no longer \"yield\" (literally \"give\") its strength, turning his violent taking into endless restless exile.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455761
   },
   "3:12": {
-    "rendering": "Cain said to the Lord, \"My punishment is too great to bear.\"",
-    "note": "The Hebrew word for Cain's \"punishment\" is the same one used for his \"iniquity\" just verses earlier, creating a wordplay that layers guilt and consequence together, much like the ground that swallowed Abel's blood now resists Cain's work. This moment echoes the human pattern of exile from God's presence that began in Eden and will thread through Israel's story of wandering and return, pointing forward to the ultimate resolution of guilt and restoration that Jesus brings.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Cain said to the LORD, My punishment is greater than I can bear.",
+    "note": "The Hebrew word for \"punishment\" is the same as for \"iniquity,\" linking Cain's guilt and its crushing consequences in one loaded term.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455761
   },
   "3:13": {
-    "rendering": "Look, today you have driven me from the face of the ground, and I will be hidden from your face. I will be a restless wanderer on the earth, and anyone who finds me will kill me.",
-    "note": "Cain's anguished cry echoes the curse on the ground from Genesis 3, but now the ground itself drives him out, turning the image-of-God vocation of filling and ruling the earth into restless exile. The Hebrew word for \"restless wanderer\" (nad) carries the idea of fugitive flight, setting up a major biblical pattern of scattering and the hope for a place of rest that ultimately finds its yes in Jesus, the seed who brings us back to God's presence.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Look, today you have driven me from the face of the ground. I will be hidden from your face. I will become a restless wanderer on the earth, and anyone who finds me will kill me.",
+    "note": "The Hebrew word for \"restless wanderer\" (nad) echoes the earlier curse on Cain to be \"driven\" from the soil, turning his punishment into a life of perpetual, anxious motion.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455761
   },
   "3:14": {
-    "rendering": "But the Lord said to him, \"Therefore, if anyone kills Cain, sevenfold vengeance will be taken on him.\" Then the Lord put a mark on Cain, so that no one who found him would strike him down.",
-    "note": "The word for \"mark\" here is the same Hebrew term used later for the sign of the covenant with Noah and the Passover blood on doorposts, a visible reminder of God's protection. This moment in the story of escalating human violence sets up a fascinating tension: God's mercy and justice holding together even for the guilty, a thread that will echo all the way to the ultimate innocent one who takes violence upon himself.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Then the LORD said to him, \"Therefore, if anyone kills Cain, sevenfold vengeance will be taken on him.\" And the LORD put a mark on Cain, so that no one who found him would strike him down.",
+    "note": "The \"sevenfold\" vengeance echoes the poetic justice in Lamech's later boast, showing how God's protective mark subverts human cycles of escalating revenge.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455761
   },
   "3:15": {
-    "rendering": "So Cain went out from the presence of the LORD, and he settled in the land of Nod, east of Eden.",
-    "note": "The name \"Nod\" comes from the Hebrew word for \"wandering,\" turning Cain's restless exile into a place name that echoes the curse of the ground and his own fugitive life. This scene deepens the Bible's exile motif, launched in Eden and now spreading outward, setting the stage for the long story of humanity's fractured relationship with God, a fracture that Jesus ultimately comes to heal by bringing the presence of the LORD back to wandering humanity.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "So Cain went away from the face of the LORD, and he settled in the land of Nod, east of Eden.",
+    "note": "Nod means \"wandering,\" a wordplay that turns Cain's restless exile into the very name of his new home.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455761
   },
   "3:16": {
-    "rendering": "Cain knew his wife, and she conceived and gave birth to Enoch. He was building a city, and he named the city after his son Enoch.",
-    "note": "The name Enoch comes from a Hebrew root that means \"to dedicate\" or \"to initiate,\" echoing the theme of humans taking initiative to build and name things in their own image right after the exile from Eden. This first city in the Bible launches a whole line of cultural development in Cain's family that will shape the story through the flood and beyond, pointing forward to how God will one day dedicate a city of his own making in Revelation.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Cain knew his wife, she conceived and gave birth to Enoch. He was building a city, and he called the name of the city after the name of his son, Enoch.",
+    "note": "The first city in the Bible is founded by a murderer and named after his son, echoing the ancient pattern of rulers building monuments to secure their legacy.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457340
   },
   "3:17": {
-    "rendering": "To Enoch was born Irad, and Irad fathered Mehujael, Mehujael fathered Methushael, and Methushael fathered Lamech.",
-    "note": "This brief genealogy in the line of Cain quietly echoes the earlier creation mandate to be fruitful and multiply, yet it unfolds in a world now marked by exile and fractured relationships, setting the stage for Lamech's violent song just a few verses later. The names themselves carry intriguing wordplay in Hebrew, like Mehujael meaning something like 'smitten by God,' hinting at the lingering tension between human striving and divine presence in the unfolding biblical story.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "To Enoch was born Irad, and Irad fathered Mehujael, and Mehujael fathered Methushael, and Methushael fathered Lamech.",
+    "note": "This tight genealogy in Cain's line quietly echoes the ten-generation structure of Seth's in chapter 5, hinting at parallel human stories unfolding side by side.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457340
   },
   "3:18": {
-    "rendering": "Lamech took two wives for himself. The name of the first was Adah, and the name of the second was Zillah.",
-    "note": "The first recorded polygamy in the Bible comes right after the line of Cain invents tools, music, and cities, echoing the earlier 'taking' of wives by the sons of God in Genesis 6. This small detail quietly shows how human power and creativity, cut off from God's original design for one-flesh union, begin to multiply division rather than the image of God.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Lamech took two wives for himself: the name of the first was Adah, and the name of the second was Zillah.",
+    "note": "The first polygamous marriage recorded in Scripture, echoing the fractured human attempt to seize blessing and security apart from God's design.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457340
   },
   "3:19": {
-    "rendering": "Adah gave birth to Jabal. He was the father of those who live in tents and with livestock.",
-    "note": "The name Jabal sounds like the Hebrew word for 'produce' or 'bring forth,' hinting at humanity's drive to cultivate and spread across the earth after Eden's exile. This verse introduces the first cultural innovators in the Bible's story, showing how the image of God continues to create and shape the world even east of Eden, a thread that runs through Israel's nomadic life and ultimately finds its fulfillment in the one who would 'tabernacle' among us.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Adah gave birth to Jabal. He was the father of those who live in tents and raise livestock.",
+    "note": "The first mention of a \"father\" in the Bible launches human culture through specialization, echoing the creative mandate to fill and shape the earth.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457340
   },
   "3:20": {
     "rendering": "His brother's name was Jubal. He was the father of all who play the lyre and the pipe.",
-    "note": "The name Jubal echoes the Hebrew word for 'ram's horn' (yovel), the instrument that would later announce the year of Jubilee and freedom. Right after humanity's exile from Eden, this verse shows us inventing music, a human echo of the divine creativity that spoke the world into being, and a foretaste of how heaven and earth will one day overlap again in joyful song.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "note": "Jubal's name echoes the Hebrew word for 'ram's horn' or 'trumpet,' hinting that music itself was born in the line of Cain.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457340
   },
   "3:21": {
-    "rendering": "Zillah also gave birth to Tubal-cain, who forged all kinds of bronze and iron tools. The sister of Tubal-cain was Naamah.",
-    "note": "The name Tubal-cain carries an echo of the earlier Cain, whose name means \"acquired\" or \"smith,\" linking this first metalworker to the line of the fugitive who built the first city. In the ancient world, forging bronze and iron represented humanity's God-given creativity to shape the raw materials of creation, yet this innovation comes from the same family line marked by violence and exile, a thread that runs through the Bible's story of human power used for both flourishing and harm, ultimately finding its true image-bearer in Jesus.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Zillah also gave birth to Tubal-cain, who forged all kinds of bronze and iron tools. Tubal-cain's sister was Naamah.",
+    "note": "The first metalsmith emerges right after the first city-builder, showing how quickly human skill turns raw creation into shaped tools.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457340
   },
   "3:22": {
-    "rendering": "Lamech said to his wives: Adah and Zillah, hear my voice. Wives of Lamech, listen to what I say. I have killed a man for wounding me, a young man for striking me.",
-    "note": "Lamech's violent boast in Genesis 4 twists the image-of-God theme from Genesis 1, showing humanity's spiral into revenge and self-exaltation just a few generations after Eden. The Hebrew wordplay on his name (which sounds like \"powerful\") and the escalation from Cain's sevenfold protection to Lamech's seventy-sevenfold vengeance sets up a dark pattern of multiplied violence that Jesus will later invert in Matthew 18:22 with a call to multiplied forgiveness.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Lamech said to his wives: Adah and Zillah, hear my voice, you wives of Lamech, give ear to what I say. I have killed a man for wounding me, a young man for striking me.",
+    "note": "Lamech's boastful poem twists the earlier \"eye for an eye\" principle into violent excess, echoing and inverting the Cain story.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457340
   },
   "3:23": {
     "rendering": "If Cain is avenged seven times, then Lamech seventy-seven times.",
-    "note": "Lamech's boastful twist on God's protective sevenfold vengeance for Cain (just a few verses earlier) introduces the theme of escalating violence and twisted justice that will spiral through the human story, from the garden's first murder all the way to the flood. This seventy-seven pattern echoes later in Jesus' teaching on forgiveness in Matthew 18, where he invites a radically different way of responding to wrongdoing, fulfilling the Bible's larger movement from cycles of vengeance to covenant faithfulness and mercy.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "note": "Lamech twists God's mercy into a license for limitless revenge, escalating the violence that began with his ancestor Cain.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457340
   },
   "3:24": {
-    "rendering": "Adam knew his wife again, and she bore a son. She named him Seth, because she said, \"God has given me another offspring in place of Abel, since Cain killed him.\"",
-    "note": "The name Seth comes from the Hebrew verb \"shat\" (placed or granted), echoing Eve's earlier cry of \"qaniti\" (I have gotten/acquired) when she named Cain. This birth marks a new branch of the human family line after the violence and exile of Cain's story, quietly setting the stage for the lineage that will lead through Noah, Abraham, and ultimately to the promised seed who will crush the serpent's head.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "Adam knew his wife again, and she bore a son and called his name Seth, for she said, \"God has appointed for me another offspring instead of Abel, for Cain killed him.\"",
+    "note": "Eve's wordplay on \"Seth\" (from Hebrew shat, \"appointed\") echoes her earlier pain in naming Cain, turning grief into quiet hope for renewed seed.",
+    "v": "ff54612cf1f0",
+    "t": 1774976458199
   },
   "3:25": {
-    "rendering": "At that time people began to call on the name of the LORD.",
-    "note": "The Hebrew phrase \"began to call\" carries a hint of something newly emerging, like the first shoots of worship in a fractured world. This tiny verse echoes the image-of-God theme from Genesis 1 and quietly launches a major biblical thread: humans calling on YHWH's name, a pattern that will run through Abraham's altars, the exodus, the prophets, and finally explode in the New Testament when people call on the name of Jesus for rescue.",
-    "v": "9f133fa9c9ef",
-    "t": 1774846853719
+    "rendering": "To Seth also a son was born, and he called his name Enosh. At that time people began to call on the name of the Lord.",
+    "note": "The name Enosh means \"human one,\" echoing the frailty first named in Genesis 2-3, and here marks the moment humanity first openly invokes Yahweh's personal name.",
+    "v": "ff54612cf1f0",
+    "t": 1774976458199
+  },
+  "2:0": {
+    "rendering": "Now the snake was more shrewd than any beast of the field that the LORD God had made, and it said to the woman, \"Did God really say, 'You must not eat from any tree of the garden'?\"",
+    "note": "The Hebrew word for \"shrewd\" (arum) echoes the \"naked\" (arumim) of 2:25, hinting that this clever creature will expose their vulnerability.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454509
+  },
+  "2:1": {
+    "rendering": "The woman said to the serpent, \"We may eat fruit from the trees of the garden.\"",
+    "note": "The woman quotes God's exact words back to the serpent, already tightening the command from \"every tree\" to just \"the trees of the garden\" before the serpent even replies.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454509
+  },
+  "2:2": {
+    "rendering": "but about the fruit of the tree in the middle of the garden, God said, 'You shall not eat from it, and you shall not touch it, or you will die.'",
+    "note": "Eve adds the words \"and you shall not touch it,\" an expansion that echoes the serpent's later twisting of God's exact command.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454509
+  },
+  "2:3": {
+    "rendering": "The serpent said to the woman, \"You will not surely die.\"",
+    "note": "The serpent's words twist God's exact phrasing from 2:17, replacing the emphatic warning with a flat denial that plants the first seeds of doubt.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454509
+  },
+  "2:4": {
+    "rendering": "For God knows that when you eat from it your eyes will be opened, and you will be like God, knowing good and evil.",
+    "note": "The serpent's promise twists the ancient idea of divine wisdom into self-exalting autonomy, echoing the very knowledge God possesses yet offering it as a shortcut apart from trust.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454509
+  },
+  "2:5": {
+    "rendering": "The woman saw that the tree was good for food, that it was a delight to the eyes, and that the tree was desirable to make one wise, so she took some of its fruit and ate. She also gave some to her husband who was with her, and he ate.",
+    "note": "The three adjectives echo God's own sevenfold declaration that creation was \"good\" in Genesis 1, but now the woman reclassifies the forbidden tree through her own eyes.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454509
+  },
+  "2:6": {
+    "rendering": "Then the eyes of both of them were opened, and they knew that they were naked. So they sewed fig leaves together and made loincloths for themselves.",
+    "note": "Their eyes are \"opened\" with the very knowledge the serpent promised, yet it brings shame instead of godlike wisdom, an early echo of how twisted desire distorts sight.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454509
+  },
+  "2:7": {
+    "rendering": "They heard the sound of the Lord God walking in the garden in the cool of the day, and the man and his wife hid themselves from the presence of the Lord God among the trees of the garden.",
+    "note": "The word for \"walking\" here is the same one used later for God \"walking about\" in the tabernacle, hinting that Eden itself was the first sanctuary.",
+    "v": "ff54612cf1f0",
+    "t": 1774976454509
+  },
+  "2:8": {
+    "rendering": "But the LORD God called to the man and said to him, \"Where are you?\"",
+    "note": "This first question in the Bible is not about location but about the man's new reality of hiding and fear after his eyes were opened.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455569
+  },
+  "2:9": {
+    "rendering": "He replied, \"I heard the sound of you walking in the garden, and I was afraid because I am naked, so I hid myself.\"",
+    "note": "The man's answer echoes the earlier \"voice\" of the serpent and the \"sound\" of God's approach, showing how fear now warps the once-intimate walk with God.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455569
+  },
+  "2:10": {
+    "rendering": "And he said, Who told you that you were naked? Have you eaten from the tree that I commanded you not to eat from?",
+    "note": "The question \"Who told you?\" echoes the serpent's earlier claim to give knowledge, exposing how the forbidden fruit delivered shame instead of wisdom.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455569
+  },
+  "2:11": {
+    "rendering": "The man said, \"The woman whom you gave to be with me, she gave me some of the tree's fruit, and I ate.\"",
+    "note": "Adam's first recorded words after the fall deflect blame onto both the woman and God who gave her, echoing the serpent's earlier twist on God's words.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455569
+  },
+  "2:12": {
+    "rendering": "Yahweh God said to the woman, \"What is this you have done?\" The woman said, \"The serpent deceived me, and I ate.\"",
+    "note": "The Hebrew word for \"deceived\" here echoes the serpent's own craftiness in verse 1, showing how its cunning looped back on the woman.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455569
+  },
+  "2:13": {
+    "rendering": "Then the LORD God said to the snake, Because you have done this, cursed are you above all the livestock and above all the beasts of the field. On your belly you shall go, and dust you shall eat all the days of your life.",
+    "note": "The curse uses the same Hebrew verb for \"cursed\" that will later fall on the ground itself, linking the snake's humiliation to the soil it now must eat.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455569
+  },
+  "2:14": {
+    "rendering": "I will put hostility between you and the woman, between your offspring and her offspring. He will strike your head, and you will strike his heel.",
+    "note": "This first whisper of enmity sets up a long biblical thread of conflict between two seeds, one that echoes from here through the prophets to the cross.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455569
+  },
+  "2:15": {
+    "rendering": "To the woman he said, \"I will greatly increase your pain in childbearing, in pain you will bring forth children. Your desire will be for your husband, and he will rule over you.\"",
+    "note": "The Hebrew word for \"pain\" here echoes the \"toil\" pronounced over the man in the next verse, linking their shared curse to the ground's resistance.",
+    "v": "ff54612cf1f0",
+    "t": 1774976455569
+  },
+  "2:16": {
+    "rendering": "To the man he said, \"Because you listened to the voice of your wife and ate from the tree that I commanded you not to eat from, cursed is the ground because of you. In painful toil you will eat from it all the days of your life.\"",
+    "note": "The ground, once freely yielding, now fights back with thorns, linking human rebellion to creation's frustration in a single Hebrew word for \"curse.\"",
+    "v": "ff54612cf1f0",
+    "t": 1774976457063
+  },
+  "2:17": {
+    "rendering": "It will sprout thorns and thistles for you, and you will eat the plants of the field.",
+    "note": "This curse directly echoes the ground's original blessing in Genesis 1:11-12, twisting fruitful soil into a place of painful labor.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457063
+  },
+  "2:18": {
+    "rendering": "By the sweat of your face you will eat bread until you return to the ground, for out of it you were taken. For you are dust, and to dust you shall return.",
+    "note": "The Hebrew wordplay between adam (human) and adamah (ground) ties our fate to the very soil we were formed from.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457063
+  },
+  "2:19": {
+    "rendering": "The man called his wife's name Eve, because she was the mother of all living.",
+    "note": "The name Eve plays on the Hebrew word for \"living\" (chavah), a wordplay that turns the first death sentence into a defiant promise of life.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457063
+  },
+  "2:20": {
+    "rendering": "Yahweh God made garments of skins for Adam and his wife, and he clothed them.",
+    "note": "This first act of divine clothing after the curse echoes forward through the Bible, from priestly robes to the seamless tunic of Jesus.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457063
+  },
+  "2:21": {
+    "rendering": "Then the LORD God said, \"Look, the man has become like one of us, knowing good and evil. What if he now reaches out his hand, takes from the tree of life also, eats, and lives forever?\"",
+    "note": "The phrase \"like one of us\" echoes the plural \"let us make\" in Genesis 1:26, hinting at divine council language in the ancient Near East.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457063
+  },
+  "2:22": {
+    "rendering": "So the LORD God sent him out from the garden of Eden to work the ground from which he had been taken.",
+    "note": "The Hebrew word for \"sent him out\" carries the force of driving away or banishing, echoing the same verb used for casting out Cain in the next chapter.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457063
+  },
+  "2:23": {
+    "rendering": "So he drove out the human, and stationed east of the garden of Eden the cherubim and the whirling sword of flame to guard the way to the tree of life.",
+    "note": "The whirling, flaming sword echoes the fiery theophanies of Sinai and the temple's cherubim guardians, turning humanity's first home into a guarded sanctuary no one can re-enter on their own.",
+    "v": "ff54612cf1f0",
+    "t": 1774976457063
   }
 }

@@ -100,5 +100,371 @@
     "note": "This closing line echoes the exact phrase used for Abraham in Genesis 25:8, quietly signaling Job's story has been woven into the larger covenant narrative.",
     "v": "ff54612cf1f0",
     "t": 1774860690068
+  },
+  "1:0": {
+    "rendering": "Then the day came when the sons of God presented themselves before the LORD, and the adversary also came among them to present himself before the LORD.",
+    "note": "The scene repeats Job 1:6 almost word for word, pulling us back into the heavenly courtroom where the adversary returns to challenge what he started.",
+    "v": "ff54612cf1f0",
+    "t": 1774976341756
+  },
+  "1:1": {
+    "rendering": "The LORD said to the adversary, \"Where have you come from?\" The adversary answered the LORD, \"From roaming through the earth and walking up and down in it.\"",
+    "note": "The adversary's answer echoes the exact words God used for the sea monster Leviathan in Job 1:7, revealing this figure as one who prowls creation like chaos itself.",
+    "v": "ff54612cf1f0",
+    "t": 1774976341756
+  },
+  "1:2": {
+    "rendering": "Then the LORD said to the adversary, \"Have you noticed my servant Job? There is no one like him on the earth, a man of complete integrity, who fears God and turns from evil. He still holds fast to his integrity, though you incited me against him to destroy him for no reason.\"",
+    "note": "The word \"integrity\" echoes the same Hebrew term used for Job's blamelessness in 1:1, now repeated to underscore his unchanged character despite the adversary's incitement.",
+    "v": "ff54612cf1f0",
+    "t": 1774976341756
+  },
+  "1:3": {
+    "rendering": "Then the adversary answered Yahweh and said, Skin for skin. Yes, all that a man has he will give for his own life.",
+    "note": "The phrase skin for skin is ancient barter language, hinting the adversary still sees Job's losses as mere surface trades, not yet touching his own flesh.",
+    "v": "ff54612cf1f0",
+    "t": 1774976341756
+  },
+  "1:4": {
+    "rendering": "Stretch out your hand now and strike his bone and his flesh. Surely then he will curse you to your face.",
+    "note": "The accuser escalates from property to body, echoing the precise language of the earlier test in verse 3 and heightening the wager.",
+    "v": "ff54612cf1f0",
+    "t": 1774976341756
+  },
+  "1:5": {
+    "rendering": "The LORD said to the adversary, \"Very well, he is in your hand. Only spare his life.\"",
+    "note": "The Hebrew word for \"hand\" echoes the same term used when God places the first humans in the garden to work and guard it, hinting at how even this testing remains bounded by divine authority.",
+    "v": "ff54612cf1f0",
+    "t": 1774976341756
+  },
+  "1:6": {
+    "rendering": "So the adversary went out from the presence of the LORD and struck Job with terrible boils from the sole of his foot to the crown of his head.",
+    "note": "The Hebrew word for \"struck\" echoes the plagues God sent on Egypt, flipping the script so that now the accuser afflicts the righteous.",
+    "v": "ff54612cf1f0",
+    "t": 1774976341756
+  },
+  "1:7": {
+    "rendering": "He took a piece of broken pottery to scrape himself while he sat among the ashes.",
+    "note": "The Hebrew word for \"ashes\" (epher) echoes the dust of Genesis 3:19 and the mourning rituals of the ancient Near East, placing Job in the realm of the dead while still breathing.",
+    "v": "ff54612cf1f0",
+    "t": 1774976341756
+  },
+  "0:0": {
+    "rendering": "There was a man in the land of Uz whose name was Job. That man was blameless and upright, one who feared God and turned away from evil.",
+    "note": "The name Job echoes the Hebrew word for \"enemy,\" yet this blameless man from Uz stands as the story's unexpected hero in wisdom's ancient test.",
+    "v": "ff54612cf1f0",
+    "t": 1774976342380
+  },
+  "0:1": {
+    "rendering": "He had seven sons and three daughters.",
+    "note": "In the ancient world, seven and three together signaled perfect completeness, painting Job as the ideal family man before the storm hits.",
+    "v": "ff54612cf1f0",
+    "t": 1774976342380
+  },
+  "0:2": {
+    "rendering": "He owned seven thousand sheep, three thousand camels, five hundred yoke of oxen, five hundred female donkeys, and a very large household of servants. That man was greater than all the people of the east.",
+    "note": "The numbers seven, three, and five echo the structured completeness of creation itself, painting Job as a man at the pinnacle of ordered blessing in the ancient east.",
+    "v": "ff54612cf1f0",
+    "t": 1774976342380
+  },
+  "0:3": {
+    "rendering": "His sons used to go and hold a feast in each one's house on his appointed day, and they would send and invite their three sisters to eat and drink with them.",
+    "note": "The Hebrew's \"appointed day\" hints at a rhythmic, cyclical family ritual that echoes the structured feasts later in Israel's calendar.",
+    "v": "ff54612cf1f0",
+    "t": 1774976342380
+  },
+  "0:4": {
+    "rendering": "When the days of feasting had run their course, Job would send for his children and consecrate them. He would rise early in the morning and offer burnt offerings according to the number of them all. For Job said, \"It may be that my children have sinned and cursed God in their hearts.\" This is what Job did continually.",
+    "note": "Job's repeated dawn offerings echo the careful rituals of Genesis patriarchs, revealing an ancient anxiety that even unspoken sin might fracture the family bond with God.",
+    "v": "ff54612cf1f0",
+    "t": 1774976342380
+  },
+  "0:5": {
+    "rendering": "One day the sons of God came to present themselves before the LORD, and the adversary also came among them.",
+    "note": "The scene echoes a heavenly court where \"the adversary\" (ha-satan) functions as a roaming accuser, not yet the full devil of later tradition.",
+    "v": "ff54612cf1f0",
+    "t": 1774976342380
+  },
+  "0:6": {
+    "rendering": "The Lord said to the adversary, \"Where have you come from?\" The adversary answered the Lord, \"From roaming through the earth and walking up and down on it.\"",
+    "note": "The adversary's answer echoes a divine question in Genesis 3, where God asks the first humans where they are after they roam into disobedience.",
+    "v": "ff54612cf1f0",
+    "t": 1774976342380
+  },
+  "0:7": {
+    "rendering": "Yahweh said to the adversary, \"Have you set your heart on my servant Job? There is no one like him on the earth, a man blameless and upright, who fears God and turns away from evil.\"",
+    "note": "The phrase \"set your heart on\" echoes how God earlier \"set his heart\" on creation in Genesis, turning the adversary's gaze toward the one human who still images that original goodness.",
+    "v": "ff54612cf1f0",
+    "t": 1774976342380
+  },
+  "0:8": {
+    "rendering": "Then the adversary answered the Lord and said, \"Does Job fear God for nothing?",
+    "note": "The word \"for nothing\" (Hebrew *hinam*) echoes the book's core question: is there such a thing as truly disinterested worship?",
+    "v": "ff54612cf1f0",
+    "t": 1774976343272
+  },
+  "0:9": {
+    "rendering": "Have you not put a hedge around him, his house, and all that he has on every side? You have blessed the work of his hands, and his possessions have increased in the land.",
+    "note": "The accuser's words reveal a barbed irony, the very protective hedge he resents is the same divine favor that makes Job's story a test of whether faithfulness can survive its removal.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343272
+  },
+  "0:10": {
+    "rendering": "But stretch out your hand and strike everything that belongs to him, and he will surely curse you to your face.",
+    "note": "The accuser's wager hinges on the ancient belief that calamity always reveals a person's true loyalty, echoing the testing motif that runs from Genesis to the prophets.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343272
+  },
+  "0:11": {
+    "rendering": "Then the LORD said to the adversary, \"Look, everything he has is in your hand. Only do not stretch out your hand against the man himself.\" So the adversary went out from the presence of the LORD.",
+    "note": "The Hebrew word for \"hand\" repeats three times, underscoring how God sets strict boundaries on the adversary's power even while allowing the test.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343272
+  },
+  "0:12": {
+    "rendering": "One day, when Job's sons and daughters were eating and drinking wine in the house of their oldest brother,",
+    "note": "The scene mirrors the book's opening description of Job's family feasts, setting up the sudden reversal that tests whether his fear of God is rooted in blessing or in God himself.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343273
+  },
+  "0:13": {
+    "rendering": "A messenger came to Job and said, \"The oxen were plowing and the donkeys were grazing nearby,",
+    "note": "This ordinary farm scene sets up the sudden invasion of chaos, echoing how ancient storytellers used everyday life to heighten the shock of disaster.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343273
+  },
+  "0:14": {
+    "rendering": "The Sabeans fell upon them and took them away. They struck down the young men with the edge of the sword, and I alone escaped to tell you.",
+    "note": "The word for \"young men\" here is the same Hebrew term used for Job's own children earlier in the chapter, hinting that the disaster struck his entire household.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343273
+  },
+  "0:15": {
+    "rendering": "While that messenger was still speaking, another came and said, \"Fire from God fell from the sky and burned up the sheep and the servants. It consumed them completely, and I alone escaped to tell you.\"",
+    "note": "The phrase \"fire of God\" echoes the same Hebrew expression used for the consuming fire on Mount Sinai, hinting that the disaster feels like divine judgment itself.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343273
+  },
+  "1:8": {
+    "rendering": "Then his wife said to him, \"Are you still holding on to your integrity? Curse God and die.\"",
+    "note": "Her blunt question echoes the accuser's earlier challenge, exposing how even those closest to Job test whether his fear of God is skin-deep.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343426
+  },
+  "1:9": {
+    "rendering": "He said to her, \"You are speaking like one of the foolish women speaks. Should we receive the good from God and not receive the trouble?\" In all this Job did not sin with his lips.",
+    "note": "The Hebrew word for \"foolish\" here echoes the wisdom tradition's contrast between the wise and the fool, framing Job's response as a deliberate choice for wisdom amid pain.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343426
+  },
+  "1:10": {
+    "rendering": "Now when Job's three friends heard of all this evil that had come upon him, they came each from his own place: Eliphaz the Temanite, Bildad the Shuhite, and Zophar the Naamathite. They agreed together to come and sympathize with him and comfort him.",
+    "note": "These three friends arrive like a tragic chorus from the ancient wisdom tradition, their names and distant homelands echoing the international flavor of the book of Job.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343426
+  },
+  "1:11": {
+    "rendering": "When they lifted up their eyes from a distance and did not recognize him, they raised their voices and wept. Each one tore his robe, and they sprinkled dust on their heads toward the sky.",
+    "note": "The friends' dramatic gestures of grief echo ancient mourning rituals for the dead, yet they do so from afar, foreshadowing their later failure to truly comfort the living sufferer.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343426
+  },
+  "1:12": {
+    "rendering": "So they sat with him on the ground for seven days and seven nights, and no one spoke a word to him, for they saw that his suffering was very great.",
+    "note": "In the ancient Near East, seven days of silent sitting was the customary mourning period for the dead, yet here Job is still very much alive.",
+    "v": "ff54612cf1f0",
+    "t": 1774976343426
+  },
+  "0:16": {
+    "rendering": "While this one was still speaking, another came and said, \"The Chaldeans formed three bands, raided the camels, and carried them off. They struck down the servants with the edge of the sword, and I alone have escaped to tell you.\"",
+    "note": "The three raiding bands of Chaldeans echo the three friends who will soon arrive to debate Job's suffering, hinting at how disaster comes in structured waves.",
+    "v": "ff54612cf1f0",
+    "t": 1774976344221
+  },
+  "0:17": {
+    "rendering": "While he was still speaking, another came and said, \"Your sons and daughters were eating and drinking wine in their oldest brother's house,\"",
+    "note": "The repeated phrase \"while he was still speaking\" links this final blow to the earlier calamities, creating a relentless cascade of disaster in one devastating day.",
+    "v": "ff54612cf1f0",
+    "t": 1774976344221
+  },
+  "0:18": {
+    "rendering": "Suddenly a great wind came from across the wilderness. It struck the four corners of the house, and it fell on the young people and they died. I alone escaped to tell you.",
+    "note": "The \"great wind from the wilderness\" echoes the chaotic forces of the sea and desert in ancient Near Eastern stories, testing whether Job will curse God like the adversary predicted.",
+    "v": "ff54612cf1f0",
+    "t": 1774976344221
+  },
+  "0:19": {
+    "rendering": "Then Job arose, tore his robe, shaved his head, and fell to the ground and worshiped.",
+    "note": "In the ancient Near East, tearing one's robe and shaving the head were classic signs of mourning, yet Job's first act is to worship, not curse.",
+    "v": "ff54612cf1f0",
+    "t": 1774976344221
+  },
+  "0:20": {
+    "rendering": "He said, Naked I came out from my mother's womb, and naked I will return there. The Lord gave, and the Lord has taken away. May the name of the Lord be blessed.",
+    "note": "The word \"there\" echoes the womb as the place of origin, linking birth and death in a single mysterious return.",
+    "v": "ff54612cf1f0",
+    "t": 1774976344221
+  },
+  "0:21": {
+    "rendering": "In all this Job did not sin, and he did not charge God with any wrongdoing.",
+    "note": "This verse's double negative, \"did not sin and did not ascribe folly to God,\" echoes the careful language of the prologue's testing, showing Job's first response holds the ancient tension between suffering and trust without forcing blame.",
+    "v": "ff54612cf1f0",
+    "t": 1774976344221
+  },
+  "2:0": {
+    "rendering": "After this, Job opened his mouth and cursed his day.",
+    "note": "In Hebrew \"cursed his day\" echoes the creation language of Genesis 1, but instead of blessing what God called good, Job unleashes a lament that unravels the ordered world.",
+    "v": "ff54612cf1f0",
+    "t": 1774976388933
+  },
+  "2:1": {
+    "rendering": "He answered and said:",
+    "note": "Job's first words after seven days of silence erupt in a curse on the day he was born, shattering the stunned quiet of his friends.",
+    "v": "ff54612cf1f0",
+    "t": 1774976388933
+  },
+  "2:2": {
+    "rendering": "Let the day I was born perish, and the night that said, \"A man has been conceived.\"",
+    "note": "Job's curse on his birthday echoes the creation language of Genesis 1 in reverse, turning God's \"let there be\" into a cry of uncreation.",
+    "v": "ff54612cf1f0",
+    "t": 1774976388933
+  },
+  "2:3": {
+    "rendering": "That day, let it be darkness. May God above not seek it out, and may no light shine upon it.",
+    "note": "The Hebrew word for \"seek it out\" echoes God's searching in creation, but here Job wishes the opposite: total un-creation of his birthday.",
+    "v": "ff54612cf1f0",
+    "t": 1774976388933
+  },
+  "2:4": {
+    "rendering": "Let darkness and deep gloom claim it back. Let a cloud settle over it. Let the blackness of the day terrify it.",
+    "note": "The Hebrew word for \"claim it back\" echoes the legal language of a kinsman-redeemer taking possession, but here darkness seizes the day of Job's birth instead of light.",
+    "v": "ff54612cf1f0",
+    "t": 1774976388933
+  },
+  "2:5": {
+    "rendering": "That night, let darkness seize it. Let it not join the days of the year, let it not come into the number of the months.",
+    "note": "The Hebrew word for \"seize\" echoes the same verb used when God seizes the sea monster in other poetic texts, turning Job's curse into an ironic cosmic battle.",
+    "v": "ff54612cf1f0",
+    "t": 1774976388933
+  },
+  "2:6": {
+    "rendering": "Look, let that night be barren, let no joyful shout enter it.",
+    "note": "The Hebrew word for \"barren\" is the same one used for a childless womb, turning the night of Job's conception into a sterile, joyless void.",
+    "v": "ff54612cf1f0",
+    "t": 1774976388933
+  },
+  "2:7": {
+    "rendering": "Let those who curse the day curse it, those skilled at rousing Leviathan.",
+    "note": "The Hebrew wordplay links \"curse\" (qalal) with the earlier \"cursed\" day in verse 1, while summoning experts in awakening the chaos monster Leviathan shows Job's raw grief exploding into cosmic rage.",
+    "v": "ff54612cf1f0",
+    "t": 1774976388933
+  },
+  "2:8": {
+    "rendering": "Let the stars of its dawn be dark, let it wait for light but have none, and let it not see the eyelids of morning.",
+    "note": "The Hebrew wordplay on \"dawn\" (shachar) and \"dark\" (yecheshu) turns the very first light into a curse, echoing the chaos before creation in Genesis 1.",
+    "v": "ff54612cf1f0",
+    "t": 1774976389831
+  },
+  "2:9": {
+    "rendering": "because it did not shut the doors of my mother's womb, nor hide trouble from my eyes.",
+    "note": "The Hebrew word for \"doors\" echoes the locked gates of the sea in Job 38, hinting that the same God who set boundaries on chaos is the one Job now accuses of failing to bar his own entry into a life of pain.",
+    "v": "ff54612cf1f0",
+    "t": 1774976389831
+  },
+  "2:10": {
+    "rendering": "Why did I not die at birth, come out from the womb and expire?",
+    "note": "Job's raw cry echoes the lament psalms, exposing the ancient struggle with why the innocent suffer while the wicked thrive.",
+    "v": "ff54612cf1f0",
+    "t": 1774976389831
+  },
+  "2:11": {
+    "rendering": "Why did knees receive me, and why breasts that I should nurse at them?",
+    "note": "The Hebrew repeats \"why\" (mah) like hammer blows, echoing the chapter's tenfold lament and mirroring the questions hurled at God in the book of Job.",
+    "v": "ff54612cf1f0",
+    "t": 1774976389831
+  },
+  "2:12": {
+    "rendering": "Then I would be lying down and quiet, I would sleep and be at rest.",
+    "note": "The Hebrew verb for \"sleep\" here echoes the same word used for the death-like slumber of Adam in Genesis 2:21, painting Job's longed-for death as a twisted return to primal rest.",
+    "v": "ff54612cf1f0",
+    "t": 1774976389831
+  },
+  "2:13": {
+    "rendering": "with kings and counselors of the earth, who rebuilt ruins for themselves",
+    "note": "The phrase \"rebuilt ruins\" echoes the ancient Near Eastern royal boast of restoring desolate cities, yet here Job bitterly pictures even the greatest builders lying silent in death.",
+    "v": "ff54612cf1f0",
+    "t": 1774976389831
+  },
+  "2:14": {
+    "rendering": "Or with princes who had gold, who filled their houses with silver.",
+    "note": "The Hebrew word for \"princes\" echoes the same term used for the oppressive rulers in Job's earlier laments, highlighting how even the wealthy elite end up sharing the same silent fate in death.",
+    "v": "ff54612cf1f0",
+    "t": 1774976389831
+  },
+  "2:15": {
+    "rendering": "Or why was I not hidden like a stillborn child, like infants who never see the light?",
+    "note": "The Hebrew word for stillborn, nefel, carries the idea of something that falls away, echoing the sudden, unseen end Job wishes for his own life.",
+    "v": "ff54612cf1f0",
+    "t": 1774976389831
+  },
+  "2:16": {
+    "rendering": "There the wicked cease from raging, and there the weary are at rest.",
+    "note": "The Hebrew word for \"raging\" is the same one used for the sea's chaotic turmoil in Job 7 and 26, painting death as the place where even cosmic unrest finally falls silent.",
+    "v": "ff54612cf1f0",
+    "t": 1774976391220
+  },
+  "2:17": {
+    "rendering": "There the prisoners are at ease together, they hear no taskmaster's voice.",
+    "note": "The word for \"taskmaster\" echoes the exact term used for the Egyptian slave drivers in Exodus, turning Pharaoh's whip into a symbol of all oppressive powers now silenced in the grave.",
+    "v": "ff54612cf1f0",
+    "t": 1774976391220
+  },
+  "2:18": {
+    "rendering": "The small and the great are there, and the slave is free from his master.",
+    "note": "This line echoes the ancient Egyptian “Book of the Dead” motif of death as equalizer, yet Job twists it into bitter lament rather than comfort.",
+    "v": "ff54612cf1f0",
+    "t": 1774976391220
+  },
+  "2:19": {
+    "rendering": "Why does he give light to the one in misery, and life to the bitter in soul?",
+    "note": "The Hebrew word for \"light\" here echoes God's first creative act in Genesis 1:3, now turned into a question of why existence itself is granted to those who wish it revoked.",
+    "v": "ff54612cf1f0",
+    "t": 1774976391220
+  },
+  "2:20": {
+    "rendering": "They wait for death, but it does not come, and they dig for it more than for hidden treasures.",
+    "note": "The Hebrew verb for \"dig\" echoes the frantic search for buried treasure in Proverbs 2:4, but here it twists into a desperate hunt for the grave itself.",
+    "v": "ff54612cf1f0",
+    "t": 1774976391220
+  },
+  "2:21": {
+    "rendering": "They are glad with exceeding joy, they rejoice when they find the grave.",
+    "note": "The Hebrew piles up words for joy usually reserved for finding God or treasure, creating a shocking twist in Job's lament.",
+    "v": "ff54612cf1f0",
+    "t": 1774976391220
+  },
+  "2:22": {
+    "rendering": "To a man whose way is hidden, whom God has hedged in all around.",
+    "note": "The same Hebrew verb for \"hedged in\" that Job used for God's protective care in chapter 1 now describes suffocating confinement.",
+    "v": "ff54612cf1f0",
+    "t": 1774976391220
+  },
+  "2:23": {
+    "rendering": "For my sighing comes before my bread, and my groans pour out like water.",
+    "note": "The Hebrew word for \"sighing\" here echoes the Israelites' groans under Egyptian slavery in Exodus 2:23, turning Job's personal agony into an exodus-like cry for deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1774976391220
+  },
+  "2:24": {
+    "rendering": "For the dread I dreaded has come upon me, and what I feared has arrived.",
+    "note": "Job's worst nightmare has materialized, echoing the ancient fear that spoken words could summon disaster.",
+    "v": "ff54612cf1f0",
+    "t": 1774976392028
+  },
+  "2:25": {
+    "rendering": "I have no ease, I have no quiet, I have no rest, but turmoil keeps coming.",
+    "note": "The triple \"I have no\" echoes the rhythmic despair of a funeral dirge, turning Job's personal pain into a lament that resonates through the whole book.",
+    "v": "ff54612cf1f0",
+    "t": 1774976392028
   }
 }

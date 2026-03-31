@@ -172,14 +172,18 @@ function bindScrollShadow() {
 
 // --- NAV ---
 let navOpen = false;
-function closeNav() {
-  if (!navOpen) return;
-  navOpen = false;
+function fadeNavOut(onComplete) {
   nav.classList.remove('open');
   nav.classList.add('curtain');
   onTransition(bookList, 'opacity', (SYM.durBreath + SYM.delayStagger) * 1000 + SYM.safetyPad, () => {
     if (!navOpen) nav.classList.remove('curtain');
+    if (onComplete) onComplete();
   });
+}
+function closeNav() {
+  if (!navOpen) return;
+  navOpen = false;
+  fadeNavOut();
 }
 
 header.addEventListener('click', () => {
@@ -210,11 +214,8 @@ header.addEventListener('click', () => {
         const np = ALL.findIndex(a => a.bi === b && a.ch === c - 1);
         if (np < 0) return;
         navOpen = false;
-        // Fade out book list on opaque curtain
-        nav.classList.remove('open');
-        nav.classList.add('curtain');
-        onTransition(bookList, 'opacity', (SYM.durBreath + SYM.delayStagger) * 1000 + SYM.safetyPad, () => {
-          pos = np; ev('nav', { method: 'tap' }); saveCurrentScroll(); fillAllPanels();
+        fadeNavOut(() => {
+          pos = np; ev('nav', { method: 'tap' }); saveScroll(); fillAllPanels();
           requestAnimationFrame(() => { nav.classList.remove('curtain'); });
         });
       });
@@ -257,6 +258,7 @@ nav.addEventListener('click', closeNav);
 
 // --- RENDER ---
 function renderVersesInto(scroll, verses) {
+  const frag = document.createDocumentFragment();
   for (const v of verses) {
     if (!v) continue;
     const wrap = document.createElement('div');
@@ -275,17 +277,18 @@ function renderVersesInto(scroll, verses) {
       if (sliding || touch.horiz) return;
       wrap.classList.toggle('expanded');
     });
-    scroll.appendChild(wrap);
+    frag.appendChild(wrap);
   }
   const copy = document.createElement('p');
   copy.className = 'copyright';
   copy.textContent = '\u00A9 2026 vapourware.ai';
   copy.appendChild(document.createElement('br'));
   copy.appendChild(document.createTextNode('All rights reserved.'));
-  scroll.appendChild(copy);
+  frag.appendChild(copy);
   const spacer = document.createElement('div');
   spacer.className = 'spacer';
-  scroll.appendChild(spacer);
+  frag.appendChild(spacer);
+  scroll.appendChild(frag);
 }
 
 // Fill a single panel with chapter content
@@ -353,8 +356,8 @@ async function fillPanel(panel, p) {
   }
 }
 
-function saveCurrentScroll() {
-  const scroll = panels[1].querySelector('.chapter-scroll');
+function saveScroll(panel) {
+  const scroll = (panel || panels[1]).querySelector('.chapter-scroll');
   if (scroll && scroll.dataset.p != null) {
     const p = parseInt(scroll.dataset.p);
     if (!isNaN(p)) {
@@ -366,7 +369,7 @@ function saveCurrentScroll() {
 
 const reading = document.getElementById('reading');
 function navJump() {
-  saveCurrentScroll();
+  saveScroll();
   reading.style.transition = 'opacity ' + SYM.navFadeOut + 's ' + SYM.easeOut;
   reading.style.opacity = '0';
   setTimeout(() => {
@@ -473,16 +476,7 @@ function slideTo(dir, velocity) {
   panels[1].style.boxShadow = 'none';
 
   onTransition(track, null, dur * 1000 + SYM.safetyPad, () => {
-    // Save scroll position of outgoing panel
-    const outPanel = panels[dir === 1 ? 0 : 2];
-    const outScroll = outPanel.querySelector('.chapter-scroll');
-    if (outScroll) {
-      const outP = parseInt(outScroll.dataset.p);
-      if (!isNaN(outP)) {
-        scrollPositions.set(outP, outScroll.scrollTop);
-        if (scrollPositions.size > SCROLL_LRU_MAX) scrollPositions.delete(scrollPositions.keys().next().value);
-      }
-    }
+    saveScroll(panels[dir === 1 ? 0 : 2]);
 
     pos = np;
     ev('nav', { method: 'swipe' });
