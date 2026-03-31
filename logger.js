@@ -21,6 +21,7 @@ const log = {
   info:  (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'info',  event, ...data }),
   warn:  (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'warn',  event, ...data }),
   error: (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'error', event, ...data }),
+  debug: () => {},
 };
 
 // --- Client error reporting ---
