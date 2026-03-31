@@ -34,6 +34,7 @@ let JS_HASH;
 const app = express();
 const XAI_API_KEY = process.env.XAI_API_KEY;
 if (!XAI_API_KEY) { log.error('missing_api_key'); process.exit(1); }
+process.on('unhandledRejection', reason => log.error('unhandled_rejection', { err: String(reason) }));
 const RENDERS_DIR = path.join(__dirname, 'renders');
 if (!fs.existsSync(RENDERS_DIR)) fs.mkdirSync(RENDERS_DIR);
 
@@ -201,7 +202,23 @@ function getChapterVerses(bookIndex, chNum) {
   return { cache, verses, missing };
 }
 
+// --- Verse rendering with retry ---
+const RENDER_RETRIES = 2;
+const RETRY_BASE_MS = 1000;
+
 async function renderVerse(book, chapter, verse) {
+  for (let attempt = 0; attempt <= RENDER_RETRIES; attempt++) {
+    try { return await renderVerseOnce(book, chapter, verse); }
+    catch (err) {
+      if (attempt === RENDER_RETRIES) throw err;
+      const delay = RETRY_BASE_MS * Math.pow(2, attempt);
+      log.warn('verse_render_retry', { book, chapter, verse, attempt: attempt + 1, delay, err: err.message });
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
+async function renderVerseOnce(book, chapter, verse) {
   const ref = `${book} ${chapter}:${verse}`;
   const r = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
@@ -299,7 +316,8 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
   const body = JSON.stringify({ verses });
 
   // Cache fully-rendered chapters with pre-computed ETag
-  if (missing.length === 0) {
+  const allRendered = !verses.includes(undefined) && verses.length > 0;
+  if (allRendered) {
     const cacheKey = `${bookIndex}:${chNum}`;
     let cached = etagCache.get(cacheKey);
     if (!cached || cached.body !== body) {
@@ -401,7 +419,7 @@ app.get('{*path}', (req, res) => {
     .replace(/__META_DESC__/g, escapeHtml(desc))
     .replace(/__CANONICAL__/g, escapeHtml(canonical))
     .replace('<!--PRELOAD_DATA-->', preloadData)
-    .replace('<!--JSON_LD-->', '<script type="application/ld+json">' + jsonLd + '</script>');
+    .replace('<!--JSON_LD-->', '<script type="application/ld+json">' + jsonLd.replace(/<\//g, '<\\/') + '</script>');
   res.type('html').send(html);
 });
 

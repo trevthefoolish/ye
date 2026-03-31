@@ -14,12 +14,13 @@ function createRateLimiter(windowMs, limit, cleanupMs = 300000) {
     return entry.count <= limit;
   }
 
-  setInterval(() => {
+  const timer = setInterval(() => {
     const cutoff = Date.now() - windowMs;
     for (const [key, entry] of map) {
       if (entry.start < cutoff) map.delete(key);
     }
   }, cleanupMs);
+  timer.unref();
 
   return check;
 }

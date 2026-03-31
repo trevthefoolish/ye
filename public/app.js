@@ -89,7 +89,7 @@ function fetchChapter(bookName, chNum) {
   const key = `${bookName}/${chNum}`;
   if (chapterCache.has(key)) return Promise.resolve(chapterCache.get(key));
   if (inflightFetches.has(key)) return inflightFetches.get(key);
-  const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}?v=${RENDER_VERSION}`)
+  const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}?v=${RENDER_VERSION}`, { signal: AbortSignal.timeout(35000) })
     .then(res => {
       if (!res.ok) throw new Error(`fetch ${res.status}`);
       return res.json();
