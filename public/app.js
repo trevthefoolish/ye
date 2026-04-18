@@ -35,18 +35,14 @@ const SYM = (() => {
   });
 })();
 
-// --- Analytics & error reporting ---
+// --- Analytics & error reporting (PostHog) ---
 let viewCount = 0;
-function beacon(url, payload) {
-  try {
-    const body = JSON.stringify(payload);
-    const blob = new Blob([body], { type: 'application/json' });
-    if (navigator.sendBeacon) navigator.sendBeacon(url, blob);
-    else fetch(url, { method: 'POST', body, headers: { 'Content-Type': 'application/json' }, keepalive: true }).catch(() => {});
-  } catch {}
+function ev(type, data) {
+  try { posthog.capture(type, data); } catch {}
 }
-function ev(type, data) { beacon('/api/ev', { type, ...data }); }
-function reportError(type, msg) { beacon('/api/log', { type, msg: String(msg).slice(0, 500), url: location.pathname }); }
+function reportError(type, msg) {
+  try { posthog.capture('client_error', { error_type: type, message: String(msg).slice(0, 500), url: location.pathname }); } catch {}
+}
 window.onerror = (msg, src, line, col) => { reportError('onerror', msg + ' at ' + src + ':' + line + ':' + col); };
 window.addEventListener('unhandledrejection', e => { reportError('unhandled', e.reason?.message || String(e.reason)); });
 

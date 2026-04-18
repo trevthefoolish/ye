@@ -1,0 +1,1520 @@
+{
+  "2:0": {
+    "rendering": "In the fifteenth year of the reign of Tiberius Caesar, when Pontius Pilate was governor of Judea, and Herod was tetrarch of Galilee, and his brother Philip was tetrarch of the region of Ituraea and Trachonitis, and Lysanias was tetrarch of Abilene,",
+    "note": "Luke anchors the gospel in real imperial time, naming six rulers to show God's story breaking into the concrete world of Roman power and client kings.",
+    "v": "ff54612cf1f0",
+    "t": 1775620733988
+  },
+  "2:1": {
+    "rendering": "During the high priesthood of Annas and Caiaphas, the word of God came to John son of Zechariah in the wilderness.",
+    "note": "The word of God comes not from the temple's two rival high priests but to an outsider in the desert, echoing how it once found prophets like Elijah and Moses far from power centers.",
+    "v": "ff54612cf1f0",
+    "t": 1775620733988
+  },
+  "2:2": {
+    "rendering": "And he went into all the region around the Jordan, proclaiming a baptism of repentance for the forgiveness of sins.",
+    "note": "John's baptism echoes the Jordan crossing and exile return, calling Israel to a fresh exodus through repentance.",
+    "v": "ff54612cf1f0",
+    "t": 1775620733988
+  },
+  "2:3": {
+    "rendering": "As it is written in the book of the words of Isaiah the prophet: A voice cries out in the wilderness, 'Prepare the way of the Lord, make his paths straight.'",
+    "note": "Luke weaves Isaiah 40:3 into the desert voice of John, echoing the ancient promise of Israel's return from exile now arriving in flesh and blood.",
+    "v": "ff54612cf1f0",
+    "t": 1775620733988
+  },
+  "2:4": {
+    "rendering": "Every valley will be filled, and every mountain and hill will be brought low. The crooked paths will become straight, and the rough ways will be made smooth.",
+    "note": "This echoes Isaiah 40:4, where God’s highway through the desert prepares for the exiles’ return, now repurposed for the arrival of the Lord’s anointed.",
+    "v": "ff54612cf1f0",
+    "t": 1775620733988
+  },
+  "2:5": {
+    "rendering": "And all flesh will see the salvation of God.",
+    "note": "This echoes Isaiah 40:5, where God's glory is revealed to all flesh in the wilderness return from exile, now fulfilled as John prepares the way for Jesus.",
+    "v": "ff54612cf1f0",
+    "t": 1775620733988
+  },
+  "2:6": {
+    "rendering": "John said to the crowds coming out to be baptized by him, \"You brood of vipers! Who warned you to flee from the coming wrath?\"",
+    "note": "\"Brood of vipers\" echoes the serpent in Eden and the wilderness snakes, painting these religious crowds as offspring of the deceiver rather than Abraham.",
+    "v": "ff54612cf1f0",
+    "t": 1775620733988
+  },
+  "2:7": {
+    "rendering": "Produce fruit that matches repentance. And do not start saying to yourselves, 'We have Abraham as our father,' for I tell you that God can raise up children for Abraham from these stones.",
+    "note": "John the Baptist plays on the Hebrew words for \"stone\" (eben) and \"son\" (ben), exposing how ethnic privilege cannot replace heart-level change.",
+    "v": "ff54612cf1f0",
+    "t": 1775620733988
+  },
+  "1:0": {
+    "rendering": "In those days a decree went out from Caesar Augustus that the whole inhabited world should be registered.",
+    "note": "This Roman census, an act of imperial control and taxation, ironically sets the stage for the birth of a king whose kingdom will outlast every Caesar.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734594
+  },
+  "1:1": {
+    "rendering": "This was the first registration when Quirinius was governor of Syria.",
+    "note": "The Greek word for \"first\" here can also mean \"most prominent,\" hinting this census stood out in memory among others under Quirinius.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734594
+  },
+  "1:2": {
+    "rendering": "Everyone went to be registered, each to his own town.",
+    "note": "This echoes the ancient practice of returning to ancestral lands, quietly tying Jesus' birth to King David's hometown as the royal line stirs again.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734594
+  },
+  "1:3": {
+    "rendering": "And Joseph also went up from Galilee, from the town of Nazareth, to Judea, to the city of David which is called Bethlehem, because he was from the house and family of David.",
+    "note": "Luke's Greek echoes the Septuagint's phrasing of David's own journey to Hebron in 2 Samuel 5, quietly signaling that this child will be the promised heir to David's throne.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734594
+  },
+  "1:4": {
+    "rendering": "He went to be registered with Mary, who was pledged to be married to him and was expecting a child.",
+    "note": "The Greek word for \"pledged\" carries the weight of a binding betrothal contract, yet Luke quietly notes she is already pregnant, echoing the tension of ancient family honor and divine disruption.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734594
+  },
+  "1:5": {
+    "rendering": "And it came about that while they were there, the days of her giving birth were completed,",
+    "note": "The Greek ",
+    "v": "ff54612cf1f0",
+    "t": 1775620734594
+  },
+  "1:6": {
+    "rendering": "And she gave birth to her firstborn son, wrapped him in strips of cloth, and laid him in a feeding trough, because there was no room for them in the lodging place.",
+    "note": "The Greek word for \"laid him\" echoes how the Passover lamb was prepared in the temple, hinting at sacrifice from the very beginning.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734594
+  },
+  "1:7": {
+    "rendering": "And there were shepherds in the same region, staying out in the fields and keeping watch over their flock by night.",
+    "note": "These weren't gentle Sunday-school shepherds, but rough night-shift workers on the edge of society, the very kind of outsiders God keeps choosing to announce his arrival.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734594
+  },
+  "0:0": {
+    "rendering": "Many have undertaken to compile an account of the events that have been fulfilled among us,",
+    "note": "Luke signals he's joining a larger wave of eyewitness-based storytelling, not inventing something new.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734738
+  },
+  "0:1": {
+    "rendering": "just as those who from the beginning were eyewitnesses and servants of the word handed it down to us",
+    "note": "The Greek word for \"servants\" here is hyperetes, literally \"under-rowers,\" picturing gospel writers as galley slaves rowing under the captaincy of the living Word himself.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734738
+  },
+  "0:2": {
+    "rendering": "So it seemed good to me also, having carefully investigated everything from the beginning, to write it out in an orderly sequence for you, most excellent Theophilus,",
+    "note": "The Greek word for \"investigated\" (parekolouthekoti) literally means \"followed closely,\" evoking a historian tracking events like a detective on a trail.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734738
+  },
+  "0:3": {
+    "rendering": "so that you may know the certainty of the things you have been taught.",
+    "note": "The Greek \"asphaleian\" (certainty, firmness) echoes ancient medical writers promising reliable knowledge, fitting Luke's careful, ordered investigation for his reader.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734738
+  },
+  "0:4": {
+    "rendering": "In the days of Herod, king of Judea, there was a certain priest named Zechariah, of the division of Abijah. His wife was from the daughters of Aaron, and her name was Elizabeth.",
+    "note": "Luke anchors his Gospel in the gritty political reality of Herod's reign, echoing how the Hebrew Bible often begins stories with a king's name to signal both oppression and the hope of deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734738
+  },
+  "0:5": {
+    "rendering": "Both of them were righteous before God, walking blamelessly in all the commandments and statutes of the Lord.",
+    "note": "This rare description of a childless couple echoes the opening of the book of Job, inviting us to watch how God moves in the lives of the faithful who seem overlooked.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734738
+  },
+  "0:6": {
+    "rendering": "But they had no child, because Elizabeth was barren, and they were both advanced in their years.",
+    "note": "This echoes the stories of Sarah, Rebekah, and Hannah, where barrenness sets the stage for God's surprising intervention.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734738
+  },
+  "0:7": {
+    "rendering": "Now it happened, while Zechariah was serving as priest before God in the order of his division,",
+    "note": "The phrase \"it happened\" echoes the Septuagint's frequent way of signaling God's sovereign timing in the Old Testament story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734738
+  },
+  "2:8": {
+    "rendering": "Even now the ax is lying at the root of the trees. Every tree therefore that does not produce good fruit is cut down and thrown into the fire.",
+    "note": "John the Baptist echoes Isaiah's image of God wielding an ax against corrupt Israel, sharpening the call to bear fruit before judgment falls.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734883
+  },
+  "2:9": {
+    "rendering": "The crowds asked him, \"What then should we do?\"",
+    "note": "This urgent question echoes the crowds of Israel at Sinai and sets the stage for John's ethical vision of repentance that prepares the way for the Messiah.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734883
+  },
+  "2:10": {
+    "rendering": "John answered them, \"Whoever has two tunics must share with the one who has none, and whoever has food must do likewise.\"",
+    "note": "John's answer echoes the ancient prophets' call for justice through concrete sharing, not abstract piety.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734883
+  },
+  "2:11": {
+    "rendering": "Tax collectors also came to be baptized, and they said to him, \"Teacher, what should we do?\"",
+    "note": "Even the despised tax collectors, symbols of Roman oppression and Jewish betrayal, instinctively turn toward John's baptism of repentance.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734883
+  },
+  "2:12": {
+    "rendering": "John said to them, \"Collect no more than what you have been ordered to.\"",
+    "note": "The Greek word for \"ordered\" echoes the precise commands given to tax collectors in the empire, turning imperial duty into kingdom restraint.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734883
+  },
+  "2:13": {
+    "rendering": "Soldiers also asked him, \"And what about us?\" John told them, \"Don't extort money from anyone by force or false accusation, and be content with your pay.\"",
+    "note": "John's answer to soldiers echoes the tenth commandment against coveting, applying it directly to their power to rob civilians through intimidation.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734883
+  },
+  "2:14": {
+    "rendering": "Now the people were waiting expectantly, and all were wondering in their hearts whether John might be the Messiah.",
+    "note": "The Greek word for \"wondering\" here echoes the same term used for the people's reaction to the temple teachers when young Jesus amazed them, quietly hinting that John is preparing the way for something greater.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734883
+  },
+  "2:15": {
+    "rendering": "John answered them all, saying, \"I baptize you with water, but the one stronger than I is coming, the strap of whose sandals I am not worthy to untie. He will baptize you with the Holy Spirit and fire.\"",
+    "note": "John's sandal-untie image echoes the ancient custom of a servant performing the lowliest task, while his water-versus-Spirit-and-fire contrast sets up the greater exodus deliverance Jesus will bring.",
+    "v": "ff54612cf1f0",
+    "t": 1775620734883
+  },
+  "1:8": {
+    "rendering": "And an angel of the Lord stood before them, and the glory of the Lord shone around them, and they feared with a great fear.",
+    "note": "The phrase \"glory of the Lord shone around them\" echoes the blazing cloud that filled the tabernacle in Exodus, signaling God's sudden return to his people.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735551
+  },
+  "1:9": {
+    "rendering": "The angel said to them, \"Don't be afraid. Look, I am bringing you good news of great joy that will be for all the people.\"",
+    "note": "The angel's \"good news of great joy\" echoes the Hebrew word for gospel and the joy promised when God returns to reign over his people.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735551
+  },
+  "1:10": {
+    "rendering": "Today in the city of David a Savior has been born for you, who is the Messiah, the Lord.",
+    "note": "The triple title, Savior, Messiah, and Lord, weaves together Israel's hope for a Davidic deliverer with the imperial language used for Caesar, quietly subverting it right in the heart of Roman-occupied Judea.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735551
+  },
+  "1:11": {
+    "rendering": "This will be the sign for you: you will find a baby wrapped in strips of cloth and lying in a feeding trough.",
+    "note": "The sign God gives the shepherds is the most ordinary thing in the world, a newborn in a manger, echoing how the humble and lowly become the place where heaven touches earth.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735551
+  },
+  "1:12": {
+    "rendering": "And suddenly there was with the angel a multitude of the heavenly army, praising God and saying,",
+    "note": "The word \"army\" (stratias) evokes the vast hosts of heaven as a military force, echoing the divine warrior imagery from the exodus and Isaiah's visions.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735551
+  },
+  "1:13": {
+    "rendering": "Glory to God in the highest heavens, and on earth peace among people he favors.",
+    "note": "The angels echo the heavenly court of Isaiah 6, now bursting into a Judean hillside, announcing shalom not as a universal blanket but as God's deliberate favor on particular people.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735551
+  },
+  "1:14": {
+    "rendering": "When the angels had left them and gone back into heaven, the shepherds said to one another, \"Let's go over to Bethlehem right now and see this thing that has happened, which the Lord has made known to us.\"",
+    "note": "The shepherds echo the very language of Genesis 18:2, when Abraham hurried to welcome divine visitors, turning a nighttime angelic announcement into an invitation to encounter God in the flesh.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735551
+  },
+  "1:15": {
+    "rendering": "So they hurried off and found Mary and Joseph, and the baby lying in the feeding trough.",
+    "note": "The shepherds discover the promised king exactly where the angel said, in a borrowed animal trough, an echo of God's habit of choosing the lowly and overlooked.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735551
+  },
+  "0:8": {
+    "rendering": "According to the custom of the priesthood, it fell to him by lot to enter the temple of the Lord and burn incense.",
+    "note": "The lot was a sacred way of discerning God's choice, echoing how temple duties were assigned in 1 Chronicles 24.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735568
+  },
+  "0:9": {
+    "rendering": "And the whole assembly of the people was praying outside at the hour of the incense offering.",
+    "note": "This scene echoes the temple's daily rhythm from Exodus 30, where incense and prayer rise together as the heartbeat of Israel's worship.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735568
+  },
+  "0:10": {
+    "rendering": "Then an angel of the Lord appeared to him, standing at the right side of the altar of incense.",
+    "note": "The right side of the altar signals favor and divine initiative in the ancient temple setting.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735568
+  },
+  "0:11": {
+    "rendering": "When Zechariah saw him, he was shaken and fear fell upon him.",
+    "note": "The word for \"fear\" here echoes the awe-filled terror that seizes people throughout Scripture when heaven suddenly breaks into earth.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735568
+  },
+  "0:12": {
+    "rendering": "But the angel said to him, \"Do not be afraid, Zechariah, for your prayer has been heard, and your wife Elizabeth will bear you a son, and you shall call his name John.\"",
+    "note": "The name John means \"Yahweh has been gracious,\" echoing the long-awaited answer to Israel's prayer for a deliverer.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735568
+  },
+  "0:13": {
+    "rendering": "He will be a joy and delight to you, and many will rejoice at his birth.",
+    "note": "The Greek triplet of joy words (chara, agalliasis, charēsontai) echoes the exuberant celebration that breaks out whenever God acts to rescue his people in the Old Testament.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735568
+  },
+  "0:14": {
+    "rendering": "For he will be great before the Lord. He must not drink wine or strong drink, and he will be filled with the Holy Spirit even from his mother's womb.",
+    "note": "This echoes the ancient Nazirite vow in Numbers 6, but twists it: John is set apart not by his own choice but by the Spirit's filling before birth.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735568
+  },
+  "0:15": {
+    "rendering": "He will turn many of the children of Israel back to the Lord their God.",
+    "note": "The Greek verb \"turn back\" (epistrepho) echoes the Old Testament's core call to repentance, linking John to prophets like Malachi who promised a forerunner to restore God's people.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735568
+  },
+  "2:16": {
+    "rendering": "His winnowing fork is in his hand to clear his threshing floor and to gather the wheat into his barn, but the chaff he will burn with unquenchable fire.",
+    "note": "The image echoes Jeremiah 15:7 and Malachi 4:1, portraying the coming one as the farmer who finally separates what belongs to God from what does not.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735899
+  },
+  "2:17": {
+    "rendering": "With many other exhortations besides these, he proclaimed good news to the people.",
+    "note": "The word for \"proclaimed good news\" is the same verb used for the gospel itself, an early hint that John's fiery warnings are actually part of God's glad announcement.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735899
+  },
+  "2:18": {
+    "rendering": "But Herod the tetrarch, when he was rebuked by him concerning Herodias his brother's wife and all the wicked things he had done,",
+    "note": "John's fearless rebuke of a ruler's sexual corruption echoes the fearless voices of Elijah and Nathan before him, setting the stage for prophetic suffering.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735899
+  },
+  "2:19": {
+    "rendering": "Herod added this wickedness on top of everything else: he locked John up in prison.",
+    "note": "The Greek word for \"added\" (prosetheken) echoes the name of John's father Zechariah, whose own story began with a locked-up priest in the temple.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735899
+  },
+  "2:20": {
+    "rendering": "Now it happened that when all the people were baptized, Jesus also was baptized, and as he was praying, heaven was opened.",
+    "note": "The Greek word order quietly highlights Jesus praying right as heaven rips open, echoing the same verb used for the heavens tearing at his death in Mark 15:38.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735899
+  },
+  "2:21": {
+    "rendering": "and the Holy Spirit descended on him in bodily form like a dove, and a voice came from heaven: \"You are my beloved Son, with you I am well pleased.\"",
+    "note": "This voice from heaven weaves together Psalm 2:7 and Isaiah 42:1, announcing Jesus as both royal Son and suffering Servant at the start of his mission.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735899
+  },
+  "2:22": {
+    "rendering": "Jesus was about thirty years old when he began his work. He was thought to be the son of Joseph, son of Heli,",
+    "note": "The phrase \"as was thought\" hints at the virgin birth in Luke 1 while anchoring Jesus in Joseph's legal line, echoing how ancient genealogies established royal and priestly identity.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735899
+  },
+  "2:23": {
+    "rendering": "son of Matthat, son of Levi, son of Melchi, son of Jannai, son of Joseph,",
+    "note": "This link in Jesus' genealogy quietly echoes the exodus generation, where Levi stands at the heart of Israel's priestly line.",
+    "v": "ff54612cf1f0",
+    "t": 1775620735899
+  },
+  "1:16": {
+    "rendering": "When they saw him, they told others what had been said to them about this child.",
+    "note": "The shepherds become the first evangelists, spreading the angel's words like good news rippling outward from the manger.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736396
+  },
+  "1:17": {
+    "rendering": "And all who heard it were amazed at what the shepherds told them.",
+    "note": "The Greek word for \"amazed\" (ethaumazon) echoes the same stunned reaction people have to Jesus' later teaching and miracles, hinting that this child will keep astonishing the world.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736396
+  },
+  "1:18": {
+    "rendering": "But Mary treasured up all these words, pondering them in her heart.",
+    "note": "The Greek for \"treasured up\" and \"pondering\" echoes how Israel stored and meditated on God's words, turning a mother's quiet reflection into the birthplace of the gospel story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736396
+  },
+  "1:19": {
+    "rendering": "The shepherds returned, glorifying and praising God for all they had heard and seen, just as it had been spoken to them.",
+    "note": "The Greek verb for \"spoken\" echoes the angel's exact words in v.10, showing the shepherds now see the promise kept.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736396
+  },
+  "1:20": {
+    "rendering": "And when eight days were completed for his circumcision, he was called Jesus, the name given by the angel before he was conceived in the womb.",
+    "note": "The name Jesus, meaning \"Yahweh saves,\" was announced by the angel in Luke 1:31, echoing the Hebrew Bible's pattern of God renaming people at pivotal moments to signal their role in the story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736396
+  },
+  "1:21": {
+    "rendering": "And when the days of their purification were completed according to the law of Moses, they brought him up to Jerusalem to present him to the Lord.",
+    "note": "The phrase \"their purification\" quietly includes Mary in the ritual, echoing Leviticus 12 while subtly nodding to the whole family's participation in Israel's story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736396
+  },
+  "1:22": {
+    "rendering": "Just as it is written in the law of the Lord, \"Every male who first opens the womb shall be called holy to the Lord.\"",
+    "note": "This echoes Exodus 13:2,12 and weaves Jesus into Israel's story of the firstborn belonging to God.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736396
+  },
+  "1:23": {
+    "rendering": "and to offer a sacrifice according to what is said in the law of the Lord: a pair of turtledoves or two young pigeons.",
+    "note": "This offering marks Mary and Joseph as among the poor, since the law in Leviticus 12:8 allows this cheaper substitute when a family cannot afford a lamb.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736396
+  },
+  "0:16": {
+    "rendering": "He will go before him in the spirit and power of Elijah, to turn the hearts of fathers to their children and the disobedient to the wisdom of the righteous, to make ready for the Lord a people prepared.",
+    "note": "This echoes Malachi 4:5-6 and the closing promise of the Old Testament, positioning John as the Elijah figure who begins the great reconciliation.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736497
+  },
+  "0:17": {
+    "rendering": "Zechariah said to the angel, \"How will I know this? For I am an old man, and my wife is advanced in her years.\"",
+    "note": "Zechariah's question echoes Abraham's skeptical laugh in Genesis 17 and 18, showing even the righteous struggle to believe God's promise when bodies and years say otherwise.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736497
+  },
+  "0:18": {
+    "rendering": "The angel answered him, \"I am Gabriel, the one who stands in the presence of God, and I was sent to speak to you and to bring you this good news.\"",
+    "note": "Gabriel's self-description echoes his call in Daniel 9:21, linking this birth announcement to the earlier visions of restoration.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736497
+  },
+  "0:19": {
+    "rendering": "But look, you will be silent and unable to speak until the day these things take place, because you did not believe my words, which will be fulfilled in their time.",
+    "note": "Zechariah's muteness echoes the barrenness of his wife Elizabeth, turning doubt into a sign that the promise will still unfold.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736497
+  },
+  "0:20": {
+    "rendering": "The people were waiting for Zechariah, and they were wondering at his delay in the temple.",
+    "note": "The Greek word for “wondering” (thaumazo) echoes the crowd’s reaction to angelic announcements throughout Luke, hinting that something heaven-sent is already underway.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736497
+  },
+  "0:21": {
+    "rendering": "When he came out he was unable to speak to them, and they realized that he had seen a vision in the temple. He kept making signs to them but remained mute.",
+    "note": "The people discern Zechariah's vision not from words but from his speechless signs, a silent echo of the awe that words cannot contain.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736497
+  },
+  "0:22": {
+    "rendering": "And it happened, when the days of his priestly service were completed, that he went back to his home.",
+    "note": "The word \"days\" quietly echoes the creation rhythm of Genesis, framing Zechariah's temple service as a sacred week that ends in ordinary life.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736497
+  },
+  "0:23": {
+    "rendering": "After these days Elizabeth his wife conceived, and she kept herself hidden for five months, saying,",
+    "note": "The word \"concealed\" echoes the hidden pregnancies of Sarah and Rebekah, quietly signaling that God is once again at work behind closed doors.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736497
+  },
+  "2:24": {
+    "rendering": "son of Mattathias, son of Amos, son of Nahum, son of Esli, son of Naggai,",
+    "note": "This link in Jesus' genealogy quietly echoes the exile's long shadow, connecting him to the ordinary families who survived Babylon's scattering.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736842
+  },
+  "2:25": {
+    "rendering": "the son of Maath, the son of Mattathias, the son of Semein, the son of Josech, the son of Joda,",
+    "note": "This link in Jesus' genealogy quietly echoes the return from exile, as names like Maath and Mattathias appear among the post-exilic families in 1 Chronicles and Ezra.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736842
+  },
+  "2:26": {
+    "rendering": "the son of Joanan, the son of Rhesa, the son of Zerubbabel, the son of Shealtiel, the son of Neri,",
+    "note": "Zerubbabel and Shealtiel anchor this list in the post-exile return from Babylon, quietly threading the royal line through a time when the throne seemed lost.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736842
+  },
+  "2:27": {
+    "rendering": "son of Addi, son of Cosam, son of Elmadam, son of Er,",
+    "note": "This link in Jesus' genealogy quietly bridges the return from exile to the era of the kings, showing how the long arc of Israel's story bends toward the Messiah.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736842
+  },
+  "2:28": {
+    "rendering": "son of Joshua, son of Eliezer, son of Jorim, son of Matthat, son of Levi,",
+    "note": "This link in Jesus' genealogy quietly echoes the exodus generation, with names like Eliezer and Levi carrying the weight of Israel's liberation story into the Messiah's family tree.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736842
+  },
+  "2:29": {
+    "rendering": "son of Simeon, son of Judah, son of Joseph, son of Jonam, son of Eliakim,",
+    "note": "This link in Jesus' genealogy quietly echoes the Joseph who rose from prison to save his brothers, a thread of unexpected deliverance running through the family line.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736842
+  },
+  "2:30": {
+    "rendering": "son of Melea, son of Menna, son of Mattatha, son of Nathan, son of David,",
+    "note": "This genealogy traces Jesus' legal line through Nathan rather than Solomon, quietly echoing God's promise to David in 2 Samuel 7 while subverting the royal expectations of a conquering heir.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736842
+  },
+  "2:31": {
+    "rendering": "son of Jesse, son of Obed, son of Boaz, son of Salmon, son of Nahshon,",
+    "note": "This genealogy traces Jesus back through David's line to the exodus generation, quietly echoing God's promise that the royal seed would come from Judah.",
+    "v": "ff54612cf1f0",
+    "t": 1775620736842
+  },
+  "0:24": {
+    "rendering": "Thus the Lord has done for me in these days when he looked upon me to take away my disgrace among the people.",
+    "note": "The word \"looked upon\" echoes God's attentive gaze in the stories of barren women like Sarah, Rebekah, and Rachel, signaling that this child will advance the covenant promises.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737425
+  },
+  "0:25": {
+    "rendering": "In the sixth month, the angel Gabriel was sent from God to a town in Galilee called Nazareth.",
+    "note": "The \"sixth month\" quietly links this scene back to Elizabeth's pregnancy in verse 24, weaving the two miraculous births into one unfolding story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737425
+  },
+  "0:26": {
+    "rendering": "to a virgin engaged to a man named Joseph, from the house of David, and the virgin's name was Mary.",
+    "note": "This echoes the promise to David's house in 2 Samuel 7, narrowing the messianic line to a specific young woman in Nazareth.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737425
+  },
+  "0:27": {
+    "rendering": "The angel came to her and said, Greetings, favored one. The Lord is with you.",
+    "note": "The Greek word for \"favored one\" is the same root as the word for grace, charitoo, echoing God's surprising choice of unlikely people throughout the story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737425
+  },
+  "0:28": {
+    "rendering": "But she was deeply troubled by his words, and kept wondering what kind of greeting this might be.",
+    "note": "The Greek verb \"distarasso\" paints Mary as thoroughly agitated, echoing the same rare word used when Zacharias saw the angel in verse 12.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737425
+  },
+  "0:29": {
+    "rendering": "The angel said to her, \"Do not be afraid, Mary, for you have found favor with God.\"",
+    "note": "The phrase \"found favor\" echoes the exact words spoken to Noah in the Greek Old Testament, quietly signaling that this young woman stands at the start of another world-altering rescue story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737425
+  },
+  "0:30": {
+    "rendering": "Look, you will conceive in your womb and give birth to a son, and you shall call his name Jesus.",
+    "note": "The angel's words echo the divine promise to Isaiah's young woman in Isaiah 7:14, but now specify the child's name as \"Jesus\" (Yeshua, \"Yahweh saves\").",
+    "v": "ff54612cf1f0",
+    "t": 1775620737425
+  },
+  "0:31": {
+    "rendering": "He will be great, and will be called the Son of the Most High. The Lord God will give him the throne of his father David.",
+    "note": "The angel's words echo the promise to David in 2 Samuel 7:12-16, weaving royal-messianic hope into this birth announcement.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737425
+  },
+  "1:24": {
+    "rendering": "Now there was a man in Jerusalem whose name was Simeon, and this man was righteous and devout, waiting for the comfort of Israel, and the Holy Spirit was upon him.",
+    "note": "Simeon embodies the faithful remnant: his expectant waiting for Israel's comfort directly echoes Isaiah's promise of a coming divine consolation.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737780
+  },
+  "1:25": {
+    "rendering": "It had been revealed to him by the Holy Spirit that he would not see death before he had seen the Lord's Messiah.",
+    "note": "The Greek phrase \"the Lord's Christ\" echoes the Hebrew \"Yahweh's Anointed,\" linking Simeon's hope back to royal psalms and prophetic promises of a coming king.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737780
+  },
+  "1:26": {
+    "rendering": "Guided by the Spirit, he came into the temple. And when the parents brought in the child Jesus to do for him according to the custom of the Law,",
+    "note": "The Greek \"in the Spirit\" echoes the same phrase used for Simeon in verse 25, showing how the Spirit both promised the Messiah and now orchestrates the encounter.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737780
+  },
+  "1:27": {
+    "rendering": "Simeon took him into his arms and blessed God, saying,",
+    "note": "The Greek word for \"took him into his arms\" is the same verb used for receiving a guest or a child, echoing how God welcomes his people.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737780
+  },
+  "1:28": {
+    "rendering": "Now, Master, you are letting your servant depart in peace, according to your word.",
+    "note": "This echoes Simeon's faithful wait for God's promise, like aged Jacob and Abraham before him, as he cradles the child who is the light for the nations.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737780
+  },
+  "1:29": {
+    "rendering": "For my eyes have seen your salvation,",
+    "note": "This echoes Isaiah 40:5 and 52:10, where all flesh sees God's saving act, now fulfilled in a baby the old priest holds.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737780
+  },
+  "1:30": {
+    "rendering": "which you have prepared in the sight of all peoples,",
+    "note": "The Greek \"prosopon\" (face) literally means God has readied salvation right before the world's own eyes, echoing Isaiah 52:10's promise that all nations would see God's holy arm bared.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737780
+  },
+  "1:31": {
+    "rendering": "A light for revealing to the nations, and glory for your people Israel.",
+    "note": "This echoes Isaiah 42:6 and 49:6, where the Servant is commissioned as a light to the Gentiles so God's salvation reaches the ends of the earth.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737780
+  },
+  "2:32": {
+    "rendering": "the son of Amminadab, the son of Admin, the son of Arni, the son of Hezron, the son of Perez, the son of Judah,",
+    "note": "This link in Luke's genealogy quietly echoes the Tamar story from Genesis 38, where Perez bursts forth as the unexpected heir carrying Judah's line forward.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737879
+  },
+  "2:33": {
+    "rendering": "the son of Jacob, the son of Isaac, the son of Abraham, the son of Terah, the son of Nahor,",
+    "note": "This genealogy traces Jesus back through David and Abraham all the way to Adam, quietly signaling that the Messiah is the climax of the entire human story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737879
+  },
+  "2:34": {
+    "rendering": "son of Serug, son of Reu, son of Peleg, son of Eber, son of Shelah,",
+    "note": "This link in Jesus' genealogy quietly echoes the tower of Babel story, where Peleg's name means \"division\" and the nations were scattered.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737879
+  },
+  "2:35": {
+    "rendering": "the son of Cainan, the son of Arphaxad, the son of Shem, the son of Noah, the son of Lamech,",
+    "note": "Luke's genealogy quietly includes an extra name, Cainan, between Arphaxad and Shelah, echoing the longer list in the ancient Greek Genesis 11 rather than the shorter Hebrew one.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737879
+  },
+  "2:36": {
+    "rendering": "son of Methuselah, son of Enoch, son of Jared, son of Mahalalel, son of Kenan,",
+    "note": "This link in Jesus' genealogy echoes the ancient list in Genesis 5, quietly tracing the promise of a seed who will crush the serpent all the way back to Eden.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737879
+  },
+  "2:37": {
+    "rendering": "the son of Enosh, the son of Seth, the son of Adam, the son of God.",
+    "note": "Luke's genealogy runs backward from Jesus all the way to Adam, quietly echoing Genesis 1-5 and framing the entire human family as rooted in God's creative act.",
+    "v": "ff54612cf1f0",
+    "t": 1775620737879
+  },
+  "0:32": {
+    "rendering": "He will reign over the house of Jacob forever, and his kingdom will have no end.",
+    "note": "This promise echoes the Davidic covenant in 2 Samuel 7, where an everlasting throne is pledged to David's line, now fulfilled in Jesus as the ultimate heir.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738321
+  },
+  "0:33": {
+    "rendering": "Mary said to the angel, \"How will this be, since I have not known a man?\"",
+    "note": "Mary's question echoes the ancient barren-woman motif, like Sarah in Genesis 18, but with a twist: her wonder centers on virginity rather than age.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738321
+  },
+  "0:34": {
+    "rendering": "The angel answered her, \"The Holy Spirit will come upon you, and the power of the Most High will overshadow you. Therefore the child to be born will be called holy, the Son of God.\"",
+    "note": "This echoes Genesis 1:2 where God's Spirit hovers over the waters of creation, now bringing new creation through Mary's womb.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738321
+  },
+  "0:35": {
+    "rendering": "And behold, your relative Elizabeth, she also has conceived a son in her old age, and this is the sixth month for her who was called barren.",
+    "note": "The word for \"relative\" here is the same one used in the Greek Old Testament for kinship ties that weave together God's promises, echoing how the barren matriarchs of Israel suddenly conceive to advance the story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738321
+  },
+  "0:36": {
+    "rendering": "For nothing will be impossible with God.",
+    "note": "The Greek word order places \"impossible\" first, echoing the angel's earlier announcement that echoes Genesis 18:14, where Sarah laughs at the impossible promise of a son.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738321
+  },
+  "0:37": {
+    "rendering": "Then Mary said, \"Look, I am the Lord's servant. May it be to me according to your word.\" And the angel left her.",
+    "note": "Mary's response echoes Hannah's song and the servant language of Isaiah, framing her as the humble vessel through whom God would bring the promised king.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738321
+  },
+  "0:38": {
+    "rendering": "In those days Mary got up and hurried to the hill country, to a town in Judah.",
+    "note": "The Greek verb for \"hurried\" (anastasa) literally means \"arose,\" echoing how the angel told her the barren Elizabeth had \"arisen\" with new life in her womb.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738321
+  },
+  "0:39": {
+    "rendering": "She entered the house of Zechariah and greeted Elizabeth.",
+    "note": "This quiet visit between two pregnant women echoes the meeting of their sons in the womb, already tying their stories together.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738321
+  },
+  "1:32": {
+    "rendering": "And his father and mother were marveling at the things spoken about him.",
+    "note": "The word for \"marveling\" echoes the same awe that shepherds and Simeon just expressed, pulling Mary and Joseph into the growing circle of wonder around their child.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738672
+  },
+  "1:33": {
+    "rendering": "Then Simeon blessed them and said to Mary his mother, \"This child is appointed for the falling and rising of many in Israel, and for a sign that is opposed.\"",
+    "note": "Simeon's oracle echoes Isaiah's \"stone of stumbling\" (Isa 8:14, 28:16), framing the Messiah as the great divider of Israel.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738672
+  },
+  "1:34": {
+    "rendering": "and a sword will pierce your own soul also, so that the thoughts of many hearts may be revealed.",
+    "note": "The Greek word for \"sword\" (rhomphaia) echoes the sharp, double-edged blade in Ezekiel 21 that executes judgment, turning Mary's joy into shared sorrow at the cross where true allegiance is laid bare.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738672
+  },
+  "1:35": {
+    "rendering": "There was also Anna, a prophetess, daughter of Phanuel, of the tribe of Asher. She was advanced in years, having lived with her husband seven years after her marriage,",
+    "note": "Anna's name and tribe echo the faithful remnant of the northern kingdom, showing God's long memory for his scattered people.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738672
+  },
+  "1:36": {
+    "rendering": "She was a widow of about eighty-four years. She did not leave the temple, worshiping with fasting and prayer night and day.",
+    "note": "The Greek for \"eighty-four\" can also be read as \"eighty-four years of widowhood\" after a short marriage, portraying her as a lifelong temple devotee like the ancient prophetess Anna.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738672
+  },
+  "1:37": {
+    "rendering": "And coming up at that very moment she began to give thanks to God and to speak about the child to all who were waiting for the redemption of Jerusalem.",
+    "note": "The word \"redemption\" here echoes the exodus deliverance, but now it's Jerusalem itself that waits to be set free.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738672
+  },
+  "1:38": {
+    "rendering": "And when they had completed everything required by the law of the Lord, they returned to Galilee, to their own town of Nazareth.",
+    "note": "This quiet return to Nazareth echoes the exodus pattern: fulfillment of the law leads God's people back to their inheritance, setting the stage for a new kind of deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738672
+  },
+  "1:39": {
+    "rendering": "And the child grew and became strong, filled with wisdom, and the favor of God was upon him.",
+    "note": "This echoes the summary of young Samuel in 1 Samuel 2:26, quietly signaling that Jesus steps into the long line of God's favored deliverers.",
+    "v": "ff54612cf1f0",
+    "t": 1775620738672
+  },
+  "0:40": {
+    "rendering": "And when Elizabeth heard Mary's greeting, the baby leaped in her womb, and Elizabeth was filled with the Holy Spirit.",
+    "note": "The word \"leaped\" (Greek skirtao) echoes the joyful kicking of Esau and Jacob in Rebekah's womb (Genesis 25:22), hinting that this unborn child already recognizes the arrival of his Lord.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739223
+  },
+  "0:41": {
+    "rendering": "And she cried out with a loud voice and said, \"Blessed are you among women, and blessed is the fruit of your womb.\"",
+    "note": "Elizabeth's words echo the blessing of Jael in Judges 5:24, weaving the warrior-women of old into this new story of deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739223
+  },
+  "0:42": {
+    "rendering": "And why is this granted to me, that the mother of my Lord should come to me?",
+    "note": "Elizabeth's words echo the ancient royal greeting in 2 Samuel 6:9, where David asks why the ark of the Lord should come to him, now applied to the unborn Messiah.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739223
+  },
+  "0:43": {
+    "rendering": "For behold, as the sound of your greeting reached my ears, the baby in my womb leaped for joy.",
+    "note": "The Greek \"skirtao\" for leaped echoes the same rare word used when unborn Esau and Jacob struggled in Rebekah's womb, hinting at another chapter in God's promise of colliding destinies.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739223
+  },
+  "0:44": {
+    "rendering": "And blessed is she who believed that there would be a fulfillment of what was spoken to her from the Lord.",
+    "note": "The word for \"fulfilled\" here echoes the same Greek term used for God's promises coming to pass throughout Luke's Gospel, turning Mary's trust into a model of how the ancient story reaches its climax.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739223
+  },
+  "0:45": {
+    "rendering": "And Mary said, My soul magnifies the Lord.",
+    "note": "Mary's song bursts with echoes of Hannah's prayer in 1 Samuel 2, weaving personal joy into Israel's long story of reversal.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739223
+  },
+  "0:46": {
+    "rendering": "My spirit rejoices in God my Savior.",
+    "note": "The Greek for \"rejoices\" carries the sense of exultant leaping for joy, an echo of Hannah's song in 1 Samuel 2 that shapes this whole birth narrative.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739223
+  },
+  "0:47": {
+    "rendering": "for he has looked with favor on the lowliness of his servant. Surely from now on all generations will call me blessed.",
+    "note": "The Greek for \"looked with favor\" echoes God's gaze on the afflicted in the exodus story, lifting the humble like Hannah in her song.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739223
+  },
+  "1:40": {
+    "rendering": "Now his parents went every year to Jerusalem for the Feast of the Passover.",
+    "note": "This annual pilgrimage echoes the Exodus story, framing young Jesus within Israel's rhythm of remembering deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739695
+  },
+  "1:41": {
+    "rendering": "And when he was twelve years old, they went up according to the custom of the feast.",
+    "note": "The number twelve echoes the tribes of Israel, quietly signaling this child already belongs to the story of the whole people.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739695
+  },
+  "1:42": {
+    "rendering": "And when the days of the feast were completed, as they were returning, the boy Jesus stayed behind in Jerusalem, and his parents did not know it.",
+    "note": "The Greek word for \"boy\" here is the same one used for young Samuel serving in the temple, quietly echoing an earlier child left behind in God's house.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739695
+  },
+  "1:43": {
+    "rendering": "Thinking he was in their group, they went a day's journey before they began looking for him among their relatives and friends.",
+    "note": "The Greek word for ",
+    "v": "ff54612cf1f0",
+    "t": 1775620739695
+  },
+  "1:44": {
+    "rendering": "When they did not find him, they returned to Jerusalem, searching for him.",
+    "note": "The Greek verb for \"searching\" carries the intensity of earnest seeking, the same word used later when Mary and Joseph find Jesus in the temple.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739695
+  },
+  "1:45": {
+    "rendering": "After three days they found him in the temple, sitting among the teachers, listening to them and asking them questions.",
+    "note": "The Greek \"in the midst\" (en meso) places the twelve-year-old Jesus at the center of Israel's teachers, an intertextual echo of young Samuel serving in the sanctuary (1 Samuel 3).",
+    "v": "ff54612cf1f0",
+    "t": 1775620739695
+  },
+  "1:46": {
+    "rendering": "And all who heard him were amazed at his understanding and his answers.",
+    "note": "The Greek word for \"understanding\" (sunesis) echoes how young Samuel grew in insight before the Lord, hinting at a new prophetic voice arising in the temple.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739695
+  },
+  "1:47": {
+    "rendering": "And when his parents saw him, they were astonished, and his mother said to him, \"Child, why have you treated us like this? Look, your father and I have been searching for you in great distress.\"",
+    "note": "The Greek word for \"distress\" here is the same one used for Mary \"being greatly troubled\" by the angel's greeting back in Luke 1:29, bookending her journey from awe to anguish.",
+    "v": "ff54612cf1f0",
+    "t": 1775620739695
+  },
+  "0:48": {
+    "rendering": "For the Mighty One has done great things for me, and holy is his name.",
+    "note": "The title \"Mighty One\" echoes Hannah's song in 1 Samuel 2:2, weaving Mary's praise into Israel's long story of God's surprising reversals.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740469
+  },
+  "0:49": {
+    "rendering": "His mercy is for those who fear him from generation to generation.",
+    "note": "The word \"fear\" here echoes the fear of the Lord in Proverbs, a posture of awe that shapes character across generations.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740469
+  },
+  "0:50": {
+    "rendering": "He has shown strength with his arm. He has scattered the proud in the thoughts of their hearts.",
+    "note": "The verb \"scattered\" echoes God's defeat of Pharaoh's army at the sea in Exodus 14:27, turning Mary's praise into a new exodus song.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740469
+  },
+  "0:51": {
+    "rendering": "He has brought down rulers from their thrones, and lifted up the humble.",
+    "note": "This line echoes Hannah's song in 1 Samuel 2:7-8, where the same God who topples the powerful exalts the lowly, setting the stage for Jesus' upside-down kingdom.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740469
+  },
+  "0:52": {
+    "rendering": "He has filled the hungry with good things, and sent the rich away empty.",
+    "note": "This echoes Hannah's song in 1 Samuel 2:5,7, where God reverses fortunes, a pattern that runs through the entire biblical story of the humble exalted and the proud brought low.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740469
+  },
+  "0:53": {
+    "rendering": "He has come to the aid of Israel his servant, in order to remember his mercy.",
+    "note": "The word \"remember\" here echoes God's covenant promises to Abraham, as if God has been waiting for the right moment to act on them.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740469
+  },
+  "0:54": {
+    "rendering": "as he promised to our ancestors, to Abraham and to his offspring forever.",
+    "note": "This closing line of Mary's song echoes God's unbreakable covenant oath to Abraham in Genesis 12-22, the promise that through his seed all nations would be blessed.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740469
+  },
+  "0:55": {
+    "rendering": "Mary stayed with her about three months, and then returned to her home.",
+    "note": "The three-month stay echoes the nine months of pregnancy, quietly linking Elizabeth's and Mary's intertwined stories before the births that launch the gospel.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740469
+  },
+  "1:48": {
+    "rendering": "And he said to them, \"Why were you looking for me? Did you not know that I must be in my Father's house?\"",
+    "note": "The Greek phrase \"en tois tou patros mou\" is deliberately ambiguous, meaning both \"in my Father's house\" and \"about my Father's business,\" layering temple location with divine mission.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740549
+  },
+  "1:49": {
+    "rendering": "But they did not understand the word he spoke to them.",
+    "note": "The Greek word for \"understand\" here (syniemi) means to put the pieces together, the same verb used when Jesus later explains the parables to his disciples.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740549
+  },
+  "1:50": {
+    "rendering": "Then he went down with them and came to Nazareth, and he was obedient to them. And his mother treasured all these things in her heart.",
+    "note": "The Greek for \"was obedient\" echoes the child Samuel's posture in the house of the Lord, quietly signaling that the boy who teaches in the temple now embodies the true temple-servant.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740549
+  },
+  "1:51": {
+    "rendering": "And Jesus kept advancing in wisdom and in stature, and in favor with God and with people.",
+    "note": "The Greek word for \"advancing\" (proekopten) literally means \"cutting forward,\" the same term used for a road being cleared through a forest.",
+    "v": "ff54612cf1f0",
+    "t": 1775620740549
+  },
+  "0:56": {
+    "rendering": "When Elizabeth's time to give birth was fulfilled, she bore a son.",
+    "note": "The word \"fulfilled\" echoes the angel's promise in verse 20, quietly showing God's word coming to pass exactly as spoken.",
+    "v": "ff54612cf1f0",
+    "t": 1775620741209
+  },
+  "0:57": {
+    "rendering": "Her neighbors and relatives heard that the Lord had shown her great mercy, and they rejoiced with her.",
+    "note": "The Greek for \"great mercy\" echoes the covenant word hesed, the loyal love that defined God's ancient promises to Israel.",
+    "v": "ff54612cf1f0",
+    "t": 1775620741209
+  },
+  "0:58": {
+    "rendering": "On the eighth day they came to circumcise the child, and they were going to name him after his father Zechariah.",
+    "note": "The eighth-day circumcision echoes God's covenant with Abraham in Genesis 17, binding this baby into Israel's story of promise.",
+    "v": "ff54612cf1f0",
+    "t": 1775620741209
+  },
+  "0:59": {
+    "rendering": "But his mother answered and said, \"No, he shall be called John.\"",
+    "note": "Elizabeth's firm \"No\" echoes the angel's exact words from verse 13, showing she has taken the divine message to heart even without hearing Zechariah's side of the story.",
+    "v": "ff54612cf1f0",
+    "t": 1775620741209
+  },
+  "0:60": {
+    "rendering": "They said to her, \"There is no one among your relatives who is called by this name.\"",
+    "note": "The name \"John\" breaks family custom, signaling this child will stand apart like the prophets of old.",
+    "v": "ff54612cf1f0",
+    "t": 1775620741209
+  },
+  "0:61": {
+    "rendering": "They made signs to his father, asking what he wanted to name the child.",
+    "note": "In a culture where spoken words carried power, this silent family resorts to gestures, heightening the drama around the name that will soon unleash Zechariah's voice again.",
+    "v": "ff54612cf1f0",
+    "t": 1775620741209
+  },
+  "0:62": {
+    "rendering": "He asked for a writing tablet and wrote, \"His name is John.\" And they all marveled.",
+    "note": "In a culture where fathers named their sons, Zechariah's silent obedience to the angel's word breaks the expected pattern and echoes the naming of Isaac and Samuel.",
+    "v": "ff54612cf1f0",
+    "t": 1775620741209
+  },
+  "0:63": {
+    "rendering": "Immediately his mouth was opened and his tongue was loosed, and he began to speak, blessing God.",
+    "note": "The same word for \"opened\" echoes God's opening of the womb in the previous verse, linking Zechariah's silenced tongue to the promised birth.",
+    "v": "ff54612cf1f0",
+    "t": 1775620741209
+  },
+  "0:64": {
+    "rendering": "And fear came upon all their neighbors, and all these words were talked about through the whole hill country of Judea.",
+    "note": "The Greek word for \"fear\" here is the same one used for the awe that falls on people when God shows up, turning a village birth announcement into a regional tremor of wonder.",
+    "v": "ff54612cf1f0",
+    "t": 1775620742356
+  },
+  "0:65": {
+    "rendering": "All who heard these things stored them up in their hearts and said, \"What then will this child become?\" For the Lord's hand was with him.",
+    "note": "The phrase \"stored them up in their hearts\" echoes how Mary pondered the angel's words in Luke 2:19, linking the two birth stories through meditative wonder.",
+    "v": "ff54612cf1f0",
+    "t": 1775620742356
+  },
+  "0:66": {
+    "rendering": "Then Zechariah his father was filled with the Holy Spirit and prophesied, saying,",
+    "note": "This is the first time Luke uses the exact phrase \"filled with the Holy Spirit\" since the angel's promise to Zechariah in verse 15, creating a quiet bookend that shows the promise has now been fulfilled.",
+    "v": "ff54612cf1f0",
+    "t": 1775620742356
+  },
+  "0:67": {
+    "rendering": "Blessed be the Lord, the God of Israel, for he has visited and redeemed his people.",
+    "note": "The word \"visited\" echoes how God came down to rescue Israel from Egypt, now signaling a new exodus through the coming Messiah.",
+    "v": "ff54612cf1f0",
+    "t": 1775620742356
+  },
+  "0:68": {
+    "rendering": "He has raised up a horn of salvation for us in the house of his servant David.",
+    "note": "The \"horn\" is an ancient image of powerful, animal-like strength, echoing Hannah's song and the promises to David in 2 Samuel 7.",
+    "v": "ff54612cf1f0",
+    "t": 1775620742356
+  },
+  "0:69": {
+    "rendering": "just as he promised through the mouth of his holy prophets from ancient times",
+    "note": "The Greek \"from the age\" echoes the promise-pattern running from Genesis 3:15 through the prophets, showing God has been speaking the same redemption-story for centuries.",
+    "v": "ff54612cf1f0",
+    "t": 1775620742356
+  },
+  "0:70": {
+    "rendering": "Salvation from our enemies and from the hand of all who hate us.",
+    "note": "This echoes the exodus language of rescue from Pharaoh's hand, framing Jesus' birth as a new deliverance from oppression.",
+    "v": "ff54612cf1f0",
+    "t": 1775620742356
+  },
+  "0:71": {
+    "rendering": "to show mercy to our fathers, and to remember his holy covenant,",
+    "note": "The word \"remember\" echoes God's covenant promises throughout the Old Testament, like Genesis 8:1 and Exodus 2:24, where divine remembrance always leads to rescue.",
+    "v": "ff54612cf1f0",
+    "t": 1775620742356
+  },
+  "0:72": {
+    "rendering": "the oath that he swore to Abraham our father, to give us",
+    "note": "This single Greek word for \"oath\" (horkon) echoes the ancient covenant ceremony where God bound himself with a solemn promise, linking Zechariah's song back to Genesis 22:16-18.",
+    "v": "ff54612cf1f0",
+    "t": 1775620743188
+  },
+  "0:73": {
+    "rendering": "to grant us, rescued from the hand of our enemies, to serve him without fear",
+    "note": "The word \"rescued\" echoes the Exodus deliverance, turning Israel's ancient liberation into a fresh hope for fearless worship.",
+    "v": "ff54612cf1f0",
+    "t": 1775620743188
+  },
+  "0:74": {
+    "rendering": "in holiness and righteousness before him all our days.",
+    "note": "The paired terms \"holiness and righteousness\" echo the ancient priestly ideal, now democratized for an entire people living in God's presence every single day.",
+    "v": "ff54612cf1f0",
+    "t": 1775620743188
+  },
+  "0:75": {
+    "rendering": "And you, child, will be called the prophet of the Most High, for you will go before the face of the Lord to prepare his ways.",
+    "note": "Zechariah's song echoes Isaiah 40:3 and Malachi 3:1, weaving John's role into the ancient promise of a wilderness messenger who clears the path for God's arrival.",
+    "v": "ff54612cf1f0",
+    "t": 1775620743188
+  },
+  "0:76": {
+    "rendering": "to give his people knowledge of salvation through the forgiveness of their sins,",
+    "note": "This phrase echoes the ancient priestly blessing of Numbers 6:24-26 and the prophetic hope of Isaiah 40-55, where forgiveness of sins signals the end of exile and the dawn of God's rescue.",
+    "v": "ff54612cf1f0",
+    "t": 1775620743188
+  },
+  "0:77": {
+    "rendering": "Because of the tender mercy of our God, the sunrise from on high will visit us.",
+    "note": "The Greek word for \"sunrise\" (anatole) also means \"branch,\" echoing the messianic promise of Jeremiah 23:5 and Zechariah 3:8.",
+    "v": "ff54612cf1f0",
+    "t": 1775620743188
+  },
+  "0:78": {
+    "rendering": "to shine on those sitting in darkness and in the shadow of death, to guide our feet into the path of peace.",
+    "note": "The phrase \"shadow of death\" echoes Job and the Psalms, painting the Messiah's dawn as rescue from the ultimate exile of mortality itself.",
+    "v": "ff54612cf1f0",
+    "t": 1775620743188
+  },
+  "0:79": {
+    "rendering": "And the child grew and became strong in spirit, and he was in the wilderness until the day of his public appearance to Israel.",
+    "note": "The wilderness here echoes Israel's forty years of testing and preparation, shaping John as the voice crying in the desert before he steps onto the stage.",
+    "v": "ff54612cf1f0",
+    "t": 1775620743188
+  },
+  "3:0": {
+    "rendering": "Jesus, full of the Holy Spirit, returned from the Jordan and was led by the Spirit in the wilderness.",
+    "note": "The same Spirit that descended on him at the Jordan now drives him into the desert, echoing how the Spirit propelled Israel into the wilderness after the Red Sea.",
+    "v": "ff54612cf1f0",
+    "t": 1775620746824
+  },
+  "3:1": {
+    "rendering": "He ate nothing for forty days, and at the end of them he was hungry.",
+    "note": "The forty days echo Israel's wilderness wanderings and Moses' fast on Sinai, setting Jesus as the faithful Son where others failed.",
+    "v": "ff54612cf1f0",
+    "t": 1775620746824
+  },
+  "3:2": {
+    "rendering": "The devil said to him, \"If you are the Son of God, command this stone to become bread.\"",
+    "note": "The tempter's challenge echoes the serpent's question in Genesis 3 and Israel's wilderness grumbling, probing whether the obedient Son will grasp provision his own way.",
+    "v": "ff54612cf1f0",
+    "t": 1775620746824
+  },
+  "3:3": {
+    "rendering": "Jesus answered him, \"It is written, 'Man shall not live on bread alone.'\"",
+    "note": "Jesus quotes Deuteronomy 8:3 in the wilderness, where Israel learned dependence on God's word after their own bread failed, echoing the ancient test now replayed in the true Son.",
+    "v": "ff54612cf1f0",
+    "t": 1775620746824
+  },
+  "3:4": {
+    "rendering": "The devil led him up and showed him in a flash all the kingdoms of the inhabited world.",
+    "note": "This sudden panoramic vision echoes the temptation of Israel in the wilderness, where seeing the promised land tested their trust in God's timing.",
+    "v": "ff54612cf1f0",
+    "t": 1775620746824
+  },
+  "3:5": {
+    "rendering": "The devil said to him, \"I will give you all this authority and their glory, for it has been handed over to me, and I give it to whomever I wish.\"",
+    "note": "The tempter's claim echoes the serpent's lie in Eden, that power and glory can be seized apart from God.",
+    "v": "ff54612cf1f0",
+    "t": 1775620746824
+  },
+  "3:6": {
+    "rendering": "If you will worship before me, all this will be yours.",
+    "note": "The devil's offer echoes the very temptation Israel faced in the wilderness: bow to another power to seize the inheritance without the cross-shaped path.",
+    "v": "ff54612cf1f0",
+    "t": 1775620746824
+  },
+  "3:7": {
+    "rendering": "Jesus answered him, \"It is written, 'You shall worship the Lord your God, and him only shall you serve.'\"",
+    "note": "Jesus quotes Deuteronomy 6:13, the Shema's command to fear and serve Yahweh alone, turning the tempter's own scripture back on him.",
+    "v": "ff54612cf1f0",
+    "t": 1775620746824
+  },
+  "3:8": {
+    "rendering": "Then the devil led him to Jerusalem, stood him on the highest point of the temple, and said to him, \"If you are the Son of God, throw yourself down from here.\"",
+    "note": "The tempter quotes Psalm 91:11-12 but twists its promise of protection into a demand for spectacle, revealing how even Scripture can be weaponized.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747748
+  },
+  "3:9": {
+    "rendering": "For it is written: 'He will command his angels concerning you, to guard you.'",
+    "note": "Satan quotes Psalm 91:11 but surgically removes the phrase about walking in God's ways, twisting protective promise into presumption.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747748
+  },
+  "3:10": {
+    "rendering": "and they will lift you up on their hands, so that you will not strike your foot against a stone.",
+    "note": "This quotes Psalm 91:12, but the devil omits the preceding line about dwelling in the Most High's shelter, twisting a promise of protection for the faithful into a dare for spectacle.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747748
+  },
+  "3:11": {
+    "rendering": "Jesus answered him, \"It is said: You shall not put the Lord your God to the test.\"",
+    "note": "Jesus quotes Deuteronomy 6:16, where Israel tested God at Massah, turning the tempter's own weapon of Scripture back on him.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747748
+  },
+  "3:12": {
+    "rendering": "And when the devil had finished every temptation, he departed from him until an opportune time.",
+    "note": "The word \"until\" hints at a return, echoing the wilderness testing of Israel and pointing forward to the cross as the next great assault.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747748
+  },
+  "3:13": {
+    "rendering": "Jesus returned in the power of the Spirit into Galilee, and news about him spread through all the surrounding region.",
+    "note": "The phrase \"in the power of the Spirit\" echoes the Spirit's anointing in Isaiah 61 that Jesus just read in the Nazareth synagogue, showing the launch of his mission.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747748
+  },
+  "3:14": {
+    "rendering": "And he was teaching in their synagogues, being praised by everyone.",
+    "note": "Luke echoes the end of 1 Samuel where young David is likewise praised by all Israel after his first public act.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747748
+  },
+  "3:15": {
+    "rendering": "He came to Nazareth, where he had been brought up, and as was his custom, he went into the synagogue on the Sabbath day and stood up to read.",
+    "note": "Luke links Jesus to the ancient Jewish rhythm of Scripture and Sabbath, showing him as a faithful son of Israel before he announces his mission.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747748
+  },
+  "4:0": {
+    "rendering": "One day, as the crowd was pressing in on him and listening to the word of God, Jesus was standing by the Lake of Gennesaret.",
+    "note": "The lake's dual name, Gennesaret here and Galilee elsewhere, quietly signals how this story anchors in both local familiarity and the wider biblical landscape of God's word going out from the water's edge.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747799
+  },
+  "4:1": {
+    "rendering": "He saw two boats by the lake, but the fishermen had gotten out of them and were washing their nets.",
+    "note": "Luke's opening image echoes the calling of fishermen in the Hebrew Scriptures, setting the stage for Jesus to launch a new kind of catch.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747799
+  },
+  "4:2": {
+    "rendering": "He got into one of the boats, the one belonging to Simon, and asked him to put out a little from the land. Then he sat down and taught the crowds from the boat.",
+    "note": "Jesus teaches from Simon's boat, turning a fisherman's workspace into a pulpit, an early sign that ordinary tools will serve the kingdom.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747799
+  },
+  "4:3": {
+    "rendering": "When he had finished speaking, he said to Simon, \"Put out into the deep water, and let down your nets for a catch.\"",
+    "note": "Jesus tells an experienced fisherman to row into the deep and fish in broad daylight, the exact opposite of local wisdom.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747799
+  },
+  "4:4": {
+    "rendering": "Simon answered, \"Master, we have worked hard all night and caught nothing. But at your word I will let down the nets.\"",
+    "note": "The Greek word for \"word\" here is rhema, the same term used when God speaks creation into being, hinting that Peter's obedience unleashes the same creative power that once filled empty seas with fish.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747799
+  },
+  "4:5": {
+    "rendering": "When they did this, they enclosed a large number of fish, and their nets began to break.",
+    "note": "The Greek word for \"enclosed\" (synkleio) echoes the same verb used in the Greek Old Testament for the closing of the Red Sea over Pharaoh's army, turning a fishing miracle into an echo of exodus deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747799
+  },
+  "4:6": {
+    "rendering": "They signaled to their partners in the other boat to come and help them haul it in. They came, and both boats were so full they began to sink.",
+    "note": "The Greek word for \"signaled\" hints at a silent, urgent gesture across the water, echoing the quiet obedience that draws others into the overflowing catch.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747799
+  },
+  "4:7": {
+    "rendering": "When Simon Peter saw this, he fell at Jesus' knees and said, \"Go away from me, Lord, for I am a sinful man.\"",
+    "note": "Peter's plea echoes Isaiah's terror before the holy God in Isaiah 6, revealing how a glimpse of Jesus' power exposes our unworthiness.",
+    "v": "ff54612cf1f0",
+    "t": 1775620747799
+  },
+  "3:16": {
+    "rendering": "The scroll of the prophet Isaiah was handed to him. Unrolling it, he found the place where it was written:",
+    "note": "This moment echoes the ancient synagogue custom of reading from the Prophets after the Torah, positioning Jesus as the awaited reader who finds his own mission in Isaiah's words.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748593
+  },
+  "3:17": {
+    "rendering": "The Spirit of the Lord is upon me, because he has anointed me to proclaim good news to the poor. He has sent me to proclaim liberty to the captives and recovering of sight to the blind, to set at liberty those who are oppressed.",
+    "note": "Jesus reads Isaiah 61 in Nazareth's synagogue, claiming its words as his own mission.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748593
+  },
+  "3:18": {
+    "rendering": "to proclaim the year of the Lord's favor.",
+    "note": "This line directly quotes Isaiah 61:2, the anointed herald's announcement of God's jubilee-like restoration.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748593
+  },
+  "3:19": {
+    "rendering": "Then he rolled up the scroll, gave it back to the attendant, and sat down. The eyes of everyone in the synagogue were fixed on him.",
+    "note": "In the ancient synagogue, the one who read the haftarah would stand to read but sit to teach, so Jesus' posture signals the start of his authoritative interpretation.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748593
+  },
+  "3:20": {
+    "rendering": "Then he rolled up the scroll, gave it back to the attendant, and sat down. The eyes of everyone in the synagogue were fixed on him. He began to say to them, \"Today this scripture has been fulfilled in your hearing.\"",
+    "note": "Jesus declares the Isaiah 61 scroll fulfilled \"today\" in their ears, a bold messianic claim that echoes the Jubilee trumpet and launches his mission.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748593
+  },
+  "3:21": {
+    "rendering": "And everyone was speaking well of him and marveling at the gracious words coming from his mouth. Yet they were saying, \"Isn't this Joseph's son?\"",
+    "note": "The Greek word for \"marveling\" (thaumazo) here carries a double edge, hinting at both wonder and suspicion, as the crowd's praise quickly shifts to hometown skepticism.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748593
+  },
+  "3:22": {
+    "rendering": "And he said to them, \"Doubtless you will quote to me this proverb, 'Physician, heal yourself.' What we have heard you did in Capernaum, do here in your hometown as well.\"",
+    "note": "Jesus quotes a Greek proverb that plays on the tension between self-healing and public miracle, exposing the hometown crowd's skeptical demand for proof.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748593
+  },
+  "3:23": {
+    "rendering": "And he said, \"Truly I tell you, no prophet is accepted in his hometown.\"",
+    "note": "Luke deliberately echoes the Greek version of 1 Kings 17 and 2 Kings 5, where prophets like Elijah and Elisha find more faith among outsiders than in Israel.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748593
+  },
+  "4:8": {
+    "rendering": "For amazement gripped him, and all who were with him, at the catch of fish they had taken.",
+    "note": "The word for \"amazement\" here is the same one used for the awe that falls on people at Jesus' miracles throughout Luke, linking this ordinary fishing trip to the start of something far bigger.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748747
+  },
+  "4:9": {
+    "rendering": "Jesus said to Simon, \"Do not be afraid. From now on you will catch people alive.\"",
+    "note": "The Greek verb \"catch alive\" (zogron) echoes the Old Testament idea of rescuing from death, turning fishermen into life-saving deliverers.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748747
+  },
+  "4:10": {
+    "rendering": "And when they had brought the boats to land, they left everything and followed him.",
+    "note": "The Greek verb \"aphiemi\" for \"left\" echoes the same word for \"forgave\" their sins just verses earlier, linking radical release to radical following.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748747
+  },
+  "4:11": {
+    "rendering": "And it happened that while he was in one of the towns, a man covered with leprosy saw Jesus, fell on his face, and begged him, \"Lord, if you are willing, you can make me clean.\"",
+    "note": "In the ancient world, this man's desperate face-down plea echoes the leper's cry of \"Unclean!\" from Leviticus 13, but now directed toward the one who can reverse the curse.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748747
+  },
+  "4:12": {
+    "rendering": "Jesus stretched out his hand and touched him, saying, \"I am willing. Be clean.\" And immediately the leprosy left him.",
+    "note": "In a world where touching a leper meant becoming unclean, Jesus reverses the flow of contamination and makes the man clean instead.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748747
+  },
+  "4:13": {
+    "rendering": "Jesus ordered him, \"Tell no one, but go show yourself to the priest and offer for your cleansing what Moses commanded, as a testimony to them.\"",
+    "note": "This command echoes Leviticus 14's detailed ritual for certifying a healed skin-disease sufferer, turning the man into living proof that God's kingdom has arrived.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748747
+  },
+  "4:14": {
+    "rendering": "But the news about him kept spreading even more, and large crowds would gather to hear him and to be healed of their sicknesses.",
+    "note": "The Greek word for \"news\" here is the same one used for the gospel itself, already leaking out like uncontainable good news.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748747
+  },
+  "4:15": {
+    "rendering": "But he would often slip away to lonely places and pray.",
+    "note": "The Greek imperfect tense paints Jesus repeatedly withdrawing, modeling the rhythm of hidden prayer that fuels public mission.",
+    "v": "ff54612cf1f0",
+    "t": 1775620748747
+  },
+  "4:16": {
+    "rendering": "One day, as Jesus was teaching, Pharisees and teachers of the law were sitting there, who had come from every village of Galilee and Judea and from Jerusalem. And the power of the Lord was with him to heal.",
+    "note": "The phrase \"power of the Lord was with him to heal\" echoes the Spirit's empowering presence in the Hebrew Scriptures, now resting on Jesus in this crowded scene of scrutiny and expectation.",
+    "v": "ff54612cf1f0",
+    "t": 1775620749730
+  },
+  "4:17": {
+    "rendering": "Some men arrived carrying a paralyzed man on a mat, and they tried to bring him in and lay him before Jesus.",
+    "note": "The Greek word for \"carried\" echoes how the four friends bore their friend's weight, the same verb later used when Jesus \"carries\" our infirmities in Isaiah 53:4.",
+    "v": "ff54612cf1f0",
+    "t": 1775620749730
+  },
+  "4:18": {
+    "rendering": "But not finding a way to bring him in because of the crowd, they went up on the roof and let him down through the tiles with his stretcher into the middle of the group right in front of Jesus.",
+    "note": "In a first-century Capernaum house with a flat clay-and-tile roof, these friends literally dismantled the ceiling, an act of bold persistence that echoes the dramatic roof-breaking in the story of the paralyzed man.",
+    "v": "ff54612cf1f0",
+    "t": 1775620749730
+  },
+  "4:19": {
+    "rendering": "When he saw their trust, he said, \"Friend, your sins are forgiven.\"",
+    "note": "Jesus sees the friends' bold, roof-ripping faith and responds first with forgiveness, not healing, revealing that the deeper wound is always addressed first in his kingdom.",
+    "v": "ff54612cf1f0",
+    "t": 1775620749730
+  },
+  "4:20": {
+    "rendering": "The scribes and the Pharisees began to reason, saying, \"Who is this who speaks blasphemies? Who can forgive sins but God alone?\"",
+    "note": "The experts instantly spot the claim only God can forgive, an echo of Exodus 34:6-7 that sets up the question the whole Gospel will answer.",
+    "v": "ff54612cf1f0",
+    "t": 1775620749730
+  },
+  "4:21": {
+    "rendering": "But Jesus, knowing their thoughts, answered them, \"Why are you debating these things in your hearts?\"",
+    "note": "The Greek word for \"knowing\" here echoes the same verb used when God perceives the heart in the Old Testament, showing Jesus exercising divine insight into hidden motives.",
+    "v": "ff54612cf1f0",
+    "t": 1775620749730
+  },
+  "4:22": {
+    "rendering": "Which is easier, to say, 'Your sins are forgiven you,' or to say, 'Get up and walk'?",
+    "note": "Jesus poses a riddle that forces the scribes to confront whether his authority to forgive is as real and testable as his power to heal.",
+    "v": "ff54612cf1f0",
+    "t": 1775620749730
+  },
+  "4:23": {
+    "rendering": "But so that you may know that the Son of Man has authority on earth to forgive sins, he said to the paralyzed man, I say to you, get up, pick up your mat, and go home.",
+    "note": "The Aramaic title \"Son of Man\" echoes Daniel 7:13-14, where this figure receives divine authority; here it is boldly exercised on earth in the realm of both forgiveness and physical healing.",
+    "v": "ff54612cf1f0",
+    "t": 1775620749730
+  },
+  "3:24": {
+    "rendering": "But I tell you the truth: there were many widows in Israel in the days of Elijah, when the sky was shut up for three years and six months and a great famine came over all the land.",
+    "note": "Luke's \"three years and six months\" echoes the exact duration in James 5:17, linking Jesus' rejected ministry to Elijah's famine that exposed Israel's unfaithfulness.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750209
+  },
+  "3:25": {
+    "rendering": "Yet Elijah was sent to none of them, but only to Zarephath, in the land of Sidon, to a widow woman.",
+    "note": "Luke echoes the Greek Old Testament wording of 1 Kings 17 to show Jesus as the new Elijah, bringing good news first to outsiders.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750209
+  },
+  "3:26": {
+    "rendering": "And there were many people with skin diseases in Israel in the time of Elisha the prophet, yet none of them was cleansed, only Naaman the Syrian.",
+    "note": "Luke echoes 2 Kings 5 to show God's mercy breaking ethnic boundaries, a pattern Jesus now fulfills right in Nazareth's synagogue.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750209
+  },
+  "3:27": {
+    "rendering": "When they heard these things, everyone in the synagogue was filled with rage.",
+    "note": "The Greek word for rage (thymos) evokes the same burning fury that boiled over when Jeremiah exposed Israel's unfaithfulness in the temple (Jer 7).",
+    "v": "ff54612cf1f0",
+    "t": 1775620750209
+  },
+  "3:28": {
+    "rendering": "They got up, drove him out of the town, and led him to the brow of the hill on which their town was built, so they could hurl him down the cliff.",
+    "note": "The Greek verb for \"drove him out\" echoes how God drove Adam from Eden and Israel from the land, turning a hopeful hometown welcome into an expulsion scene.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750209
+  },
+  "3:29": {
+    "rendering": "But he passed through the midst of them and went on his way.",
+    "note": "The Greek verb for \"passed through\" echoes the Exodus language of God leading Israel safely through the sea and wilderness, hinting at divine protection amid rejection.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750209
+  },
+  "3:30": {
+    "rendering": "Then he went down to Capernaum, a town in Galilee, and on the Sabbath he began teaching them.",
+    "note": "Luke's first Sabbath scene echoes the start of creation week, as Jesus begins ordering a broken world through authoritative teaching.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750209
+  },
+  "3:31": {
+    "rendering": "They were astonished at his teaching, because his word carried authority.",
+    "note": "The Greek \"exousia\" for authority echoes how God spoke creation into being in Genesis, now flowing through this teacher.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750209
+  },
+  "4:24": {
+    "rendering": "And immediately he stood up before them, picked up what he had been lying on, and went home praising God.",
+    "note": "The word \"immediately\" echoes the urgent power that just healed him, turning a paralyzed man into a walking testimony right in front of the crowd.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750959
+  },
+  "4:25": {
+    "rendering": "And amazement seized them all, and they kept glorifying God. They were filled with awe and said, \"We have seen extraordinary things today.\"",
+    "note": "The Greek word for \"extraordinary\" (paradoxa) literally means \"things contrary to expectation,\" echoing how Jesus' healings upend the world's assumptions about what's possible.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750959
+  },
+  "4:26": {
+    "rendering": "After these things Jesus went out and saw a tax collector named Levi sitting at the tax booth, and he said to him, \"Follow me.\"",
+    "note": "The Greek word for \"saw\" here echoes how Jesus looked at the paralyzed man in 5:20, signaling the same authoritative gaze that calls the outsider into his inner circle.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750959
+  },
+  "4:27": {
+    "rendering": "And leaving everything behind, he got up and followed him.",
+    "note": "The Greek word \"aphiemi\" for \"leaving\" is the same verb used for forgiving sins just verses earlier, quietly linking Levi's total release from his old life to the forgiveness he had received.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750959
+  },
+  "4:28": {
+    "rendering": "Then Levi threw a big party for him in his house, and there was a large crowd of tax collectors and others who were reclining at the table with them.",
+    "note": "The Greek word for “large crowd” echoes the same term used for the massive banquet in Esther 1, turning Levi’s house into an unexpected feast of the outcast.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750959
+  },
+  "4:29": {
+    "rendering": "The Pharisees and their scribes grumbled at his disciples, saying, \"Why do you eat and drink with tax collectors and sinners?\"",
+    "note": "This complaint echoes the grumbling of the wilderness generation against Moses, now aimed at Jesus as he eats with the unclean and unworthy.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750959
+  },
+  "4:30": {
+    "rendering": "Jesus answered them, \"It is not the healthy who need a doctor, but the sick.\"",
+    "note": "Jesus echoes the ancient prophets' diagnosis of Israel as desperately ill, positioning himself as the healer the truly sick must welcome.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750959
+  },
+  "4:31": {
+    "rendering": "I have not come to call the upright, but sinners, to a change of heart.",
+    "note": "The word for \"repentance\" here is metanoia, a radical mind-shift, not mere regret, echoing the prophets' call to return to God.",
+    "v": "ff54612cf1f0",
+    "t": 1775620750959
+  },
+  "3:32": {
+    "rendering": "In the synagogue there was a man who had a spirit of an unclean demon, and he cried out with a loud voice.",
+    "note": "Luke's phrasing \"spirit of an unclean demon\" echoes the ancient idea of invading spiritual forces, setting the stage for Jesus' authority to expel them as the stronger one (see Luke 11:21-22).",
+    "v": "ff54612cf1f0",
+    "t": 1775620751905
+  },
+  "3:33": {
+    "rendering": "\"Ha! What do you want with us, Jesus of Nazareth? Have you come to destroy us? I know who you are, the Holy One of God.\"",
+    "note": "The demon's terrified recognition echoes the unclean spirits' dread of God's presence in the exodus and conquest narratives.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751905
+  },
+  "3:34": {
+    "rendering": "But Jesus rebuked him, saying, \"Be silent and come out of him!\" And when the demon had thrown him down in their midst, it came out of him without doing him any harm.",
+    "note": "The single Greek verb \"epitimao\" (rebuked) is the same word used when Jesus silences storms and demons throughout Luke, quietly portraying him as the authoritative Lord over chaos itself.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751905
+  },
+  "3:35": {
+    "rendering": "They were all amazed and said to one another, \"What is this word? For with authority and power he commands the unclean spirits, and they come out.\"",
+    "note": "The crowd marvels at Jesus' \"word\" (logos), an echo of the authoritative creative speech in Genesis 1 that brings order from chaos.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751905
+  },
+  "3:36": {
+    "rendering": "And the news about him spread throughout every surrounding place.",
+    "note": "The Greek word for \"news\" here is echo, the same root as the rumor that kept multiplying like a sound wave bouncing across Galilee.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751905
+  },
+  "3:37": {
+    "rendering": "After leaving the synagogue, Jesus went into Simon's house. Simon's mother-in-law was suffering from a high fever, and they asked him to help her.",
+    "note": "The Greek word for \"help\" here is the same one used for \"rebuking\" the fever in the next verse, echoing how Jesus commands unclean spirits.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751905
+  },
+  "3:38": {
+    "rendering": "He stood over her and rebuked the fever, and it left her. Immediately she got up and began to serve them.",
+    "note": "The same Greek verb for Jesus \"rebuking\" the fever is used for his commanding demons, hinting that this is no ordinary illness but a hostile power yielding to the kingdom.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751905
+  },
+  "3:39": {
+    "rendering": "As the sun was setting, they brought to him all who were sick with various diseases. He laid his hands on each one of them and healed them.",
+    "note": "The Greek word for \"laid his hands\" (epititheis) echoes how priests and prophets set apart people or offerings in the Old Testament, now repurposed for restoring the broken.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751905
+  },
+  "4:32": {
+    "rendering": "They said to him, \"John's disciples often fast and pray, and so do the disciples of the Pharisees, but yours keep eating and drinking.\"",
+    "note": "The question sets up a classic ancient Jewish debate over table fellowship and fasting rhythms, contrasting Jesus' feasting with the stricter patterns of John and the Pharisees.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751958
+  },
+  "4:33": {
+    "rendering": "Jesus said to them, \"Can you make the wedding guests fast while the bridegroom is with them?",
+    "note": "This echoes the Hebrew prophets' image of God as Israel's bridegroom, now fulfilled in Jesus' presence at the table.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751958
+  },
+  "4:34": {
+    "rendering": "But the days will come when the bridegroom is taken away from them, and then they will fast in those days.",
+    "note": "The word for \"taken away\" carries violent overtones, echoing Isaiah 53's suffering servant who is \"cut off\" from the land of the living.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751958
+  },
+  "4:35": {
+    "rendering": "He also told them a parable: \"No one tears a patch from a new garment and sews it onto an old garment. Otherwise, he will have torn the new one, and the patch from the new will not match the old.\"",
+    "note": "Jesus uses the mismatch between new unshrunk cloth and old worn fabric to show how his kingdom cannot be patched onto the old religious systems without tearing both.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751958
+  },
+  "4:36": {
+    "rendering": "And no one pours new wine into old wineskins. If he does, the new wine will burst the skins, the wine will spill out, and the skins will be ruined.",
+    "note": "In the ancient world, fermenting wine would expand and split brittle old leather skins, a vivid image Jesus uses right after calling Levi the tax collector to show how his kingdom cannot be contained by old religious systems.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751958
+  },
+  "4:37": {
+    "rendering": "But new wine must be put into fresh wineskins.",
+    "note": "Luke echoes the ancient practice that fermenting wine would burst old, brittle skins, a vivid warning against trying to contain Jesus' kingdom in the rigid forms of the old order.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751958
+  },
+  "4:38": {
+    "rendering": "And no one after drinking old wine wants the new. For he says, 'The old is better.'",
+    "note": "This proverb, unique to Luke, hints at resistance to Jesus' new wine of grace, as people cling to the familiar old ways like aged wine.",
+    "v": "ff54612cf1f0",
+    "t": 1775620751958
+  },
+  "3:40": {
+    "rendering": "Demons also came out of many, shouting, \"You are the Son of God!\" But he rebuked them and would not let them speak, because they knew he was the Messiah.",
+    "note": "The demons' cry echoes Psalm 2's royal declaration of God's anointed son, yet Jesus silences them to shape his own messianic unveiling.",
+    "v": "ff54612cf1f0",
+    "t": 1775620752751
+  },
+  "3:41": {
+    "rendering": "At daybreak, the crowds were searching for him. They came to him, and they tried to keep him from leaving them.",
+    "note": "The word for \"searching\" here is the same one used for the women hunting for Jesus' body at the tomb in Luke 24:5, an early echo that the crowds already sense they cannot let this healer go.",
+    "v": "ff54612cf1f0",
+    "t": 1775620752751
+  },
+  "3:42": {
+    "rendering": "But he said to them, \"I must proclaim the good news of the kingdom of God to the other towns as well, for this is why I was sent.\"",
+    "note": "Luke's \"must\" (dei) echoes the divine necessity that drives Jesus from the Jordan to the cross, framing his whole mission as obedience to the Father's sending.",
+    "v": "ff54612cf1f0",
+    "t": 1775620752751
+  },
+  "3:43": {
+    "rendering": "And he was proclaiming in the synagogues of Judea.",
+    "note": "Luke deliberately echoes Isaiah 9:1 by switching from Galilee to Judea, hinting that the light dawning in the north now floods the whole land.",
+    "v": "ff54612cf1f0",
+    "t": 1775620752751
+  }
+}

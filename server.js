@@ -5,7 +5,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { minify } = require('terser');
-const { log, logRouter, analyticsRouter, parseCookie } = require('./logger');
+const { log, parseCookie, POSTHOG_KEY } = require('./logger');
 const createRateLimiter = require('./rateLimit');
 
 // --- App version ---
@@ -102,7 +102,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://us-assets.i.posthog.com; connect-src 'self' https://us.i.posthog.com; style-src 'self' 'unsafe-inline'");
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
@@ -110,7 +110,6 @@ app.use((req, res, next) => {
 });
 
 app.use(compression());
-app.use(logRouter, analyticsRouter);
 
 // --- Health check (before static, no compression overhead) ---
 app.get('/health', (req, res) => { res.json({ status: 'ok', version: APP_VERSION }); });
@@ -346,6 +345,7 @@ const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS, rv: RENDE
 const INDEX_RAW = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
   .replace('__APP_VERSION__', APP_VERSION)
   .replace('__CONFIG__', CONFIG_JSON)
+  .replace('__POSTHOG_KEY__', POSTHOG_KEY)
   .replace('<link rel="stylesheet" href="/style.css">', '<style>' + CSS_SRC + '</style>');
 let INDEX_HTML;
 

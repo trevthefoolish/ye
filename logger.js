@@ -1,105 +1,31 @@
 // Copyright (c) 2026 vapourware.ai All rights reserved.
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const express = require('express');
-const createRateLimiter = require('./rateLimit');
-const { dateStr, cleanupLogs } = require('./logUtils');
+const { PostHog } = require('posthog-node');
 
-// --- Shared JSONL writer ---
-function writeLine(dir, entry) {
-  const line = JSON.stringify(entry) + '\n';
-  process.stdout.write(line);
-  fs.appendFile(path.join(dir, dateStr() + '.jsonl'), line, () => {});
-}
+const POSTHOG_KEY = process.env.POSTHOG_API_KEY || 'phc_DeGddwT7kdQWAAo2j4jcxubGE5jEM7qjFvDhEUyxq4th';
 
-// --- Server logging (7-day retention) ---
-const SERVER_DIR = path.join(__dirname, 'logs', 'server');
-fs.mkdirSync(SERVER_DIR, { recursive: true });
-
-const log = {
-  info:  (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'info',  event, ...data }),
-  warn:  (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'warn',  event, ...data }),
-  error: (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'error', event, ...data }),
-};
-
-// --- Client error reporting ---
-const logRouter = express.Router();
-
-logRouter.post('/api/log', express.json({ limit: '2kb' }), (req, res) => {
-  const { type, msg, stack, url } = req.body || {};
-  if (typeof type !== 'string' || typeof msg !== 'string') {
-    return res.status(400).end();
-  }
-  log.warn('client_error', {
-    type: String(type).slice(0, 50),
-    msg: String(msg).slice(0, 500),
-    stack: typeof stack === 'string' ? stack.slice(0, 1000) : undefined,
-    url: typeof url === 'string' ? url.slice(0, 200) : undefined,
-  });
-  res.status(204).end();
+const posthog = new PostHog(POSTHOG_KEY, {
+  host: 'https://us.i.posthog.com',
+  flushAt: 20,
+  flushInterval: 10000,
 });
 
-// --- Analytics (30-day retention) ---
-const ANALYTICS_DIR = path.join(__dirname, 'logs', 'analytics');
-fs.mkdirSync(ANALYTICS_DIR, { recursive: true });
+// Graceful shutdown
+process.on('SIGTERM', async () => { await posthog.shutdown(); process.exit(0); });
+process.on('SIGINT', async () => { await posthog.shutdown(); process.exit(0); });
 
-const VALID_TYPES = new Set(['view', 'nav', 'session', 'perf', 'error']);
-const checkAnalyticsRate = createRateLimiter(60000, 60);
-
-function sanitize(data) {
-  const clean = {};
-  if (typeof data.book === 'string') clean.book = data.book.slice(0, 30);
-  if (typeof data.ch === 'number' && Number.isFinite(data.ch)) clean.ch = data.ch;
-  if (typeof data.method === 'string') clean.method = data.method.slice(0, 10);
-  if (typeof data.depth === 'number' && Number.isFinite(data.depth)) clean.depth = data.depth;
-  if (typeof data.loadMs === 'number' && Number.isFinite(data.loadMs)) clean.loadMs = Math.round(data.loadMs);
-  if (typeof data.ttiMs === 'number' && Number.isFinite(data.ttiMs)) clean.ttiMs = Math.round(data.ttiMs);
-  if (typeof data.msg === 'string') clean.msg = data.msg.slice(0, 200);
-  if (typeof data.src === 'string') clean.src = data.src.slice(0, 100);
-  return clean;
+// --- Server logging via PostHog ---
+function makeLog(level) {
+  return (event, data = {}) => {
+    posthog.capture({ distinctId: 'server', event: `server_${event}`, properties: { level, ...data } });
+  };
 }
+const log = { info: makeLog('info'), warn: makeLog('warn'), error: makeLog('error') };
 
-const analyticsRouter = express.Router();
-
+// --- Cookie parser (kept for lastPos) ---
 function parseCookie(header, name) {
   if (!header) return null;
   const match = header.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-analyticsRouter.post('/api/ev', express.json({ limit: '1kb' }), (req, res) => {
-  const { type, ...data } = req.body || {};
-  if (!VALID_TYPES.has(type)) return res.status(400).end();
-  if (!checkAnalyticsRate(req.ip)) return res.status(429).end();
-
-  const anonId = crypto.createHash('sha256').update(req.ip + dateStr()).digest('hex').slice(0, 8);
-
-  // Session cookie: reuse existing or generate new
-  let sid = parseCookie(req.headers.cookie, 'sid');
-  if (!sid || !/^[0-9a-f]{8}$/.test(sid)) {
-    sid = crypto.randomBytes(4).toString('hex');
-  }
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', 'sid=' + sid + '; Path=/api/ev; Max-Age=1800; HttpOnly; SameSite=Strict' + secure);
-
-  writeLine(ANALYTICS_DIR, {
-    ts: new Date().toISOString(),
-    source: 'analytics',
-    type,
-    aid: anonId,
-    sid,
-    ...sanitize(data),
-  });
-  res.status(204).end();
-});
-
-// --- Cleanup: both directories, one schedule ---
-cleanupLogs(SERVER_DIR, 7);
-cleanupLogs(ANALYTICS_DIR, 30);
-setInterval(() => {
-  cleanupLogs(SERVER_DIR, 7);
-  cleanupLogs(ANALYTICS_DIR, 30);
-}, 86400000);
-
-module.exports = { log, logRouter, analyticsRouter, parseCookie };
+module.exports = { log, parseCookie, POSTHOG_KEY };
