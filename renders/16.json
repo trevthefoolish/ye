@@ -208,5 +208,107 @@
     "note": "This single verse quietly echoes the earlier royal edicts of the Persian court, showing how a Jewish queen now shapes imperial record-keeping.",
     "v": "ff54612cf1f0",
     "t": 1774976393158
+  },
+  "7:0": {
+    "rendering": "On that day King Ahasuerus gave Queen Esther the house of Haman, the enemy of the Jews, and Mordecai came before the king, for Esther had told what he was to her.",
+    "note": "The Hebrew word for \"house\" here means both property and household, so Esther receives Haman's entire estate while her cousin steps into the power vacuum.",
+    "v": "ff54612cf1f0",
+    "t": 1776478274138
+  },
+  "7:1": {
+    "rendering": "The king took off his signet ring, which he had taken back from Haman, and gave it to Mordecai. Esther set Mordecai over the house of Haman.",
+    "note": "The signet ring, symbol of royal authority, passes from villain to hero, an ancient Near Eastern power transfer that echoes Joseph's rise in Egypt.",
+    "v": "ff54612cf1f0",
+    "t": 1776478274138
+  },
+  "7:2": {
+    "rendering": "Then Esther spoke again in the king's presence, fell at his feet, and wept. She begged him to put an end to the evil plan of Haman the Agagite and his plot against the Jews.",
+    "note": "Esther's repeated plea echoes the Hebrew verb for ",
+    "v": "ff54612cf1f0",
+    "t": 1776478274138
+  },
+  "7:3": {
+    "rendering": "The king held out the golden scepter to Esther, so she arose and stood before the king.",
+    "note": "This gesture of the extended scepter echoes Esther's first risky approach in 5:2, showing the king's favor has become a settled reality.",
+    "v": "ff54612cf1f0",
+    "t": 1776478274138
+  },
+  "7:4": {
+    "rendering": "Then she said, \"If it pleases the king, and if I have found favor before him, and the matter is right before the king, and I am pleasing in his eyes, let an order be written to revoke the letters devised by Haman son of Hammedatha the Agagite, which he wrote to destroy the Jews who are in all the king's provinces.\"",
+    "note": "Esther's careful, layered plea echoes the exact Persian court protocol while subtly undermining Haman's genocidal decree, showing how wisdom navigates power without direct confrontation.",
+    "v": "ff54612cf1f0",
+    "t": 1776478274138
+  },
+  "7:5": {
+    "rendering": "For how can I bear to see the calamity that will overtake my people? How can I bear to see the destruction of my own family?",
+    "note": "The Hebrew word for \"destruction\" here echoes the very name \"Haman the Agagite\" whose ancestors Saul failed to destroy in 1 Samuel 15, threading Esther's plea back into Israel's unfinished story of confronting evil.",
+    "v": "ff54612cf1f0",
+    "t": 1776478274138
+  },
+  "7:6": {
+    "rendering": "Then King Ahasuerus said to Queen Esther and to Mordecai the Jew, \"Look, I have given Esther the house of Haman, and they have hanged him on the gallows, because he laid his hand on the Jews.\"",
+    "note": "The king frames the crisis as already solved by property transfer and one execution, yet the genocidal decree still stands.",
+    "v": "ff54612cf1f0",
+    "t": 1776478274138
+  },
+  "7:7": {
+    "rendering": "Write in the king's name as you please, and seal it with the king's signet ring, for a decree written in the king's name and sealed with the king's ring cannot be revoked.",
+    "note": "Persian law's unchangeable decrees, echoed from 1:19 and Daniel 6:8,15, create the impossible knot only royal ingenuity and Esther's courage will cut through.",
+    "v": "ff54612cf1f0",
+    "t": 1776478274138
+  },
+  "7:8": {
+    "rendering": "The king's scribes were summoned at that time, in the third month, which is the month of Sivan, on the twenty-third day. A decree was written exactly as Mordecai commanded to the Jews, to the satraps, to the governors, and to the officials of the 127 provinces from India to Ethiopia, to each province in its own script and to each people in its own language, and also to the Jews in their own script and language.",
+    "note": "This decree mirrors the earlier one in 3:12 word for word, showing how the story's reversal turns the machinery of empire against itself.",
+    "v": "ff54612cf1f0",
+    "t": 1776478275456
+  },
+  "7:9": {
+    "rendering": "Mordecai wrote in the name of King Ahasuerus, sealed the letters with the king's signet ring, and sent them by mounted couriers on swift horses bred from the royal stud, riding post-haste on swift steeds.",
+    "note": "The Persian postal system, with its relay of royal horses, ironically becomes the very network that reverses Haman's decree and spreads deliverance instead of destruction.",
+    "v": "ff54612cf1f0",
+    "t": 1776478275456
+  },
+  "7:10": {
+    "rendering": "The king granted the Jews in each and every city the right to assemble and defend their lives, to destroy, kill, and annihilate any armed force of any people or province that might attack them, along with their little children and women, and to plunder their goods.",
+    "note": "This edict mirrors the language of the original decree against the Jews in 3:13, creating a precise reversal that turns the story's dark irony into deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1776478275456
+  },
+  "7:11": {
+    "rendering": "on a single day, the thirteenth day of the twelfth month, which is the month of Adar, throughout all the provinces of King Ahasuerus, the Jews were to be ready to stand up for their lives, to destroy, to kill, and to annihilate any armed force of any people or province that might attack them, their little ones, and their women, and to plunder their goods.",
+    "note": "This royal edict mirrors the language of the earlier decree against the Jews word for word, creating a precise legal reversal that lets the story's tension finally break.",
+    "v": "ff54612cf1f0",
+    "t": 1776478275456
+  },
+  "7:12": {
+    "rendering": "A copy of the decree was to be issued as law in every province, published to all the peoples, so that the Jews would be ready on that day to take vengeance on their enemies.",
+    "note": "This public decree echoes the earlier one against the Jews but now arms them, turning a story of passive survival into active deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1776478275456
+  },
+  "7:13": {
+    "rendering": "The couriers, mounted on swift horses from the royal stables, rode out urgently at the king's command. The decree was also issued in the fortress of Susa.",
+    "note": "These same swift horses and urgent couriers first carried Haman's death warrant for the Jews, now they race with the counter-decree that gives them hope of life.",
+    "v": "ff54612cf1f0",
+    "t": 1776478275456
+  },
+  "7:14": {
+    "rendering": "Mordecai left the king's presence wearing royal robes of violet and white, a large gold crown, and a cloak of fine linen and purple. The city of Susa shouted and rejoiced.",
+    "note": "The violet-purple and white colors echo the tabernacle curtains and high priestly garments, quietly signaling that deliverance has come through a new kind of mediator.",
+    "v": "ff54612cf1f0",
+    "t": 1776478275456
+  },
+  "7:15": {
+    "rendering": "The Jews had light and gladness, joy and honor.",
+    "note": "This fourfold burst of light, joy, and honor echoes the creation language of Genesis 1, signaling a new beginning after near annihilation.",
+    "v": "ff54612cf1f0",
+    "t": 1776478275456
+  },
+  "7:16": {
+    "rendering": "In every province and in every city, wherever the king's command and decree came, there was gladness and joy among the Jews, a festival and a holiday. Many from the peoples of the land became Jews, because the fear of the Jews had fallen on them.",
+    "note": "The Hebrew verb for \"became Jews\" carries the sense of joining the Jewish people, echoing how fear of God once made outsiders join Israel in Exodus 12:38 and Joshua 2:9-11.",
+    "v": "ff54612cf1f0",
+    "t": 1776478276662
   }
 }

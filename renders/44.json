@@ -1060,5 +1060,833 @@
     "note": "The Greek word \"opsonia\" originally meant a soldier's daily food ration, turning sin's payoff into grim military imagery of death as earned wages.",
     "v": "ff54612cf1f0",
     "t": 1774980684999
+  },
+  "0:0": {
+    "rendering": "Paul, a slave of Christ Jesus, called to be an apostle, set apart for the good news of God.",
+    "note": "The word \"slave\" carries the shock of total ownership, echoing Old Testament figures like Moses and the prophets who were \"servants\" of Yahweh.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253826
+  },
+  "0:1": {
+    "rendering": "which he promised beforehand through his prophets in the holy scriptures",
+    "note": "This opening phrase stitches Romans into the ancient Jewish story, echoing the \"promised\" language of Genesis 12 and the prophets' long anticipation of a renewed covenant.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253826
+  },
+  "0:2": {
+    "rendering": "concerning his Son, who was descended from the seed of David according to the flesh",
+    "note": "Paul echoes the ancient promise to David in 2 Samuel 7 by calling Jesus the seed of David, grounding the gospel in God's long covenant story.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253826
+  },
+  "0:3": {
+    "rendering": "and was declared Son of God in power according to the Spirit of holiness by his resurrection from the dead, Jesus Christ our Lord,",
+    "note": "The Greek word *horizo* means \"marked out\" or \"designated,\" echoing how God publicly vindicated his chosen king at key moments in Israel's story.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253826
+  },
+  "0:4": {
+    "rendering": "Through him we received grace and apostleship to call all the nations to the obedience that comes from trust, for the sake of his name.",
+    "note": "Paul weaves together \"grace\" and \"apostleship\" in one breath, showing that his mission to the nations flows directly from the same unearned gift that defines the gospel.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253826
+  },
+  "0:5": {
+    "rendering": "Among whom you also are called to belong to Jesus Christ.",
+    "note": "The Greek verb \"called\" echoes God's creative summons in Isaiah, now drawing Gentiles into the story of his people.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253826
+  },
+  "0:6": {
+    "rendering": "To all God's beloved in Rome, called to be holy: Grace and peace to you from God our Father and the Lord Jesus Christ.",
+    "note": "Paul opens his letter with a warm echo of the Aaronic blessing, now poured out through the Father and the risen Messiah on a mixed community of Jews and Gentiles.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253826
+  },
+  "0:7": {
+    "rendering": "First, I thank my God through Jesus Christ for all of you, because your faith is being reported all over the world.",
+    "note": "The phrase \"all over the world\" echoes the global reach promised to Abraham's offspring in Genesis 12:3 and 22:18.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253826
+  },
+  "1:0": {
+    "rendering": "Therefore you have no excuse, O human, whoever you are who judges another. For in judging another you condemn yourself, since you, the judge, do the very same things.",
+    "note": "The Greek word for \"judge\" (krino) echoes back to the courtroom scenes of the Hebrew prophets, where Israel itself stood accused of the same sins it condemned in the nations.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253910
+  },
+  "1:1": {
+    "rendering": "We know that God's judgment falls according to truth against those who practice such things.",
+    "note": "Paul echoes Psalm 96:13 and 98:9, where the Lord comes to judge the world with righteousness and truth, not favoritism.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253910
+  },
+  "1:2": {
+    "rendering": "Do you suppose, O human, that when you judge those who do such things yet do them yourself, you will escape God's judgment?",
+    "note": "The Greek word for \"human\" here is anthropos, a pointed reminder that Paul is addressing everyman, not just the Jewish moralist.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253910
+  },
+  "1:3": {
+    "rendering": "Or do you think lightly of the riches of his kindness and forbearance and patient endurance, not knowing that God's kindness is leading you into repentance?",
+    "note": "The Greek word for \"think lightly\" carries the sense of despising or treating with contempt, a shocking accusation that God's patient mercy is not passive but actively wooing the heart toward change.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253910
+  },
+  "1:4": {
+    "rendering": "But because of your hard and unrepentant heart you are storing up wrath for yourself on the day of wrath when God's righteous judgment is revealed.",
+    "note": "The Greek word for \"storing up\" (thesaurizo) turns the image of a treasure chest on its head, ironically describing wrath being piled up like wealth for the day of reckoning.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253910
+  },
+  "1:5": {
+    "rendering": "He will repay each one according to their deeds.",
+    "note": "This echoes Psalm 62:12 and Proverbs 24:12, placing every person before the impartial Judge who sees beyond words to actions.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253910
+  },
+  "1:6": {
+    "rendering": "To those who by patient endurance in good work seek glory and honor and immortality, he will give eternal life.",
+    "note": "The Greek word for \"patient endurance\" (hypomone) echoes the same term used for Israel's long wait in the wilderness, turning everyday faithfulness into a quiet pursuit of what only God can give.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253910
+  },
+  "1:7": {
+    "rendering": "But for those who are self-seeking and disobey the truth while obeying unrighteousness, there will be wrath and fury.",
+    "note": "Paul here echoes the classic two-ways language of Psalm 1 and Deuteronomy 30, contrasting those who pursue truth with those who chase self-interest.",
+    "v": "ff54612cf1f0",
+    "t": 1775946253910
+  },
+  "0:8": {
+    "rendering": "For God is my witness, whom I serve with my spirit in the gospel of his Son, how unceasingly I make mention of you, always in my prayers.",
+    "note": "Paul echoes the Old Testament language of priestly service, framing his apostolic work as temple worship offered through the Spirit.",
+    "v": "ff54612cf1f0",
+    "t": 1775946254982
+  },
+  "0:9": {
+    "rendering": "always in my prayers, asking if somehow now at last by God's will I may succeed in coming to you.",
+    "note": "Paul's repeated prayer uses the Greek term for \"prosperous journey,\" echoing the ancient traveler's plea for safe passage, which foreshadows the shipwreck that will actually carry him to Rome.",
+    "v": "ff54612cf1f0",
+    "t": 1775946254982
+  },
+  "0:10": {
+    "rendering": "For I long to see you, that I may impart to you some spiritual gift to strengthen you.",
+    "note": "Paul uses the Greek word \"epipotheo\" for \"long,\" the same intense yearning a deer has for streams of water in Psalm 42.",
+    "v": "ff54612cf1f0",
+    "t": 1775946254982
+  },
+  "0:11": {
+    "rendering": "that is, that we might be mutually encouraged by each other's faith, both yours and mine.",
+    "note": "Paul's word for \"encouraged\" (parakaleo) carries the same root as the Spirit's title, the Paraclete, hinting that shared faith summons the Comforter among us.",
+    "v": "ff54612cf1f0",
+    "t": 1775946254982
+  },
+  "0:12": {
+    "rendering": "Now I do not want you to be unaware, brothers and sisters, that I have often planned to come to you (and have been prevented until now) so that I might harvest some fruit among you too, just as I have among the rest of the nations.",
+    "note": "Paul's repeated \"fruit\" language echoes Jesus' own vineyard parables, framing his apostolic work as cultivation in God's global orchard.",
+    "v": "ff54612cf1f0",
+    "t": 1775946254982
+  },
+  "0:13": {
+    "rendering": "I am obligated both to Greeks and to barbarians, both to the wise and to the foolish.",
+    "note": "The word \"obligated\" carries the weight of a debtor, echoing Paul's sense that the gospel is a gift he must pass on, linking back to his calling in verse 1.",
+    "v": "ff54612cf1f0",
+    "t": 1775946254982
+  },
+  "0:14": {
+    "rendering": "So I am eager to proclaim the good news to you also who are in Rome.",
+    "note": "The word \"eager\" (prothymon) echoes a king's readiness to act in the Greek Old Testament, framing Paul's mission as royal announcement.",
+    "v": "ff54612cf1f0",
+    "t": 1775946254982
+  },
+  "0:15": {
+    "rendering": "For I am not ashamed of the good news, for it is God's power for salvation to everyone who trusts, to the Jew first and also to the Greek.",
+    "note": "The word for \"power\" here is dunamis, the same root as our \"dynamite,\" echoing how God's explosive acts of rescue have always begun with Israel and rippled outward.",
+    "v": "ff54612cf1f0",
+    "t": 1775946254982
+  },
+  "1:8": {
+    "rendering": "There will be tribulation and distress for every human soul that works at what is evil, for the Jew first and also for the Greek.",
+    "note": "Paul echoes Deuteronomy's covenant warnings here, flipping the expected order of blessing to show that privilege brings greater accountability.",
+    "v": "ff54612cf1f0",
+    "t": 1775946255071
+  },
+  "1:9": {
+    "rendering": "But glory, honor, and peace for everyone who does what is good, for the Jew first and also for the Greek.",
+    "note": "The Greek word for \"good\" here (agathou) echoes God's original verdict on creation in Genesis 1, tying human obedience back to the Creator's own delight in what is truly good.",
+    "v": "ff54612cf1f0",
+    "t": 1775946255071
+  },
+  "1:10": {
+    "rendering": "For there is no favoritism with God.",
+    "note": "This echoes Deuteronomy 10:17's description of Yahweh as the impartial judge who shows no favoritism, applying the same standard to Jew and Gentile alike.",
+    "v": "ff54612cf1f0",
+    "t": 1775946255071
+  },
+  "1:11": {
+    "rendering": "All who have sinned without the law will also perish without the law, and all who have sinned under the law will be judged by the law.",
+    "note": "Paul plays on the shared Greek root for “law” (nomos) and “without law” (anomos) to show that God’s judgment is impartial, not based on having the Torah but on how one lives before its giver.",
+    "v": "ff54612cf1f0",
+    "t": 1775946255071
+  },
+  "1:12": {
+    "rendering": "For it is not the hearers of the law who are righteous before God, but the doers of the law who will be justified.",
+    "note": "Paul echoes the ancient Jewish wisdom that true covenant life is measured by doing, not just knowing (see Deuteronomy 30:14 and James 1:22-25).",
+    "v": "ff54612cf1f0",
+    "t": 1775946255071
+  },
+  "1:13": {
+    "rendering": "For when Gentiles, who do not have the law by nature, do what the law requires, they are a law to themselves, even though they do not have the law.",
+    "note": "Paul echoes the ancient idea that the heart can function as an internal law court, a concept that will later tie into his argument about universal accountability before God.",
+    "v": "ff54612cf1f0",
+    "t": 1775946255071
+  },
+  "1:14": {
+    "rendering": "They show that the work of the law is written on their hearts, their conscience also bearing witness, and their thoughts accusing or even defending them one with another.",
+    "note": "The phrase \"work of the law written on their hearts\" echoes Jeremiah 31:33's promise of a new covenant, yet Paul applies it surprisingly to Gentiles outside the Torah.",
+    "v": "ff54612cf1f0",
+    "t": 1775946255071
+  },
+  "1:15": {
+    "rendering": "on the day when, according to my gospel, God judges the hidden things of people through Christ Jesus.",
+    "note": "Paul's phrase \"my gospel\" echoes how he opens the letter, linking this future judgment scene back to the good news of God's impartial righteousness revealed in Jesus.",
+    "v": "ff54612cf1f0",
+    "t": 1775946255071
+  },
+  "1:16": {
+    "rendering": "But if you bear the name Jew, and rely on the law, and boast in God,",
+    "note": "This verse launches a sharp prophetic satire aimed at the insider who wears covenant identity like a badge while breaking the very law he boasts in.",
+    "v": "ff54612cf1f0",
+    "t": 1775946256118
+  },
+  "1:17": {
+    "rendering": "You know his will, and you approve the things that matter because you are instructed from the law.",
+    "note": "The Greek verb for \"approve\" (dokimazeis) carries the sense of testing metals to discern true value, an image that echoes how the law trains the mind like a refiner's fire.",
+    "v": "ff54612cf1f0",
+    "t": 1775946256118
+  },
+  "1:18": {
+    "rendering": "and you are confident that you yourself are a guide to the blind, a light to those in darkness,",
+    "note": "Paul echoes Isaiah's servant songs here, where Israel was called to be a light to the nations, but now he's turning that vocation into a mirror for self-examination.",
+    "v": "ff54612cf1f0",
+    "t": 1775946256118
+  },
+  "1:19": {
+    "rendering": "an instructor of the foolish, a teacher of infants, because you have in the law the embodiment of knowledge and truth",
+    "note": "The Greek word for \"embodiment\" (morphe) means the visible shape or form that makes something recognizable, like the law as the concrete outline of God's wisdom for the world.",
+    "v": "ff54612cf1f0",
+    "t": 1775946256118
+  },
+  "1:20": {
+    "rendering": "You, then, who teach others, do you not teach yourself? You who preach against stealing, do you steal?",
+    "note": "Paul echoes the ancient prophetic critique, like Jeremiah 7, where teachers who know the law fail to embody it.",
+    "v": "ff54612cf1f0",
+    "t": 1775946256118
+  },
+  "1:21": {
+    "rendering": "You who say one must not commit adultery, do you commit adultery? You who abhor idols, do you rob temples?",
+    "note": "The Greek word for \"rob temples\" carries a double meaning, evoking both literal temple theft and the deeper Old Testament charge of robbing God himself, as in Malachi 3:8.",
+    "v": "ff54612cf1f0",
+    "t": 1775946256118
+  },
+  "1:22": {
+    "rendering": "You who boast in the law, do you dishonor God by breaking the law?",
+    "note": "The Greek word for \"boast\" (kauchaomai) echoes the very privilege Israel was given in the law, turning their identity marker into self-condemnation.",
+    "v": "ff54612cf1f0",
+    "t": 1775946256118
+  },
+  "1:23": {
+    "rendering": "For, as it is written, \"The name of God is blasphemed among the Gentiles because of you.\"",
+    "note": "Paul quotes Isaiah 52:5 and Ezekiel 36:20, where Israel's failure causes the nations to mock God's reputation.",
+    "v": "ff54612cf1f0",
+    "t": 1775946256118
+  },
+  "1:24": {
+    "rendering": "Circumcision is valuable if you practice the law, but if you are a transgressor of the law, your circumcision has become uncircumcision.",
+    "note": "Paul plays on the Hebrew wordplay between \"circumcision\" (mulah) and \"uncircumcision\" (arelah) to show that covenant identity without covenant obedience is worthless.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257119
+  },
+  "1:25": {
+    "rendering": "So if the uncircumcised man keeps the righteous requirements of the law, will not his uncircumcision be counted as circumcision?",
+    "note": "Paul echoes Deuteronomy 30:6 and Jeremiah 4:4, where true circumcision is of the heart, not the flesh.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257119
+  },
+  "1:26": {
+    "rendering": "And the uncircumcised who fulfills the law by nature will condemn you, who have the written code and circumcision but break the law.",
+    "note": "Paul flips the script: the obedient outsider judges the insider who possesses the law yet disobeys it, echoing how heart-circumcision matters more than the physical mark (Deut 30:6).",
+    "v": "ff54612cf1f0",
+    "t": 1775946257119
+  },
+  "1:27": {
+    "rendering": "For the true Jew is not the one who is one outwardly, and true circumcision is not the one that is outward in the flesh.",
+    "note": "Paul plays on the Hebrew meaning of \"Jew\" (from Judah, \"praise\") to say real identity is inward, echoing Deuteronomy 30:6 where God promises to circumcise the heart.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257119
+  },
+  "1:28": {
+    "rendering": "But the true Jew is the one on the inside, and real circumcision is a matter of the heart, by the Spirit, not by the written code. Such a person's praise comes not from people but from God.",
+    "note": "Paul here echoes Deuteronomy 30:6, where God himself promises to circumcise Israel's heart so they will love him fully, a transformation the Spirit now accomplishes.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257119
+  },
+  "0:16": {
+    "rendering": "For in it the righteousness of God is being revealed from faith to faith, just as it is written: \"The one who is righteous will live by faith.\"",
+    "note": "This verse stitches Habakkuk 2:4 into Paul's gospel, turning an ancient cry for justice into the heartbeat of a new covenant people.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257413
+  },
+  "0:17": {
+    "rendering": "For the wrath of God is being revealed from heaven against all the ungodliness and unrighteousness of people who suppress the truth by their unrighteousness.",
+    "note": "The word \"wrath\" here echoes the Hebrew prophets' fiery anger at idolatry, revealing a God who will not let truth be buried forever.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257413
+  },
+  "0:18": {
+    "rendering": "Because what can be known about God is plain to them, for God has shown it to them.",
+    "note": "The Greek for \"plain\" (phaneron) echoes the word for light and revelation, hinting that creation itself acts like a spotlight on the Creator.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257413
+  },
+  "0:19": {
+    "rendering": "For his invisible attributes, namely his eternal power and divine nature, have been clearly perceived from the creation of the world in the things that have been made, so that they are without excuse.",
+    "note": "Paul echoes Wisdom of Solomon 13, where the visible world should lead observers to its unseen Maker, an ancient Jewish idea he turns into a universal mirror.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257413
+  },
+  "0:20": {
+    "rendering": "For although they knew God, they did not honor him as God or give him thanks, but they became futile in their thinking, and their senseless hearts were darkened.",
+    "note": "The Greek word for \"futile\" (mataioo) echoes the Hebrew \"vanity\" (hebel) of Ecclesiastes, showing how refusing to thank God loops the mind back into the same old emptiness.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257413
+  },
+  "0:21": {
+    "rendering": "Claiming to be wise, they became fools.",
+    "note": "This echoes the psalmist's portrait of the fool who denies God while trusting in his own insight (Psalm 14:1, 53:1).",
+    "v": "ff54612cf1f0",
+    "t": 1775946257413
+  },
+  "0:22": {
+    "rendering": "And they exchanged the glory of the immortal God for images resembling a mortal human, or birds, or four-footed animals, or creeping things.",
+    "note": "This echoes Psalm 106:20 and the golden calf, where Israel swapped God's glory for a calf image, showing humanity's ancient pattern of trading Creator for creature.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257413
+  },
+  "0:23": {
+    "rendering": "Therefore God handed them over in the desires of their hearts to impurity, to dishonor their bodies among themselves.",
+    "note": "The phrase \"handed them over\" echoes how God gave Israel into enemy hands in the Old Testament, now applied to self-chosen exile from his design.",
+    "v": "ff54612cf1f0",
+    "t": 1775946257413
+  },
+  "0:24": {
+    "rendering": "They exchanged the truth about God for a lie, and worshiped and served the creature rather than the Creator, who is blessed forever. Amen.",
+    "note": "The phrase \"exchanged the truth for a lie\" echoes the serpent's deception in Eden, showing how idolatry is always a swap of reality for illusion.",
+    "v": "ff54612cf1f0",
+    "t": 1775946258584
+  },
+  "0:25": {
+    "rendering": "For this reason God handed them over to degrading passions. Their women exchanged natural relations for what is contrary to nature,",
+    "note": "The phrase \"handed them over\" echoes the way God gives Pharaoh over to his own stubborn heart in Exodus, letting rebellion run its course.",
+    "v": "ff54612cf1f0",
+    "t": 1775946258584
+  },
+  "0:26": {
+    "rendering": "And in the same way the men also abandoned natural relations with women and were inflamed with their desire for one another, men committing shameful acts with men and receiving in themselves the due penalty for their error.",
+    "note": "The word \"error\" here echoes the same root as Adam's \"trespass\" in Genesis, linking this communal distortion to humanity's original turn from the Creator.",
+    "v": "ff54612cf1f0",
+    "t": 1775946258584
+  },
+  "0:27": {
+    "rendering": "And just as they did not see fit to hold God in their knowledge, God handed them over to a disapproved mind, to do what is not fitting.",
+    "note": "The Greek wordplay between \"did not see fit\" (ouk edokimasan) and \"disapproved mind\" (adokimon noun) echoes like a mirror: they rejected knowing God, so he gave them a mind that no longer approves what is right.",
+    "v": "ff54612cf1f0",
+    "t": 1775946258584
+  },
+  "0:28": {
+    "rendering": "They were filled with all unrighteousness, evil, greed, and malice, full of envy, murder, strife, deceit, and spite. They are gossips,",
+    "note": "Paul's list echoes the Ten Commandments in reverse order, tracing how rejecting the Creator spirals into the very vices the law forbids.",
+    "v": "ff54612cf1f0",
+    "t": 1775946258584
+  },
+  "0:29": {
+    "rendering": "slanderers, God-haters, insolent, arrogant, boastful, inventors of evil, disobedient to parents,",
+    "note": "Paul's list echoes the ancient vice catalogs but twists them into a crescendo that mirrors humanity's spiral away from the Creator in Genesis 1-3.",
+    "v": "ff54612cf1f0",
+    "t": 1775946258584
+  },
+  "0:30": {
+    "rendering": "Without understanding, untrustworthy, without affection, without mercy.",
+    "note": "Paul's list of vices echoes the ancient catalog of Gentile sins, but the rare word astorgous (without affection) points to the breakdown of family bonds at the heart of a society that has forgotten its Creator.",
+    "v": "ff54612cf1f0",
+    "t": 1775946258584
+  },
+  "0:31": {
+    "rendering": "Though they know God's decree that those who practice such things deserve death, they not only do them but also give approval to those who practice them.",
+    "note": "The word for \"approval\" here is the same one used for God's own approving verdict in justification, turning human solidarity in evil into a dark mirror of divine grace.",
+    "v": "ff54612cf1f0",
+    "t": 1775946258584
+  },
+  "2:0": {
+    "rendering": "Then what advantage does the Jew have? Or what is the benefit of circumcision?",
+    "note": "Paul's sudden question echoes the ancient debate over covenant markers, setting up his argument that ethnic privilege points beyond itself to a deeper faithfulness.",
+    "v": "ff54612cf1f0",
+    "t": 1775946263627
+  },
+  "2:1": {
+    "rendering": "Much in every way. First of all, the Jews were entrusted with the very words of God.",
+    "note": "Paul lists this as advantage number one, echoing how Israel was called to guard and carry God's oracles like a sacred deposit for the world.",
+    "v": "ff54612cf1f0",
+    "t": 1775946263627
+  },
+  "2:2": {
+    "rendering": "What then? If some were unfaithful, does their unfaithfulness nullify the faithfulness of God?",
+    "note": "The Greek wordplay between apistia (unfaithfulness) and pistis (faithfulness) echoes the covenant tension already seen in the wilderness generation.",
+    "v": "ff54612cf1f0",
+    "t": 1775946263627
+  },
+  "2:3": {
+    "rendering": "May it never be. Instead, let God be true and every person a liar, just as it is written: \"So that you may be justified in your words and prevail when you are judged.\"",
+    "note": "Paul echoes Psalm 51:4, where David's confession after his great sin turns God's judgment into an occasion for divine vindication.",
+    "v": "ff54612cf1f0",
+    "t": 1775946263627
+  },
+  "2:4": {
+    "rendering": "But if our unrighteousness highlights God's righteousness, what shall we say? That God is unjust to inflict wrath on us? I am speaking in human terms.",
+    "note": "Paul borrows courtroom language from the Psalms where the wicked argue that their sin actually proves God's justice, exposing the twisted logic he will dismantle in the next verses.",
+    "v": "ff54612cf1f0",
+    "t": 1775946263627
+  },
+  "2:5": {
+    "rendering": "Certainly not! For how then could God judge the world?",
+    "note": "Paul's rhetorical question echoes Genesis 18:25, where Abraham asks if the Judge of all the earth would do what is unjust.",
+    "v": "ff54612cf1f0",
+    "t": 1775946263627
+  },
+  "2:6": {
+    "rendering": "But if through my lie the truth of God overflowed all the more for his glory, why am I still being judged as a sinner?",
+    "note": "Paul quotes a hypothetical objection from his critics, exposing how twisting God's mercy into an excuse for sin collapses under its own logic.",
+    "v": "ff54612cf1f0",
+    "t": 1775946263627
+  },
+  "2:7": {
+    "rendering": "And why not say, just as some people slander us by claiming we say, \"Let us do evil so that good may come\"? Their condemnation is deserved.",
+    "note": "The Greek word for \"slander\" here is the same root as \"blaspheme,\" turning the accusation back on Paul's critics as a kind of sacrilege.",
+    "v": "ff54612cf1f0",
+    "t": 1775946263627
+  },
+  "3:0": {
+    "rendering": "What then shall we say that Abraham, our forefather according to the flesh, has found?",
+    "note": "Paul opens his courtroom-style argument by calling Abraham to the witness stand, the very father of the Jewish people, to show that his right standing came by trusting God rather than by working for it.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264596
+  },
+  "3:1": {
+    "rendering": "For if Abraham was declared righteous by works, he has something to boast about, but not before God.",
+    "note": "The Greek word for \"boast\" (kauchēma) here echoes back to Jeremiah 9:23-24, where the only valid boast is knowing the Lord, not self-achieved righteousness.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264596
+  },
+  "3:2": {
+    "rendering": "For what does the Scripture say? \"Abraham trusted God, and it was credited to him as righteousness.\"",
+    "note": "Paul reaches back to Genesis 15:6, where the Hebrew verb \"credited\" (chashab) evokes a bookkeeping term for something counted as true.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264596
+  },
+  "3:3": {
+    "rendering": "Now to the one who works, the pay is not considered a gift but something owed.",
+    "note": "Paul plays on the Greek word for \"reckoned\" (logizetai), the same term used for Abraham's trust being credited as righteousness, highlighting the ancient accounting metaphor for how God tallies favor.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264596
+  },
+  "3:4": {
+    "rendering": "But to the one who does not work, but trusts in the one who declares the ungodly righteous, that person's trust is counted as righteousness.",
+    "note": "Paul coins a striking phrase here, \"the one who justifies the ungodly,\" echoing God's own self-description in Exodus 34 while subverting how first-century Judaism typically spoke of righteousness.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264596
+  },
+  "3:5": {
+    "rendering": "Just as David also speaks of the blessing that belongs to the person to whom God counts righteousness apart from works:",
+    "note": "Paul weaves in David's voice from Psalm 32 to show the ancient blessing of forgiveness and credited righteousness is the same gift Abraham received.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264596
+  },
+  "3:6": {
+    "rendering": "Blessed are those whose lawless deeds have been forgiven, and whose sins have been covered over.",
+    "note": "Paul quotes Psalm 32:1 here, letting David's joy over forgiven adultery and murder echo into the promise that God credits righteousness apart from works.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264596
+  },
+  "3:7": {
+    "rendering": "Blessed is the man whose sin the Lord will never count against him.",
+    "note": "Paul quotes Psalm 32:2, where David celebrates the relief of sins not being tallied up like a debt.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264596
+  },
+  "2:8": {
+    "rendering": "What then? Are we any better off? Not at all. For we have already charged that both Jews and Greeks, all are under sin.",
+    "note": "Paul's \"under sin\" (hypo hamartian) pictures humanity as trapped beneath a crushing weight, an image that echoes the whole biblical storyline from Adam to the present.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264684
+  },
+  "2:9": {
+    "rendering": "As it is written: There is no one righteous, not even one.",
+    "note": "Paul stitches together a chain of Psalms and prophets, turning their ancient laments about Israel's failure into a universal diagnosis that levels every human.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264684
+  },
+  "2:10": {
+    "rendering": "There is no one who understands, there is no one who seeks after God.",
+    "note": "Paul echoes Psalm 14:2-3 here, drawing the ancient lament about universal human waywardness into his courtroom argument that both Jew and Gentile stand equally in need.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264684
+  },
+  "2:11": {
+    "rendering": "All have turned aside. Together they have become worthless. There is no one who does good, not even one.",
+    "note": "Paul weaves together snippets from Psalms 14 and 53, turning David's lament about the fool into a universal diagnosis of the human race.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264684
+  },
+  "2:12": {
+    "rendering": "Their throat is an open grave. They deceive with their tongues. Viper venom is under their lips.",
+    "note": "Paul stitches together Psalm 5:9, 140:3, and 10:7, painting a unified ancient portrait of the human heart's deceit.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264684
+  },
+  "2:13": {
+    "rendering": "Their mouth is full of cursing and bitterness.",
+    "note": "Paul quotes Psalm 10:7, painting the human heart with the same violent speech that once targeted the vulnerable in Israel's ancient laments.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264684
+  },
+  "2:14": {
+    "rendering": "Their feet are swift to shed blood,",
+    "note": "Paul quotes Isaiah 59:7, painting the whole human race with the prophet's portrait of Israel's violent corruption.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264684
+  },
+  "2:15": {
+    "rendering": "Ruin and misery mark their paths.",
+    "note": "This line from Isaiah 59:7-8 paints the vivid picture of a world fractured by violence, echoing through Paul’s courtroom of humanity.",
+    "v": "ff54612cf1f0",
+    "t": 1775946264684
+  },
+  "2:16": {
+    "rendering": "and the path of peace they have not known.",
+    "note": "This line from Isaiah 59:8 is woven into Paul's collage of texts, painting humanity's universal bent away from shalom.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265905
+  },
+  "2:17": {
+    "rendering": "There is no fear of God before their eyes.",
+    "note": "This line from Psalm 14:3 and 53:3 closes Paul's chain of quotes, exposing how godlessness begins not with bad behavior but with a heart that has erased the awe of the living God.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265905
+  },
+  "2:18": {
+    "rendering": "Now we know that whatever the law says, it speaks to those under the law, so that every mouth may be silenced and the whole world held accountable to God.",
+    "note": "The law's courtroom verdict silences every defense, turning the whole world into the accused before God.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265905
+  },
+  "2:19": {
+    "rendering": "Therefore no human being will be declared righteous in his sight by works of the law, for through the law comes the knowledge of sin.",
+    "note": "The Greek \"epignosis\" (knowledge) here means deep, convicting awareness, turning the law into a mirror that exposes our failure rather than a ladder to climb.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265905
+  },
+  "2:20": {
+    "rendering": "But now, apart from the law, the righteousness of God has been revealed, as the Law and the Prophets bear witness to it.",
+    "note": "The phrase \"apart from the law\" echoes the same Greek construction Paul used in 1:17, framing his whole argument with God's unexpected righteousness breaking in.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265905
+  },
+  "2:21": {
+    "rendering": "This righteousness from God comes through the faithfulness of Jesus the Messiah to all who are trusting. There is no distinction.",
+    "note": "The Greek phrase dia pisteos Iesou Christou can be read as \"through the faithfulness of Jesus Christ,\" highlighting his loyal obedience as the channel of God's righteousness.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265905
+  },
+  "2:22": {
+    "rendering": "For all have sinned and fall short of the glory of God.",
+    "note": "The word for \"fall short\" echoes the Greek idea of missing the target, like an archer whose arrow drops before it reaches the mark.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265905
+  },
+  "2:23": {
+    "rendering": "All are justified freely by his grace through the redemption that is in Christ Jesus.",
+    "note": "The word \"redemption\" echoes the exodus liberation from slavery, now accomplished through Jesus as the greater Passover lamb.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265905
+  },
+  "3:8": {
+    "rendering": "So then, is this blessing only for the circumcised, or also for the uncircumcised? For we say, \"Faith was counted to Abraham as righteousness.\"",
+    "note": "Paul reaches back to Genesis 15:6, before Abraham's circumcision in Genesis 17, to show the blessing comes by faith, not by the later sign.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265918
+  },
+  "3:9": {
+    "rendering": "How then was it credited to him? When he was in circumcision, or in uncircumcision? Not in circumcision, but in uncircumcision.",
+    "note": "Paul spots the Genesis timeline: Abraham's believing faith was credited as righteousness years before he received the circumcision sign.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265918
+  },
+  "3:10": {
+    "rendering": "And he received the sign of circumcision as a seal of the righteousness of the faith that he had while uncircumcised, so that he might be the father of all who believe while uncircumcised, that righteousness might be counted to them as well.",
+    "note": "The word \"sign\" (semeion) and \"seal\" (sphragis) echo God's own covenant markers in Genesis 17, turning Abraham into the father not just of Jews but of every uncircumcised believer.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265918
+  },
+  "3:11": {
+    "rendering": "And the father of the circumcised, not only for those who are from the circumcision but also for those who follow in the footsteps of the faith that our father Abraham had while he was still uncircumcised.",
+    "note": "The Greek word for \"follow in the footsteps\" echoes the Hebrew halak, the ancient idea of walking the covenant path Abraham pioneered before the knife ever touched him.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265918
+  },
+  "3:12": {
+    "rendering": "For the promise to Abraham and his offspring, that he would inherit the world, did not come through the law but through the righteousness of faith.",
+    "note": "Paul echoes Genesis 12-18, where God's promise to bless all nations through Abraham's seed was never tied to law but to trusting covenant.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265918
+  },
+  "3:13": {
+    "rendering": "For if those who live by the law are the heirs, then faith has been emptied of its power and the promise has been nullified.",
+    "note": "Paul plays on the word ",
+    "v": "ff54612cf1f0",
+    "t": 1775946265918
+  },
+  "3:14": {
+    "rendering": "For the law brings wrath, but where there is no law, neither is there transgression.",
+    "note": "Paul plays on the Greek word pair paraptoma (transgression) and orge (wrath), showing the law turns human failure into accountable offense, an idea that echoes back to the garden where command created the possibility of crossing a line.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265918
+  },
+  "3:15": {
+    "rendering": "That is why the promise depends on faith, so that it may be according to grace and be guaranteed to all the offspring, not only to those who are of the law but also to those who share the faith of Abraham, who is the father of us all.",
+    "note": "Paul weaves Genesis 17's \"father of many nations\" with the single word \"therefore,\" showing how grace turns one man's trusting obedience into a worldwide family inheritance.",
+    "v": "ff54612cf1f0",
+    "t": 1775946265918
+  },
+  "2:24": {
+    "rendering": "God presented him as the place of atonement, through his faithfulness, in his blood, to demonstrate God's justice, because in his forbearance he had passed over the sins previously committed.",
+    "note": "The Greek word hilasterion echoes the mercy seat atop the ark where blood was sprinkled on the Day of Atonement, showing God himself provides the costly covering for sins he had patiently overlooked.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267112
+  },
+  "2:25": {
+    "rendering": "He did this to demonstrate his justice at the present time, so that he himself is just and the one who declares righteous the person who has faith in Jesus.",
+    "note": "Paul coins a striking new phrase, \"the justifier of the one who has faith,\" echoing God's self-revelation as the righteous judge throughout the Old Testament.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267112
+  },
+  "2:26": {
+    "rendering": "Where then is boasting? It is shut out. By what kind of law? By a law of works? No, but by the law of faith.",
+    "note": "Paul plays on \"law\" (nomos) to overturn it: the only rule that now counts is the one that excludes all self-boasting.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267112
+  },
+  "2:27": {
+    "rendering": "For we hold that a person is made righteous by faith apart from works of the law.",
+    "note": "Paul's Greek word for \"made righteous\" (dikaioo) echoes the courtroom language of the Hebrew Scriptures, where God declares his people innocent not because they earned it but because of covenant loyalty.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267112
+  },
+  "2:28": {
+    "rendering": "Or is God the God of Jews only? Is he not also the God of Gentiles? Yes, of Gentiles too.",
+    "note": "Paul's rhetorical question echoes Deuteronomy 6:4's declaration that Yahweh is one, now exploding that oneness outward to include Gentiles in the same family.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267112
+  },
+  "2:29": {
+    "rendering": "Since God is one, he will justify the circumcised by faith and the uncircumcised through that same faith.",
+    "note": "Paul echoes the Shema (Deut 6:4), grounding his radical claim that the one God has one way to put all nations right: faith.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267112
+  },
+  "2:30": {
+    "rendering": "Do we then nullify the law through this faithfulness? By no means. On the contrary, we uphold the law.",
+    "note": "Paul's strong no to nullifying Torah echoes Jesus' words in Matthew 5:17, showing the gospel establishes rather than cancels the law.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267112
+  },
+  "3:16": {
+    "rendering": "As it is written, \"I have made you the father of many nations.\" He is our father in the sight of the God in whom he believed, the God who gives life to the dead and calls into existence the things that do not exist.",
+    "note": "The Greek verb \"calls\" carries the ancient sense of summoning something into being, echoing God's creative word in Genesis 1.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267165
+  },
+  "3:17": {
+    "rendering": "Against all hope, Abraham believed in hope, so that he became the father of many nations, just as it had been said to him, \"So shall your offspring be.\"",
+    "note": "The Greek piles up \"against hope, in hope he believed,\" echoing the exact promise words from Genesis 15:5 and underscoring faith that clings to God's word when evidence screams otherwise.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267165
+  },
+  "3:18": {
+    "rendering": "He did not weaken in faith when he considered his own body, which was as good as dead (he was about a hundred years old), or the deadness of Sarah's womb.",
+    "note": "Paul's Greek echoes the Genesis 17–18 story of Abraham's “dead” body and Sarah's barren womb, turning their physical impossibility into the very stage for God's life-giving promise.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267165
+  },
+  "3:19": {
+    "rendering": "Yet he did not waver in unbelief at God's promise, but grew strong in faith, giving glory to God.",
+    "note": "The Greek word for \"grew strong\" (enedynamothe) echoes the same root used when God \"strengthened\" Abraham's own body in the previous verse, showing his faith actively participated in the divine power at work.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267165
+  },
+  "3:20": {
+    "rendering": "and being fully convinced that the one who had promised was able also to do it.",
+    "note": "The Greek plerophoreo for \"fully convinced\" echoes the assurance Abraham held against all evidence, a word that later describes the Spirit's bold witness to believers.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267165
+  },
+  "3:21": {
+    "rendering": "That is why his faith was counted to him as righteousness.",
+    "note": "The phrase \"counted to him\" echoes the language of Genesis 15:6, linking Abraham's trust across centuries to every later reader who receives the same gift.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267165
+  },
+  "3:22": {
+    "rendering": "But the words \"it was counted to him\" were not written for Abraham alone.",
+    "note": "Paul spots an intertextual echo: Genesis 15:6 was preserved in Scripture to shape every later reader who, like Abraham, trusts God's promise.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267165
+  },
+  "3:23": {
+    "rendering": "who was handed over for our trespasses and was raised for our justification.",
+    "note": "Paul echoes Isaiah 53 here, where the servant is handed over for our sins, linking Jesus' resurrection directly to our declared-righteous status.",
+    "v": "ff54612cf1f0",
+    "t": 1775946267165
+  },
+  "3:24": {
+    "rendering": "He was handed over for our trespasses, and was raised for our being declared righteous.",
+    "note": "The Greek word for “handed over” echoes Isaiah 53’s suffering servant, while “raised for our justification” links back to the courtroom language of Genesis 15 that Paul has been unfolding.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268163
+  },
+  "4:0": {
+    "rendering": "Therefore, since we have been declared righteous by faith, we have peace with God through our Lord Jesus Christ.",
+    "note": "The Greek word for \"peace\" here echoes the Hebrew shalom, pointing to wholeness restored in covenant relationship, not just the absence of conflict.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268957
+  },
+  "4:1": {
+    "rendering": "Through him we also have obtained access by faith into this grace in which we stand, and we boast in the hope of the glory of God.",
+    "note": "The Greek word for \"access\" (prosagoge) was used for gaining entrance to a king's court, turning the cross into our royal welcome.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268957
+  },
+  "4:2": {
+    "rendering": "And not only that, we also boast in our sufferings, knowing that suffering produces endurance,",
+    "note": "The Greek word for boast here is the same one Paul uses for glorying in God, linking our trials directly to the story of a people being shaped for glory.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268957
+  },
+  "4:3": {
+    "rendering": "and endurance produces character, and character produces hope.",
+    "note": "The Greek word for character (dokime) means metal proven genuine by fire, an image of tested reliability that echoes Israel's wilderness refining.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268957
+  },
+  "4:4": {
+    "rendering": "And hope does not put us to shame, because God's love has been poured out into our hearts through the Holy Spirit who was given to us.",
+    "note": "The verb \"poured out\" echoes Joel 2:28-29 and the flood-like abundance of the Spirit at Pentecost, turning future hope into present, tangible love.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268957
+  },
+  "4:5": {
+    "rendering": "For while we were still weak, at the right time Christ died for the ungodly.",
+    "note": "Paul's Greek word for \"weak\" (asthenes) carries the idea of moral and spiritual powerlessness, not just frailty, echoing how the ungodly are helpless without God's timely intervention.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268957
+  },
+  "4:6": {
+    "rendering": "For rarely will anyone die for a righteous person, though perhaps for a good person someone might even dare to die.",
+    "note": "Paul uses a stark ancient honor-scale: the \"righteous\" (just, dutiful) versus the \"good\" (generous benefactor), highlighting how rare self-sacrifice was even in Roman culture.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268957
+  },
+  "4:7": {
+    "rendering": "But God demonstrates his own love for us in this: while we were still sinners, Christ died for us.",
+    "note": "Paul's word for \"demonstrates\" carries the sense of a public proof or commendation, echoing how ancient rulers displayed their power, only here God proves his love through the weakness of the cross.",
+    "v": "ff54612cf1f0",
+    "t": 1775946268957
+  },
+  "4:8": {
+    "rendering": "Therefore, since we have now been justified by his blood, how much more shall we be saved from God's wrath through him.",
+    "note": "The Greek \"how much more\" (posso mallon) forms a classic rabbinic argument from the lesser to the greater, linking past justification to future deliverance.",
+    "v": "ff54612cf1f0",
+    "t": 1775946270355
+  },
+  "4:9": {
+    "rendering": "For if, while we were enemies, we were reconciled to God through the death of his Son, how much more, having been reconciled, will we be saved by his life.",
+    "note": "Paul's \"how much more\" logic draws on ancient covenant language, where reconciliation through a king's costly act guarantees even greater future blessing.",
+    "v": "ff54612cf1f0",
+    "t": 1775946270355
+  },
+  "4:10": {
+    "rendering": "Not only that, but we also boast in God through our Lord Jesus Christ, through whom we have now received the reconciliation.",
+    "note": "The Greek word for \"reconciliation\" here is the same one used for the \"atonement\" cover on the ark of the covenant, turning former enemies into friends who now boast in God himself.",
+    "v": "ff54612cf1f0",
+    "t": 1775946270355
+  },
+  "4:11": {
+    "rendering": "Therefore, just as sin entered the world through one man, and death through sin, and in this way death spread to all people, because all sinned.",
+    "note": "Paul echoes Genesis 2-3 here, linking Adam's single act to the universal human experience of death and sin.",
+    "v": "ff54612cf1f0",
+    "t": 1775946270355
+  },
+  "4:12": {
+    "rendering": "For sin was in the world before the law was given, but sin is not charged where there is no law.",
+    "note": "This verse echoes Genesis 3-11, showing humanity's universal guilt even without the Torah, setting the stage for grace abounding to all.",
+    "v": "ff54612cf1f0",
+    "t": 1775946270355
+  },
+  "4:13": {
+    "rendering": "Nevertheless death reigned from Adam until Moses, even over those who had not sinned in the likeness of Adam's transgression, who is a pattern of the one to come.",
+    "note": "The word \"pattern\" translates \"typos,\" an ancient stamp that leaves its impress, quietly signaling how Adam's story presses forward into the shape of the coming one.",
+    "v": "ff54612cf1f0",
+    "t": 1775946270355
+  },
+  "4:14": {
+    "rendering": "But the free gift is not like the trespass. For if many died through one man's trespass, how much more have the grace of God and the free gift by the grace of that one man Jesus Christ abounded for many.",
+    "note": "Paul's tight wordplay on \"trespass\" and \"free gift\" sets up a stunning contrast: Adam's one act brought death to many, but Jesus' grace overflows far beyond it.",
+    "v": "ff54612cf1f0",
+    "t": 1775946270355
+  },
+  "4:15": {
+    "rendering": "And the gift is not like what came through the one who sinned. For the judgment following one trespass led to condemnation, but the free gift following many trespasses leads to being declared righteous.",
+    "note": "Paul's tight wordplay contrasts \"judgment\" (krima) from one trespass with the \"free gift\" (charisma) that swallows up many trespasses, setting up the flood of grace in the next verse.",
+    "v": "ff54612cf1f0",
+    "t": 1775946270355
+  },
+  "4:16": {
+    "rendering": "For if, because of the one man's trespass, death reigned through that one man, how much more will those who receive the abundance of grace and the free gift of righteousness reign in life through the one man Jesus Christ.",
+    "note": "Paul's tight wordplay on \"reign\" flips the story: where death once ruled through Adam, grace now enthrones us in life through the other Adam.",
+    "v": "ff54612cf1f0",
+    "t": 1775946271773
+  },
+  "4:17": {
+    "rendering": "Therefore, just as one trespass led to condemnation for all people, so also one act of righteousness leads to justification and life for all people.",
+    "note": "Paul weaves a tight parallel between Adam's single trespass and Jesus' single righteous act, echoing how the whole human story hinges on two representative men.",
+    "v": "ff54612cf1f0",
+    "t": 1775946271773
+  },
+  "4:18": {
+    "rendering": "For just as by the one man's disobedience the many were made sinners, so also by the one man's obedience the many will be made righteous.",
+    "note": "Paul weaves a tight parallel between Adam and the coming one, using \"made\" (katestathesan) twice to show how solidarity with a representative reshapes human identity itself.",
+    "v": "ff54612cf1f0",
+    "t": 1775946271773
+  },
+  "4:19": {
+    "rendering": "Now the law came in alongside so that the trespass might increase, but where sin increased, grace overflowed far more.",
+    "note": "Paul uses a deliberate wordplay: the law \"came in alongside\" (pareiselthen) like an intruder, only to multiply the trespass and set the stage for grace to super-abound.",
+    "v": "ff54612cf1f0",
+    "t": 1775946271773
+  },
+  "4:20": {
+    "rendering": "So that, just as sin reigned in death, grace might also reign through righteousness leading to eternal life through Jesus Christ our Lord.",
+    "note": "Paul weaves together the ancient idea of a ruler's dominion with the shocking image of grace enthroned, using the same verb for both sin and grace to show how Christ's victory mirrors and reverses Adam's reign.",
+    "v": "ff54612cf1f0",
+    "t": 1775946271773
   }
 }
