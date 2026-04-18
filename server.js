@@ -32,6 +32,10 @@ let JS_SRC = JS_RAW;
 let JS_HASH;
 
 const app = express();
+// Fastly (CDN) -> Railway edge -> Node. Trust exactly 2 proxies so req.ip
+// resolves to the real client IP for rate limiting and analytics. Trusting
+// a specific hop count (vs `true`) prevents XFF spoofing from the internet.
+app.set('trust proxy', 2);
 const XAI_API_KEY = process.env.XAI_API_KEY;
 if (!XAI_API_KEY) { log.error('missing_api_key'); process.exit(1); }
 process.on('unhandledRejection', reason => log.error('unhandled_rejection', { err: String(reason) }));
@@ -92,7 +96,7 @@ function cleanText(s) {
 }
 
 function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;');
 }
 
 app.disable('x-powered-by');
