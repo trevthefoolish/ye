@@ -25,8 +25,10 @@ const log = {
 
 // --- Client error reporting ---
 const logRouter = express.Router();
+const checkLogRate = createRateLimiter(60_000, 30);
 
 logRouter.post('/api/log', express.json({ limit: '2kb' }), (req, res) => {
+  if (!checkLogRate(req.ip)) return res.status(429).end();
   const { type, msg, stack, url } = req.body || {};
   if (typeof type !== 'string' || typeof msg !== 'string') {
     return res.status(400).end();
