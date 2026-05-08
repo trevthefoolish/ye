@@ -178,6 +178,23 @@ test('server hardening and chapter rendering behavior', async t => {
     assert.equal(typeof data.version, 'string');
   });
 
+  await t.test('chapter pages inline partial cached verses for instant first paint', async () => {
+    const versionRes = await request(app.port, '/api/version');
+    const rv = JSON.parse(versionRes.body).version;
+    const bible = require('../data/bible.json');
+    const bookIndex = bible.books.indexOf('2 John');
+    assert.ok(bookIndex >= 0);
+    fs.writeFileSync(path.join(app.rendersDir, `${bookIndex}.json`), JSON.stringify({
+      '0:0': { rendering: 'Partial seed verse', note: 'Partial seed note', v: rv, t: Date.now() },
+    }));
+
+    const res = await request(app.port, '/2-john/1');
+    assert.equal(res.status, 200);
+    assert.match(res.body, /<script id="preloaded" type="application\/json">/);
+    assert.match(res.body, /Partial seed verse/);
+    assert.match(res.body, /"complete":false/);
+  });
+
   await t.test('cache-only chapter requests do not start background rendering', async () => {
     const before = mockXai.calls;
     const cold = await request(app.port, '/api/chapter/jude/1?render=0');

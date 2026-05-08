@@ -600,8 +600,12 @@ app.get('{*path}', (req, res) => {
         const { verses, missing } = getChapterVerses(bookIndex, chNum);
         if (missing.length === 0 && verses.length > 0) {
           desc = verses[0].rendering;
-          const payload = JSON.stringify({ book: bookName, ch: chNum, verses }).replace(/<\//g, '<\\/');
+          const payload = JSON.stringify({ book: bookName, ch: chNum, verses, complete: true, missingCount: 0 }).replace(/<\//g, '<\\/');
           preloadData = '<script id="preloaded" type="application/json">' + payload + '</script>';
+        } else if (verses.some(Boolean)) {
+          const payload = JSON.stringify({ book: bookName, ch: chNum, verses, complete: false, missingCount: missing.length }).replace(/<\//g, '<\\/');
+          preloadData = '<script id="preloaded" type="application/json">' + payload + '</script>';
+          desc = verses.find(Boolean)?.rendering || desc;
         } else {
           const cache = loadCache(bookIndex);
           const firstVerse = cache[`${chNum - 1}:0`];

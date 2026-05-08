@@ -86,6 +86,28 @@ const inflightFetches = new Map();
 const scrollPositions = new Map();
 const chapterRetryTimers = new Map();
 
+function chapterKey(bookName, chNum) { return `${bookName}/${chNum}`; }
+
+function countRenderedVerses(verses) {
+  return (verses || []).reduce((n, v) => n + (v ? 1 : 0), 0);
+}
+
+function rememberChapterData(key, data) {
+  if (!data?.verses?.length) return;
+  const previous = chapterCache.get(key);
+  if (previous && previous.complete !== false && data.complete === false) return;
+  const previousCount = countRenderedVerses(previous?.verses);
+  const nextCount = countRenderedVerses(data.verses);
+  if (!previous || data.complete !== false || nextCount >= previousCount) {
+    chapterCache.set(key, data);
+  }
+}
+
+function hasCompleteChapter(key) {
+  const data = chapterCache.get(key);
+  return !!(data?.verses?.length && data.complete !== false);
+}
+
 function clearChapterRetry(p) {
   const t = chapterRetryTimers.get(p);
   if (t) clearTimeout(t);
@@ -93,8 +115,10 @@ function clearChapterRetry(p) {
 }
 
 function fetchChapter(bookName, chNum, opts = {}) {
-  const key = `${bookName}/${chNum}`;
-  if (!opts.force && chapterCache.has(key)) return Promise.resolve(chapterCache.get(key));
+  const key = chapterKey(bookName, chNum);
+  const cached = chapterCache.get(key);
+  if (!opts.force && cached?.verses?.length && cached.complete !== false) return Promise.resolve(cached);
+  if (!opts.force && opts.cacheOnly && cached?.verses?.length) return Promise.resolve(cached);
   const renderMissing = opts.render !== false;
   const priority = opts.priority === 'background' ? 'background' : 'foreground';
   const fetchKey = key + ':' + (renderMissing ? priority : 'cache');
@@ -108,7 +132,7 @@ function fetchChapter(bookName, chNum, opts = {}) {
       return res.json();
     })
     .then(data => {
-      if (data.verses?.length && data.complete !== false) chapterCache.set(key, data);
+      rememberChapterData(key, data);
       inflightFetches.delete(fetchKey);
       return data;
     })
@@ -331,6 +355,29 @@ function renderVersesInto(scroll, verses, expandedVerses = new Set()) {
   scroll.appendChild(frag);
 }
 
+function renderChapterData(scroll, data, opts = {}) {
+  const verses = data.verses || [];
+  if (!verses.length) return false;
+  const renderedCount = countRenderedVerses(verses);
+  const currentRendered = Number.parseInt(scroll.dataset.renderedCount || '-1', 10);
+  const currentComplete = scroll.dataset.complete === 'true';
+  const hasChapterContent = scroll.dataset.chapterContent === 'true';
+  const improved = opts.force || !hasChapterContent || data.complete !== false
+    || (!currentComplete && renderedCount > currentRendered);
+  if (!improved) return false;
+
+  const expandedVerses = getExpandedVerseIndexes(scroll);
+  const scrollTop = scroll.scrollTop;
+  scroll.replaceChildren();
+  renderVersesInto(scroll, verses, expandedVerses);
+  scroll.dataset.chapterContent = 'true';
+  scroll.dataset.renderedCount = String(renderedCount);
+  scroll.dataset.complete = data.complete === false ? 'false' : 'true';
+  scroll.dataset.missingCount = String(data.missingCount ?? Math.max(0, verses.length - renderedCount));
+  if (opts.preserveScroll) scroll.scrollTop = scrollTop;
+  return true;
+}
+
 function scheduleChapterRetry(panel, scroll, p, delayMs, opts = {}) {
   clearChapterRetry(p);
   const timer = setTimeout(async () => {
@@ -342,9 +389,7 @@ function scheduleChapterRetry(panel, scroll, p, delayMs, opts = {}) {
     try {
       const data = await fetchChapter(bookName, chNum, { force: true, render: opts.render, priority: opts.priority });
       if (!scroll.isConnected || scroll.dataset.p !== String(p)) return;
-      const expandedVerses = getExpandedVerseIndexes(scroll);
-      scroll.replaceChildren();
-      renderVersesInto(scroll, data.verses || [], expandedVerses);
+      renderChapterData(scroll, data, { preserveScroll: true });
       if (data.complete === false) {
         scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000, opts);
       } else {
@@ -360,11 +405,15 @@ function scheduleChapterRetry(panel, scroll, p, delayMs, opts = {}) {
 
 // Fill a single panel with chapter content
 async function fillPanel(panel, p, opts = {}) {
-  const scroll = document.createElement('div');
-  scroll.className = 'chapter-scroll';
-  scroll.dataset.p = p;
-  panel.replaceChildren();
-  panel.appendChild(scroll);
+  const existingScroll = panel.querySelector('.chapter-scroll');
+  const reuseExisting = !!(opts.preserveExisting && existingScroll && existingScroll.dataset.p === String(p));
+  const scroll = reuseExisting ? existingScroll : document.createElement('div');
+  if (!reuseExisting) {
+    scroll.className = 'chapter-scroll';
+    scroll.dataset.p = p;
+    panel.replaceChildren();
+    panel.appendChild(scroll);
+  }
   if (p === null || p < 0 || p >= TOTAL) return;
   clearChapterRetry(p);
 
@@ -375,9 +424,16 @@ async function fillPanel(panel, p, opts = {}) {
   const renderMissing = opts.render !== false;
   const priority = opts.priority === 'background' ? 'background' : 'foreground';
 
-  // Show skeleton while loading (only for non-cached content)
-  const key = `${bookName}/${chNum}`;
-  const willFade = !chapterCache.has(key);
+  const key = chapterKey(bookName, chNum);
+  const snapshot = chapterCache.get(key);
+  const hasExistingContent = scroll.dataset.chapterContent === 'true' || scroll.childElementCount > 0;
+  const hasSnapshot = !!snapshot?.verses?.length;
+  if (hasSnapshot && !hasExistingContent) {
+    renderChapterData(scroll, snapshot, { force: true });
+  }
+
+  // Show skeleton while loading only when there is nothing usable to keep on screen.
+  const willFade = !hasSnapshot && !hasExistingContent;
   if (willFade) {
     for (let i = 0; i < SKELETON_WIDTHS.length; i++) {
       const line = document.createElement('div');
@@ -388,28 +444,29 @@ async function fillPanel(panel, p, opts = {}) {
   }
 
   try {
-    const data = await fetchChapter(bookName, chNum, { render: renderMissing, priority });
+    const data = await fetchChapter(bookName, chNum, { force: opts.force, render: renderMissing, priority });
     if (stale()) return;
     const { verses } = data;
     if (stale()) return;
     if (!verses || verses.length === 0) {
-      scroll.replaceChildren();
-      const msg = document.createElement('div');
-      msg.className = 'empty-msg';
-      msg.textContent = 'This chapter is still being rendered. Try again shortly.';
-      scroll.appendChild(msg);
+      if (!hasExistingContent) {
+        scroll.replaceChildren();
+        const msg = document.createElement('div');
+        msg.className = 'empty-msg';
+        msg.textContent = 'This chapter is still being rendered. Try again shortly.';
+        scroll.appendChild(msg);
+      }
       return;
     }
-    scroll.replaceChildren();
-    renderVersesInto(scroll, verses);
+    const didRender = renderChapterData(scroll, data, { preserveScroll: reuseExisting });
     if (data.complete === false && renderMissing) {
       scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000, { render: renderMissing, priority });
     }
     // Restore saved scroll position
     const savedScroll = scrollPositions.get(p);
-    if (savedScroll) scroll.scrollTop = savedScroll;
+    if (!reuseExisting && savedScroll) scroll.scrollTop = savedScroll;
     // Fade in content that was behind a skeleton
-    if (willFade) {
+    if (willFade && didRender) {
       scroll.style.opacity = '0';
       scroll.offsetWidth; // force reflow so transition plays from opacity:0
       scroll.style.transition = 'opacity ' + SYM.durBreath + 's ' + SYM.easeOut;
@@ -468,9 +525,14 @@ function fillAllPanels() {
 
 function promoteVisiblePanel() {
   const e = ALL[pos];
-  const key = `${BOOKS[e.bi]}/${e.ch + 1}`;
-  if (!chapterCache.has(key)) {
-    return fillPanel(panels[1], pos).then(bindScrollShadow);
+  const key = chapterKey(BOOKS[e.bi], e.ch + 1);
+  const scroll = panels[1].querySelector('.chapter-scroll');
+  if (scroll?.dataset.p === String(pos) && scroll.childElementCount > 0) {
+    if (hasCompleteChapter(key)) return Promise.resolve();
+    return fillPanel(panels[1], pos, { force: true, preserveExisting: true }).then(bindScrollShadow);
+  }
+  if (!hasCompleteChapter(key)) {
+    return fillPanel(panels[1], pos, { force: true }).then(bindScrollShadow);
   }
   return Promise.resolve();
 }
@@ -712,7 +774,11 @@ try {
   if (pre) {
     const d = JSON.parse(pre.textContent);
     if (d.book && d.ch && d.verses?.length) {
-      chapterCache.set(d.book + '/' + d.ch, { verses: d.verses, complete: true, missingCount: 0 });
+      rememberChapterData(chapterKey(d.book, d.ch), {
+        verses: d.verses,
+        complete: d.complete !== false,
+        missingCount: d.missingCount || 0,
+      });
     }
   }
 } catch (e) { reportError('preload_parse', e.message); }
