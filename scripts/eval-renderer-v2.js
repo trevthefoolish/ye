@@ -22,7 +22,10 @@ const EVAL_GATE = process.env.EVAL_GATE === '1' || process.env.EVAL_GATE === 'tr
 const REPORTS_DIR = process.env.EVAL_REPORTS_DIR || path.join(__dirname, '..', 'eval-reports');
 
 function cleanText(s) {
-  return s.replaceAll('\u2014', ', ').replace(/\bvapor\b/gi, 'vapour');
+  return s
+    .replaceAll('\u2014', ', ')
+    .replace(/\bvapors\b/gi, 'vapours')
+    .replace(/\bvapor\b/gi, 'vapour');
 }
 
 function wordCount(s) {
@@ -193,10 +196,10 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
     .filter(e => e.rendering.includes('\u2014') || e.note.includes('\u2014'))
     .map(e => e.ref);
   const rawAmericanVaporRefs = renderedWithKeys
-    .filter(e => /\bvapor\b/i.test(e.rawRendering || '') || /\bvapor\b/i.test(e.rawNote || ''))
+    .filter(e => /\bvapors?\b/i.test(e.rawRendering || '') || /\bvapors?\b/i.test(e.rawNote || ''))
     .map(e => e.ref);
   const cleanedAmericanVaporRefs = renderedWithKeys
-    .filter(e => /\bvapor\b/i.test(e.rendering) || /\bvapor\b/i.test(e.note))
+    .filter(e => /\bvapors?\b/i.test(e.rendering) || /\bvapors?\b/i.test(e.note))
     .map(e => e.ref);
 
   const groupedSections = sections.map(section => {
@@ -242,8 +245,8 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
     christConnections: Object.fromEntries(christConnections),
     rawEmDashCount: sum(renderedWithKeys, e => ((e.rawRendering || '').match(/\u2014/g) || []).length + ((e.rawNote || '').match(/\u2014/g) || []).length),
     cleanedEmDashCount: sum(renderedWithKeys, e => (e.rendering.match(/\u2014/g) || []).length + (e.note.match(/\u2014/g) || []).length),
-    rawAmericanVaporCount: sum(renderedWithKeys, e => ((e.rawRendering || '').match(/\bvapor\b/gi) || []).length + ((e.rawNote || '').match(/\bvapor\b/gi) || []).length),
-    cleanedAmericanVaporCount: sum(renderedWithKeys, e => (e.rendering.match(/\bvapor\b/gi) || []).length + (e.note.match(/\bvapor\b/gi) || []).length),
+    rawAmericanVaporCount: sum(renderedWithKeys, e => ((e.rawRendering || '').match(/\bvapors?\b/gi) || []).length + ((e.rawNote || '').match(/\bvapors?\b/gi) || []).length),
+    cleanedAmericanVaporCount: sum(renderedWithKeys, e => (e.rendering.match(/\bvapors?\b/gi) || []).length + (e.note.match(/\bvapors?\b/gi) || []).length),
     sectionCount: groupedSections.length,
     maxTargetVerses: groupedSections.length ? Math.max(...groupedSections.map(section => section.targetReferences.length)) : 0,
     sectionSources: Object.fromEntries(sectionSources),

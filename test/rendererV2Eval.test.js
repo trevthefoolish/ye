@@ -9,6 +9,7 @@ const path = require('node:path');
 const {
   buildEvalReport,
   buildMarkdownReport,
+  cleanText,
   gateFailures,
   writeEvalReport,
 } = require('../scripts/eval-renderer-v2');
@@ -263,6 +264,8 @@ test('renderer v2 prod-sim scenarios hydrate through production section grouping
 });
 
 test('renderer v2 eval report writes markdown and JSON rubric artifacts', t => {
+  assert.equal(cleanText('vapor and vapors'), 'vapour and vapours');
+
   const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ye-eval-report-'));
   t.after(() => fs.rmSync(reportsDir, { recursive: true, force: true }));
 
