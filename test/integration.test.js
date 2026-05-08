@@ -34,15 +34,23 @@ function request(port, pathname, opts = {}) {
   });
 }
 
-function startMockXai(t) {
+function startMockXai(t, opts = {}) {
   let calls = 0;
+  let active = 0;
+  let maxActive = 0;
+  const payloads = [];
+  const delayMs = opts.delayMs || 0;
   const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       calls++;
+      active++;
+      maxActive = Math.max(maxActive, active);
       const payload = JSON.parse(body);
+      payloads.push(payload);
       const ref = payload.messages.find(m => m.role === 'user').content;
+      if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({
         choices: [{
@@ -54,6 +62,7 @@ function startMockXai(t) {
           },
         }],
       }));
+      active--;
     });
   });
   return new Promise(resolve => {
@@ -62,12 +71,14 @@ function startMockXai(t) {
       resolve({
         url: `http://127.0.0.1:${server.address().port}/v1/chat/completions`,
         get calls() { return calls; },
+        get maxActive() { return maxActive; },
+        get payloads() { return payloads; },
       });
     });
   });
 }
 
-function startApp(t, xaiUrl) {
+function startApp(t, xaiUrl, extraEnv = {}) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ye-test-'));
   const rendersDir = path.join(temp, 'renders');
   const logsDir = path.join(temp, 'logs');
@@ -82,6 +93,7 @@ function startApp(t, xaiUrl) {
       XAI_API_URL: xaiUrl,
       RENDERS_DIR: rendersDir,
       LOG_DIR: logsDir,
+      ...extraEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -150,7 +162,30 @@ test('server hardening and chapter rendering behavior', async t => {
     assert.equal(res.status, 404);
   });
 
-  await t.test('complete cached chapters keep ETag behavior and bypass render throttling', async () => {
+  await t.test('favicon.ico redirects to the SVG favicon', async () => {
+    const res = await request(app.port, '/favicon.ico');
+    assert.equal(res.status, 301);
+    assert.equal(res.headers.location, '/favicon.svg');
+  });
+
+  await t.test('version endpoint reports Grok 4.3 and disabled reasoning', async () => {
+    const res = await request(app.port, '/api/version');
+    assert.equal(res.status, 200);
+    const data = JSON.parse(res.body);
+    assert.equal(data.model, 'grok-4.3');
+    assert.equal(data.reasoningEffort, 'none');
+    assert.equal(data.appVersion, '0.0.1');
+    assert.equal(typeof data.version, 'string');
+  });
+
+  await t.test('complete cached chapters keep ETag behavior after mock rendering', async () => {
+    const cold = await request(app.port, '/api/chapter/ecclesiastes/1');
+    assert.equal(cold.status, 200);
+    assert.equal(JSON.parse(cold.body).complete, false);
+
+    const complete = await waitForComplete(app.port, '/api/chapter/ecclesiastes/1');
+    assert.equal(complete.complete, true);
+
     const first = await request(app.port, '/api/chapter/ecclesiastes/1');
     assert.equal(first.status, 200);
     const data = JSON.parse(first.body);
@@ -167,6 +202,11 @@ test('server hardening and chapter rendering behavior', async t => {
       const res = await request(app.port, '/api/chapter/ecclesiastes/1');
       assert.equal(res.status, 200);
     }
+
+    const payload = mockXai.payloads[0];
+    assert.equal(payload.model, 'grok-4.3');
+    assert.equal(payload.reasoning_effort, 'none');
+    assert.equal(payload.store, false);
   });
 
   await t.test('cold chapters return partial data quickly and complete in background', async () => {
@@ -185,4 +225,27 @@ test('server hardening and chapter rendering behavior', async t => {
     const judeCache = JSON.parse(fs.readFileSync(path.join(app.rendersDir, '64.json'), 'utf8'));
     assert.ok(judeCache['0:0']);
   });
+});
+
+test('global render concurrency caps upstream XAI calls without request rate limiting', async t => {
+  const mockXai = await startMockXai(t, { delayMs: 25 });
+  const app = await startApp(t, mockXai.url, { RENDER_CONCURRENCY: '2', SEED_RENDER_CACHE: '0' });
+  const paths = [
+    '/api/chapter/2-john/1',
+    '/api/chapter/3-john/1',
+    '/api/chapter/jude/1',
+    '/api/chapter/philemon/1',
+  ];
+
+  const initial = await Promise.all(paths.map(p => request(app.port, p)));
+  for (const res of initial) {
+    assert.equal(res.status, 200);
+    const data = JSON.parse(res.body);
+    assert.equal(data.complete, false);
+    assert.equal(data.retryAfterMs, 2000);
+  }
+
+  await Promise.all(paths.map(p => waitForComplete(app.port, p)));
+  assert.ok(mockXai.calls > 0);
+  assert.ok(mockXai.maxActive <= 2, `saw ${mockXai.maxActive} concurrent XAI calls`);
 });

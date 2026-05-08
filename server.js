@@ -6,7 +6,6 @@ const fs = require('fs');
 const path = require('path');
 const { minify } = require('terser');
 const { log, logRouter, analyticsRouter, parseCookie } = require('./logger');
-const createRateLimiter = require('./rateLimit');
 
 // --- App version ---
 const APP_VERSION = require('./package.json').version;
@@ -20,13 +19,9 @@ const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 const API_TIMEOUT_MS = 30_000;
 const CACHE_IMMUTABLE = 'public, max-age=31536000, immutable';
 const CACHE_ONE_DAY = 'public, max-age=86400';
-const RENDER_CONCURRENCY = 8;
-const RATE_WINDOW_MS = 60_000;
-const RATE_LIMIT = 30;
-const RATE_CLEANUP_MS = 5 * 60_000;
+const RENDER_CONCURRENCY = parsePositiveInt(process.env.RENDER_CONCURRENCY, 8);
 const DEFAULT_PATH = '/ecclesiastes/1';
 const PARTIAL_RETRY_MS = 2_000;
-const RATE_LIMITED_RETRY_MS = 10_000;
 
 // --- Asset fingerprinting ---
 const CSS_SRC = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
@@ -47,7 +42,8 @@ const SOURCE_RENDERS_DIR = path.join(__dirname, 'renders');
 const RENDERS_DIR = process.env.RENDERS_DIR ? path.resolve(process.env.RENDERS_DIR) : SOURCE_RENDERS_DIR;
 fs.mkdirSync(RENDERS_DIR, { recursive: true });
 
-const RENDER_MODEL = 'grok-4.20-0309-non-reasoning';
+const RENDER_MODEL = 'grok-4.3';
+const RENDER_REASONING_EFFORT = 'none';
 const SYSTEM_PROMPT = `You are a biblical scholar who helps people see how the Bible is a unified story that leads to Jesus. Your voice is warm, curious, and accessible — like a friend who's deeply studied this stuff and can't wait to show you what they found.
 
 <theological-framework>
@@ -95,6 +91,11 @@ const RENDER_VERSION = crypto
   .slice(0, 12);
 
 function toSlug(name) { return name.toLowerCase().replace(/ /g, '-'); }
+
+function parsePositiveInt(value, fallback) {
+  const n = Number.parseInt(value || '', 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
 
 function cleanText(s) {
   return s.replaceAll('\u2014', ', ').replace(/\bvapor\b/g, 'vapour');
@@ -155,6 +156,10 @@ app.get('/app.:hash.js', (req, res) => {
   if (req.params.hash !== JS_HASH) return res.status(404).end();
   res.setHeader('Cache-Control', CACHE_IMMUTABLE);
   res.type('js').send(JS_SRC);
+});
+
+app.get('/favicon.ico', (req, res) => {
+  res.redirect(301, '/favicon.svg');
 });
 
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
@@ -273,9 +278,39 @@ function getChapterVerses(bookIndex, chNum) {
 const RENDER_RETRIES = 2;
 const RETRY_BASE_MS = 1000;
 
+function createSemaphore(limit) {
+  let active = 0;
+  const queue = [];
+  function acquire() {
+    if (active < limit) {
+      active++;
+      return Promise.resolve();
+    }
+    return new Promise(resolve => {
+      queue.push(() => {
+        active++;
+        resolve();
+      });
+    });
+  }
+  async function run(fn) {
+    await acquire();
+    try {
+      return await fn();
+    } finally {
+      active--;
+      const next = queue.shift();
+      if (next) next();
+    }
+  }
+  return { run };
+}
+
+const renderSlots = createSemaphore(RENDER_CONCURRENCY);
+
 async function renderVerse(book, chapter, verse) {
   for (let attempt = 0; attempt <= RENDER_RETRIES; attempt++) {
-    try { return await renderVerseOnce(book, chapter, verse); }
+    try { return await renderSlots.run(() => renderVerseOnce(book, chapter, verse)); }
     catch (err) {
       if (attempt === RENDER_RETRIES) throw err;
       const delay = RETRY_BASE_MS * Math.pow(2, attempt);
@@ -293,6 +328,7 @@ async function renderVerseOnce(book, chapter, verse) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${XAI_API_KEY}` },
     body: JSON.stringify({
       model: RENDER_MODEL,
+      reasoning_effort: RENDER_REASONING_EFFORT,
       store: false,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -339,9 +375,6 @@ async function renderVerseOnce(book, chapter, verse) {
   return parsed;
 }
 
-// --- Rate limiting ---
-const checkApiRate = createRateLimiter(RATE_WINDOW_MS, RATE_LIMIT, RATE_CLEANUP_MS);
-
 async function renderMissingChapter(ref, requestedMissing) {
   const { bookIndex, bookName, chNum } = ref;
   const cache = loadCache(bookIndex);
@@ -373,10 +406,9 @@ async function renderMissingChapter(ref, requestedMissing) {
   log.info('chapter_render_finished', { book: bookName, ch: chNum, rendered });
 }
 
-function queueChapterRender(ref, missing, req) {
+function queueChapterRender(ref, missing) {
   const key = `${ref.bookIndex}:${ref.chNum}`;
   if (chapterJobs.has(key)) return 'inflight';
-  if (!checkApiRate(req.ip)) return 'rate_limited';
   const job = renderMissingChapter(ref, missing)
     .catch(err => log.error('chapter_render_failed', { book: ref.bookName, ch: ref.chNum, err: err.message }))
     .finally(() => chapterJobs.delete(key));
@@ -391,13 +423,13 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 
   let { verses, missing } = getChapterVerses(bookIndex, chNum);
   if (missing.length > 0) {
-    const state = queueChapterRender({ bookIndex, bookName, chNum }, missing, req);
+    queueChapterRender({ bookIndex, bookName, chNum }, missing);
     res.setHeader('Cache-Control', 'no-store');
     return res.json({
       verses,
       complete: false,
       missingCount: missing.length,
-      retryAfterMs: state === 'rate_limited' ? RATE_LIMITED_RETRY_MS : PARTIAL_RETRY_MS,
+      retryAfterMs: PARTIAL_RETRY_MS,
     });
   }
 
@@ -425,7 +457,7 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', CACHE_ONE_DAY);
-  res.json({ version: RENDER_VERSION, model: RENDER_MODEL, appVersion: APP_VERSION });
+  res.json({ version: RENDER_VERSION, model: RENDER_MODEL, reasoningEffort: RENDER_REASONING_EFFORT, appVersion: APP_VERSION });
 });
 
 app.use('/api', (req, res) => {

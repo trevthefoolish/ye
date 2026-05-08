@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "description": "The Bible rendered in modern English",
   "main": "server.js",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "start": "node server.js",
     "check": "node --check server.js && node --check logger.js && node --check rateLimit.js && node --check logUtils.js && node --check public/app.js",
