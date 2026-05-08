@@ -6,28 +6,187 @@
       "chapter": 1,
       "start": 1,
       "end": 5,
-      "label": "Creation begins with speech and light"
+      "label": "Creation begins with speech and light",
+      "genre": "narrative",
+      "sectionKind": "creation",
+      "riskFlags": ["christ_connection_risk"],
+      "evalSets": ["smoke"]
     },
     {
       "book": "Ecclesiastes",
       "chapter": 1,
       "start": 1,
       "end": 3,
-      "label": "The Teacher opens with vapour and toil"
+      "label": "The Teacher opens with vapour and toil",
+      "genre": "wisdom",
+      "sectionKind": "hevel_opening",
+      "riskFlags": ["short_section"],
+      "evalSets": ["smoke"]
     },
     {
       "book": "Nehemiah",
       "chapter": 12,
       "start": 1,
       "end": 4,
-      "label": "Returned priests and Levites are remembered by name"
+      "label": "Returned priests and Levites are remembered by name",
+      "genre": "list",
+      "sectionKind": "priestly_register",
+      "riskFlags": ["names_list", "short_verses"],
+      "evalSets": ["smoke"]
     },
     {
       "book": "Luke",
       "chapter": 24,
       "start": 25,
       "end": 27,
-      "label": "Jesus opens Moses and the Prophets"
+      "label": "Jesus opens Moses and the Prophets",
+      "genre": "gospel",
+      "sectionKind": "christ_interpretation",
+      "riskFlags": ["direct_christ_text"],
+      "evalSets": ["smoke"]
+    },
+    {
+      "book": "John",
+      "chapter": 11,
+      "start": 33,
+      "end": 36,
+      "label": "Jesus weeps at Lazarus's tomb",
+      "genre": "gospel",
+      "sectionKind": "grief_and_resurrection",
+      "riskFlags": ["very_short_verse", "emotion", "direct_christ_text"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Matthew",
+      "chapter": 1,
+      "start": 1,
+      "end": 6,
+      "label": "The genealogy begins with Abraham and David",
+      "genre": "genealogy",
+      "sectionKind": "messianic_lineage",
+      "riskFlags": ["names_list", "short_verses", "christ_connection_risk"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Leviticus",
+      "chapter": 16,
+      "start": 29,
+      "end": 34,
+      "label": "The Day of Atonement becomes a lasting statute",
+      "genre": "law",
+      "sectionKind": "atonement_ritual",
+      "riskFlags": ["ritual_law", "ancient_context", "christ_connection_risk"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Psalms",
+      "chapter": 22,
+      "start": 1,
+      "end": 5,
+      "label": "A lament begins with forsakenness and trust",
+      "genre": "poetry",
+      "sectionKind": "lament",
+      "riskFlags": ["lament", "messianic_psalm", "forced_christ_risk"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Proverbs",
+      "chapter": 26,
+      "start": 4,
+      "end": 5,
+      "label": "Wisdom holds opposite answers in tension",
+      "genre": "wisdom",
+      "sectionKind": "proverb_pair",
+      "riskFlags": ["tension", "short_verses"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Song of Solomon",
+      "chapter": 2,
+      "start": 1,
+      "end": 4,
+      "label": "The lovers speak in garden images",
+      "genre": "poetry",
+      "sectionKind": "love_poem",
+      "riskFlags": ["sexual_imagery", "poetry"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Isaiah",
+      "chapter": 53,
+      "start": 4,
+      "end": 6,
+      "label": "The servant bears grief and iniquity",
+      "genre": "prophecy",
+      "sectionKind": "servant_song",
+      "riskFlags": ["direct_christ_pattern", "suffering", "forced_christ_risk"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Amos",
+      "chapter": 5,
+      "start": 21,
+      "end": 24,
+      "label": "The Lord rejects worship without justice",
+      "genre": "prophecy",
+      "sectionKind": "justice_oracle",
+      "riskFlags": ["judgment", "worship_critique"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Daniel",
+      "chapter": 7,
+      "start": 13,
+      "end": 14,
+      "label": "One like a son of man receives dominion",
+      "genre": "apocalyptic",
+      "sectionKind": "son_of_man",
+      "riskFlags": ["symbolic_vision", "direct_christ_pattern"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Revelation",
+      "chapter": 13,
+      "start": 1,
+      "end": 4,
+      "label": "The beast rises from the sea",
+      "genre": "apocalyptic",
+      "sectionKind": "beast_vision",
+      "riskFlags": ["symbolic_vision", "judgment", "speculation_risk"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Joshua",
+      "chapter": 6,
+      "start": 20,
+      "end": 21,
+      "label": "Jericho falls under the ban",
+      "genre": "narrative",
+      "sectionKind": "conquest_judgment",
+      "riskFlags": ["violence", "judgment", "hard_text"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "2 Samuel",
+      "chapter": 13,
+      "start": 10,
+      "end": 14,
+      "label": "Tamar resists Amnon's violence",
+      "genre": "narrative",
+      "sectionKind": "sexual_violence",
+      "riskFlags": ["sexual_violence", "hard_text", "pastoral_sensitivity"],
+      "evalSets": ["edge"]
+    },
+    {
+      "book": "Philemon",
+      "chapter": 1,
+      "start": 8,
+      "end": 16,
+      "label": "Paul appeals for Onesimus as a brother",
+      "genre": "epistle",
+      "sectionKind": "appeal_for_reconciliation",
+      "riskFlags": ["slavery", "social_status", "pastoral_sensitivity"],
+      "evalSets": ["edge"]
     }
   ]
 }

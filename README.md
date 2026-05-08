@@ -53,13 +53,25 @@ XAI_API_KEY=your-key node server.js
 
 Runs on port 3000. Open on a mobile device or a browser window narrower than 480px.
 
-To run the guarded renderer v2 smoke eval:
+To run the guarded renderer v2 smoke eval with a local key:
 
 ```
 XAI_API_KEY=your-key npm run eval:v2
 ```
 
-This renders exactly 15 reference-only verses through the section-aware Responses API path and prints note metrics. It does not write render cache files.
+For PR review, prefer running it locally with Railway production variables, without changing the live Railway service:
+
+```
+railway run --service ye --environment production -- npm run eval:v2
+```
+
+This renders exactly 15 reference-only verses through the section-aware Responses API path, prints note metrics, and writes Markdown plus JSON reports under `eval-reports/`. To run the broader 56-verse edge-case set:
+
+```
+railway run --service ye --environment production -- npm run eval:v2:edge
+```
+
+Eval section metadata is used for report grouping only; it is not sent to the model and is not exposed from `/api/chapter`. Eval commands do not write render cache files. Keep `RENDER_PIPELINE` unset in Railway production until v2 eval output is reviewed and accepted.
 
 ## Deploy
 
@@ -92,9 +104,10 @@ public/
   manifest.json      PWA manifest
 data/
   bible.json         66 books with chapter and verse counts
-  sections.json      Explicit section map for renderer v2 smoke eval and grouping
+  sections.json      Explicit section map plus eval-only metadata for renderer v2 grouping
 prompts/
   margin-note-v2.md  Greenfield margin-note prompt for the guarded v2 renderer
+eval-reports/        Saved renderer v2 eval reports for PR review
 renders/             Cached verse renders (per-book JSON files)
 logger.js            Structured server logging and anonymous event analytics
 railway.json         Deployment configuration

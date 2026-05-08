@@ -373,6 +373,12 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   assert.equal(user.chapter, 1);
   assert.deepEqual(user.targetVerses, [1, 2, 3, 4, 5]);
   assert.equal(user.section.label, 'Creation begins with speech and light');
+  assert.equal(user.genre, undefined);
+  assert.equal(user.sectionKind, undefined);
+  assert.equal(user.riskFlags, undefined);
+  assert.equal(user.evalSets, undefined);
+  assert.equal(user.section.genre, undefined);
+  assert.equal(user.section.sectionKind, undefined);
 
   const cache = JSON.parse(fs.readFileSync(path.join(app.rendersDir, '0.json'), 'utf8'));
   assert.equal(cache['0:0'].rendering, 'Rendered Genesis 1:1');
@@ -387,6 +393,8 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   assert.equal(publicData.verses[0].note, 'Margin Genesis 1:1');
   assert.equal(publicData.verses[0].noteKind, undefined);
   assert.equal(publicData.verses[0].christConnection, undefined);
+  assert.equal(publicData.verses[0].genre, undefined);
+  assert.equal(publicData.verses[0].riskFlags, undefined);
 });
 
 test('global render concurrency caps upstream XAI calls without request rate limiting', async t => {

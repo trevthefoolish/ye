@@ -1,6 +1,7 @@
 // Copyright (c) 2026 vapourware.ai All rights reserved.
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const { books: BOOKS, verses: VERSES } = require('./data/bible.json');
 const SECTIONS_DATA = require('./data/sections.json');
@@ -10,6 +11,24 @@ const V2_PROMPT_VERSION = 'margin-note-v2';
 const V2_SCHEMA_VERSION = 'section-render-v1';
 const V2_SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'prompts', 'margin-note-v2.md'), 'utf8').trim();
 const SECTIONS_VERSION = SECTIONS_DATA.version || 'sections-v1';
+
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function fingerprintSectionMap(data = SECTIONS_DATA) {
+  return crypto
+    .createHash('sha256')
+    .update(stableStringify(data))
+    .digest('hex')
+    .slice(0, 12);
+}
+
+const SECTIONS_FINGERPRINT = fingerprintSectionMap(SECTIONS_DATA);
 
 const NOTE_KIND_VALUES = [
   'lexical',
@@ -77,6 +96,19 @@ function sectionRefs(bookName, chapter, startVerse, endVerse) {
     refs.push(`${bookName} ${chapter}:${verse}`);
   }
   return refs;
+}
+
+function targetVersesFor(section) {
+  return Array.from({ length: section.end - section.start + 1 }, (_, i) => section.start + i);
+}
+
+function hydrateEvalSection(section) {
+  return {
+    ...section,
+    source: section.source || 'explicit',
+    targetVerses: targetVersesFor(section),
+    references: sectionRefs(section.book, section.chapter, section.start, section.end),
+  };
 }
 
 function explicitSectionsFor(bookName, chapter) {
@@ -231,22 +263,14 @@ async function renderSectionOnce({ apiUrl, apiKey, model, reasoningEffort, bookN
   return validateSectionResult(parsed, section);
 }
 
+function evalSections(evalSet = 'smoke') {
+  return SECTIONS_DATA.sections
+    .filter(section => Array.isArray(section.evalSets) && section.evalSets.includes(evalSet))
+    .map(hydrateEvalSection);
+}
+
 function smokeEvalSections() {
-  return [
-    { book: 'Genesis', chapter: 1, start: 1, end: 5 },
-    { book: 'Ecclesiastes', chapter: 1, start: 1, end: 3 },
-    { book: 'Nehemiah', chapter: 12, start: 1, end: 4 },
-    { book: 'Luke', chapter: 24, start: 25, end: 27 },
-  ].map(target => {
-    const section = explicitSectionsFor(target.book, target.chapter)
-      .find(s => s.start === target.start && s.end === target.end)
-      || { ...target, label: `${target.book} ${target.chapter}:${target.start}-${target.end}`, source: 'eval' };
-    return {
-      ...section,
-      targetVerses: Array.from({ length: target.end - target.start + 1 }, (_, i) => target.start + i),
-      references: sectionRefs(target.book, target.chapter, target.start, target.end),
-    };
-  });
+  return evalSections('smoke');
 }
 
 function renderVersionParts({ model, reasoningEffort }) {
@@ -258,6 +282,7 @@ function renderVersionParts({ model, reasoningEffort }) {
     V2_SYSTEM_PROMPT,
     V2_SCHEMA_VERSION,
     SECTIONS_VERSION,
+    SECTIONS_FINGERPRINT,
   ];
 }
 
@@ -265,6 +290,7 @@ module.exports = {
   CHRIST_CONNECTION_VALUES,
   NOTE_KIND_VALUES,
   RENDER_PIPELINE_V2,
+  SECTIONS_FINGERPRINT,
   SECTIONS_VERSION,
   SECTION_RENDER_SCHEMA,
   V2_PROMPT_VERSION,
@@ -272,7 +298,9 @@ module.exports = {
   V2_SYSTEM_PROMPT,
   buildSectionRequest,
   buildSectionUserPayload,
+  evalSections,
   extractResponsesOutputText,
+  fingerprintSectionMap,
   groupMissingVersesIntoSections,
   renderSectionOnce,
   renderVersionParts,

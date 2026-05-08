@@ -79,13 +79,16 @@ These are load-bearing constraints. Don't break them:
 
 1. `npm test`
 2. `npm run check`
-3. Optional renderer v2 smoke eval: `XAI_API_KEY=your-key npm run eval:v2`
-4. `XAI_API_KEY=your-key NODE_ENV=production node server.js`
-5. Open in a browser window < 480px wide (or mobile device)
-6. Verify dark and light themes both work (toggle your OS setting)
-7. Swipe between chapters — previous and next should load instantly
-8. Tap a verse to expand its note
-9. Check the server console for structured log output and any warnings
+3. Optional renderer v2 smoke eval: `railway run --service ye --environment production -- npm run eval:v2`
+4. Optional renderer v2 edge eval: `railway run --service ye --environment production -- npm run eval:v2:edge`
+5. `XAI_API_KEY=your-key NODE_ENV=production node server.js`
+6. Open in a browser window < 480px wide (or mobile device)
+7. Verify dark and light themes both work (toggle your OS setting)
+8. Swipe between chapters — previous and next should load instantly
+9. Tap a verse to expand its note
+10. Check the server console for structured log output and any warnings
+
+For PR review, run v2 evals locally with Railway-provided variables. Do not set `RENDER_PIPELINE=section-v2` on Railway production just to evaluate a draft PR. The eval commands write Markdown and JSON artifacts under `eval-reports/`; review the grouped metadata summaries, rubric, and manual section notes before taking the PR out of draft. Section metadata is currently eval/reporting-only and must not be added to the model payload until a later prompt-steering pass.
 
 ---
 
