@@ -5,12 +5,15 @@ const crypto = require('crypto');
 
 const { books: BOOKS, verses: VERSES } = require('./data/bible.json');
 const SECTIONS_DATA = require('./data/sections.json');
+const EVAL_SCENARIOS_DATA = require('./data/eval-scenarios.json');
 
 const RENDER_PIPELINE_V2 = 'section-v2';
 const V2_PROMPT_VERSION = 'margin-note-v2';
 const V2_SCHEMA_VERSION = 'section-render-v1';
 const V2_SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'prompts', 'margin-note-v2.md'), 'utf8').trim();
 const SECTIONS_VERSION = SECTIONS_DATA.version || 'sections-v1';
+const EVAL_SCENARIOS_VERSION = EVAL_SCENARIOS_DATA.version || 'eval-scenarios-v1';
+const EVAL_SCENARIO_MODES = ['explicit', 'fallback-chapter', 'fallback-partial'];
 
 function stableStringify(value) {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -102,6 +105,10 @@ function targetVersesFor(section) {
   return Array.from({ length: section.end - section.start + 1 }, (_, i) => section.start + i);
 }
 
+function refForEntry(book, chapter, verse) {
+  return `${book} ${chapter}:${verse}`;
+}
+
 function hydrateEvalSection(section) {
   return {
     ...section,
@@ -171,6 +178,111 @@ function groupMissingVersesIntoSections(bookName, chapter, missingZeroBased) {
     groups.get(key).targetVerses.push(verse);
   }
   return [...groups.values()].sort((a, b) => a.start - b.start || a.end - b.end);
+}
+
+function validateBookChapter(book, chapter) {
+  const bookIndex = BOOKS.indexOf(book);
+  if (bookIndex === -1) throw new Error(`unknown book: ${book}`);
+  const verseCount = VERSES[bookIndex]?.[chapter - 1];
+  if (!verseCount) throw new Error(`unknown chapter: ${book} ${chapter}`);
+  return { bookIndex, verseCount };
+}
+
+function validateEvalScenarioData(data = EVAL_SCENARIOS_DATA) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.scenarios)) {
+    throw new Error('eval scenarios must contain a scenarios array');
+  }
+  const ids = new Set();
+  for (const scenario of data.scenarios) {
+    if (!scenario || typeof scenario !== 'object') throw new Error('malformed eval scenario');
+    if (typeof scenario.id !== 'string' || scenario.id.trim() === '') throw new Error('eval scenario missing id');
+    if (ids.has(scenario.id)) throw new Error(`duplicate eval scenario id: ${scenario.id}`);
+    ids.add(scenario.id);
+    if (!Array.isArray(scenario.evalSets) || scenario.evalSets.length === 0) {
+      throw new Error(`eval scenario ${scenario.id} must declare at least one eval set`);
+    }
+    if (!scenario.evalSets.every(set => typeof set === 'string' && set.trim() !== '')) {
+      throw new Error(`eval scenario ${scenario.id} has malformed eval sets`);
+    }
+    if (!EVAL_SCENARIO_MODES.includes(scenario.mode)) {
+      throw new Error(`eval scenario ${scenario.id} has invalid mode: ${scenario.mode}`);
+    }
+    if (!Number.isInteger(scenario.chapter) || scenario.chapter < 1) {
+      throw new Error(`eval scenario ${scenario.id} has invalid chapter`);
+    }
+    const { verseCount } = validateBookChapter(scenario.book, scenario.chapter);
+
+    if (scenario.mode === 'explicit') {
+      if (!Number.isInteger(scenario.start) || !Number.isInteger(scenario.end)) {
+        throw new Error(`eval scenario ${scenario.id} explicit mode requires start and end`);
+      }
+      if (scenario.start < 1 || scenario.end < scenario.start || scenario.end > verseCount) {
+        throw new Error(`eval scenario ${scenario.id} has invalid range`);
+      }
+    } else if (scenario.mode === 'fallback-partial') {
+      if (!Array.isArray(scenario.targetVerses) || scenario.targetVerses.length === 0) {
+        throw new Error(`eval scenario ${scenario.id} fallback-partial mode requires targetVerses`);
+      }
+      const seen = new Set();
+      for (const verse of scenario.targetVerses) {
+        if (!Number.isInteger(verse) || verse < 1 || verse > verseCount) {
+          throw new Error(`eval scenario ${scenario.id} has invalid target verse`);
+        }
+        if (seen.has(verse)) throw new Error(`eval scenario ${scenario.id} has duplicate target verse`);
+        seen.add(verse);
+      }
+    }
+  }
+  return true;
+}
+
+function applyEvalMetadata(section, scenario, evalSet) {
+  return {
+    ...section,
+    scenarioId: scenario.id,
+    scenarioLabel: scenario.label || null,
+    mode: scenario.mode,
+    evalSet,
+    evalSets: scenario.evalSets,
+    genre: scenario.genre || null,
+    sectionKind: scenario.sectionKind || null,
+    riskFlags: Array.isArray(scenario.riskFlags) ? scenario.riskFlags : [],
+  };
+}
+
+function hydrateExplicitScenario(scenario, evalSet) {
+  return applyEvalMetadata(hydrateEvalSection({
+    book: scenario.book,
+    chapter: scenario.chapter,
+    start: scenario.start,
+    end: scenario.end,
+    label: scenario.label || `${scenario.book} ${scenario.chapter}:${scenario.start}-${scenario.end}`,
+    source: 'explicit',
+  }), scenario, evalSet);
+}
+
+function hydrateFallbackScenario(scenario, evalSet) {
+  const { verseCount } = validateBookChapter(scenario.book, scenario.chapter);
+  const targetVerses = scenario.mode === 'fallback-chapter'
+    ? targetVersesFor({ start: 1, end: verseCount })
+    : scenario.targetVerses;
+  const missingZeroBased = targetVerses.map(verse => verse - 1);
+  return groupMissingVersesIntoSections(scenario.book, scenario.chapter, missingZeroBased)
+    .map(section => applyEvalMetadata(section, scenario, evalSet));
+}
+
+function evalSections(evalSet = 'smoke', data = EVAL_SCENARIOS_DATA) {
+  validateEvalScenarioData(data);
+  return data.scenarios
+    .filter(scenario => scenario.evalSets.includes(evalSet))
+    .flatMap(scenario => scenario.mode === 'explicit'
+      ? [hydrateExplicitScenario(scenario, evalSet)]
+      : hydrateFallbackScenario(scenario, evalSet));
+}
+
+function evalScenarios(evalSet = 'smoke', data = EVAL_SCENARIOS_DATA) {
+  validateEvalScenarioData(data);
+  return data.scenarios.filter(scenario => scenario.evalSets.includes(evalSet));
 }
 
 function buildSectionUserPayload(bookName, chapter, section) {
@@ -263,12 +375,6 @@ async function renderSectionOnce({ apiUrl, apiKey, model, reasoningEffort, bookN
   return validateSectionResult(parsed, section);
 }
 
-function evalSections(evalSet = 'smoke') {
-  return SECTIONS_DATA.sections
-    .filter(section => Array.isArray(section.evalSets) && section.evalSets.includes(evalSet))
-    .map(hydrateEvalSection);
-}
-
 function smokeEvalSections() {
   return evalSections('smoke');
 }
@@ -288,6 +394,7 @@ function renderVersionParts({ model, reasoningEffort }) {
 
 module.exports = {
   CHRIST_CONNECTION_VALUES,
+  EVAL_SCENARIOS_VERSION,
   NOTE_KIND_VALUES,
   RENDER_PIPELINE_V2,
   SECTIONS_FINGERPRINT,
@@ -298,12 +405,15 @@ module.exports = {
   V2_SYSTEM_PROMPT,
   buildSectionRequest,
   buildSectionUserPayload,
+  evalScenarios,
   evalSections,
   extractResponsesOutputText,
   fingerprintSectionMap,
   groupMissingVersesIntoSections,
+  refForEntry,
   renderSectionOnce,
   renderVersionParts,
   smokeEvalSections,
+  validateEvalScenarioData,
   validateSectionResult,
 };

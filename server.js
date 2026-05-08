@@ -116,7 +116,7 @@ function parsePositiveInt(value, fallback) {
 }
 
 function cleanText(s) {
-  return s.replaceAll('\u2014', ', ').replace(/\bvapor\b/g, 'vapour');
+  return s.replaceAll('\u2014', ', ').replace(/\bvapor\b/gi, 'vapour');
 }
 
 function escapeHtml(s) {

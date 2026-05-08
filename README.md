@@ -65,13 +65,21 @@ For PR review, prefer running it locally with Railway production variables, with
 railway run --service ye --environment production -- npm run eval:v2
 ```
 
-This renders exactly 15 reference-only verses through the section-aware Responses API path, prints note metrics, and writes Markdown plus JSON reports under `eval-reports/`. To run the broader 56-verse edge-case set:
+This renders exactly 15 reference-only verses through the section-aware Responses API path, prints note metrics, and writes Markdown plus JSON reports under `eval-reports/`. To run the broader 171-verse edge-case set:
 
 ```
 railway run --service ye --environment production -- npm run eval:v2:edge
 ```
 
-Eval section metadata is used for report grouping only; it is not sent to the model and is not exposed from `/api/chapter`. Eval commands do not write render cache files. Keep `RENDER_PIPELINE` unset in Railway production until v2 eval output is reviewed and accepted.
+To exercise fallback windows and partial render grouping without writing render cache files:
+
+```
+railway run --service ye --environment production -- npm run eval:v2:prod-sim
+```
+
+`npm run eval:v2:gate` runs the edge eval with release-blocking checks enabled. It fails only on hard structural problems: incomplete schema, cleaned em dashes, cleaned `vapor`, duplicate/missing/unexpected refs, or missing report metadata. Subjective Christ-connection review remains a manual review item.
+
+Eval scenario metadata is used for report grouping only; it is not sent to the model and is not exposed from `/api/chapter`. Eval commands do not write render cache files. Prefer `EVAL_REPORTS_DIR=/tmp/...` for exploratory edge/prod-sim runs, and commit only reviewed report artifacts. Keep `RENDER_PIPELINE` unset in Railway production until v2 eval output is reviewed and accepted.
 
 ## Deploy
 
@@ -104,10 +112,11 @@ public/
   manifest.json      PWA manifest
 data/
   bible.json         66 books with chapter and verse counts
-  sections.json      Explicit section map plus eval-only metadata for renderer v2 grouping
+  sections.json      Production section map for renderer v2 grouping
+  eval-scenarios.json Eval-only smoke, edge, and prod-sim coverage metadata
 prompts/
   margin-note-v2.md  Greenfield margin-note prompt for the guarded v2 renderer
-eval-reports/        Saved renderer v2 eval reports for PR review
+eval-reports/        Saved reviewed renderer v2 eval reports for PR review
 renders/             Cached verse renders (per-book JSON files)
 logger.js            Structured server logging and anonymous event analytics
 railway.json         Deployment configuration
