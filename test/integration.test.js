@@ -78,6 +78,60 @@ function startMockXai(t, opts = {}) {
   });
 }
 
+function startMockResponsesXai(t, opts = {}) {
+  let calls = 0;
+  let active = 0;
+  let maxActive = 0;
+  const payloads = [];
+  const delayMs = opts.delayMs || 0;
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      calls++;
+      active++;
+      maxActive = Math.max(maxActive, active);
+      const payload = JSON.parse(body);
+      payloads.push(payload);
+      const user = payload.input.find(m => m.role === 'user');
+      const request = JSON.parse(user.content);
+      if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({
+        id: 'resp_test',
+        output: [{
+          type: 'message',
+          role: 'assistant',
+          content: [{
+            type: 'output_text',
+            text: JSON.stringify({
+              verses: request.targetVerses.map(verse => ({
+                verse,
+                rendering: `Rendered ${request.book} ${request.chapter}:${verse}`,
+                note: `Margin ${request.book} ${request.chapter}:${verse}`,
+                noteKind: 'literary',
+                christConnection: 'none',
+              })),
+            }),
+          }],
+        }],
+      }));
+      active--;
+    });
+  });
+  return new Promise(resolve => {
+    server.listen(0, '127.0.0.1', () => {
+      t.after(() => server.close());
+      resolve({
+        url: `http://127.0.0.1:${server.address().port}/v1/responses`,
+        get calls() { return calls; },
+        get maxActive() { return maxActive; },
+        get payloads() { return payloads; },
+      });
+    });
+  });
+}
+
 function startApp(t, xaiUrl, extraEnv = {}) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ye-test-'));
   const rendersDir = path.join(temp, 'renders');
@@ -94,6 +148,9 @@ function startApp(t, xaiUrl, extraEnv = {}) {
       XAI_API_URL: xaiUrl,
       RENDERS_DIR: rendersDir,
       LOG_DIR: logsDir,
+      RENDER_PIPELINE: 'verse-v1',
+      RENDER_MODEL: 'grok-4.3',
+      RENDER_REASONING_EFFORT: 'none',
       ...extraEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -273,6 +330,63 @@ test('server hardening and chapter rendering behavior', async t => {
     const judeCache = JSON.parse(fs.readFileSync(path.join(app.rendersDir, '64.json'), 'utf8'));
     assert.ok(judeCache['0:0']);
   });
+});
+
+test('renderer v2 uses Responses API sections while preserving public chapter shape', async t => {
+  const mockXai = await startMockResponsesXai(t, { delayMs: 5 });
+  const app = await startApp(t, mockXai.url, {
+    RENDER_PIPELINE: 'section-v2',
+    SEED_RENDER_CACHE: '0',
+  });
+
+  const versionRes = await request(app.port, '/api/version');
+  assert.equal(versionRes.status, 200);
+  const version = JSON.parse(versionRes.body);
+  assert.equal(version.model, 'grok-4.3');
+  assert.equal(version.reasoningEffort, 'none');
+  assert.equal(version.renderPipeline, 'section-v2');
+  assert.equal(version.promptVersion, 'margin-note-v2');
+  assert.equal(version.schemaVersion, 'section-render-v1');
+  assert.equal(version.sectionVersion, 'sections-v1');
+
+  const cold = await request(app.port, '/api/chapter/genesis/1');
+  assert.equal(cold.status, 200);
+  assert.equal(JSON.parse(cold.body).complete, false);
+
+  const complete = await waitForComplete(app.port, '/api/chapter/genesis/1');
+  assert.equal(complete.complete, true);
+  assert.equal(complete.missingCount, 0);
+  assert.ok(mockXai.calls > 0);
+
+  const payload = mockXai.payloads[0];
+  assert.equal(payload.model, 'grok-4.3');
+  assert.equal(payload.store, false);
+  assert.deepEqual(payload.reasoning, { effort: 'none' });
+  assert.equal(payload.messages, undefined);
+  assert.ok(Array.isArray(payload.input));
+  assert.equal(payload.text.format.type, 'json_schema');
+  assert.equal(payload.text.format.name, 'section_rendering');
+  assert.equal(payload.text.format.strict, true);
+
+  const user = JSON.parse(payload.input.find(m => m.role === 'user').content);
+  assert.equal(user.book, 'Genesis');
+  assert.equal(user.chapter, 1);
+  assert.deepEqual(user.targetVerses, [1, 2, 3, 4, 5]);
+  assert.equal(user.section.label, 'Creation begins with speech and light');
+
+  const cache = JSON.parse(fs.readFileSync(path.join(app.rendersDir, '0.json'), 'utf8'));
+  assert.equal(cache['0:0'].rendering, 'Rendered Genesis 1:1');
+  assert.equal(cache['0:0'].note, 'Margin Genesis 1:1');
+  assert.equal(cache['0:0'].noteKind, 'literary');
+  assert.equal(cache['0:0'].christConnection, 'none');
+  assert.equal(cache['0:0'].v, version.version);
+
+  const publicChapter = await request(app.port, '/api/chapter/genesis/1');
+  const publicData = JSON.parse(publicChapter.body);
+  assert.equal(publicData.verses[0].rendering, 'Rendered Genesis 1:1');
+  assert.equal(publicData.verses[0].note, 'Margin Genesis 1:1');
+  assert.equal(publicData.verses[0].noteKind, undefined);
+  assert.equal(publicData.verses[0].christConnection, undefined);
 });
 
 test('global render concurrency caps upstream XAI calls without request rate limiting', async t => {

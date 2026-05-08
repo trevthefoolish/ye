@@ -23,9 +23,9 @@ Each verse is rendered on-demand by [Grok](https://x.ai) through a theological f
 - **Wisdom** — the Bible trains readers in wisdom and character transformation, not just information
 - **Meditation** — designed for slow re-reading that reveals layers of meaning over time
 
-Notes follow a simple rule: think "margin scribble" not "commentary." One punchy observation per verse. Vary the angle — wordplay in the original language, an intertextual echo, ancient cultural context, narrative placement. Pick one. Don't moralize. Just illuminate.
+Notes follow a simple rule: a Christian reader with good taste penciling sharp observations in the margin. One useful thing per verse. It might be a word, image, pattern, tension, literary move, ancient context, canonical thread, or worthy Christ-shaped connection. Don't moralize. Just illuminate.
 
-Rendered verses are cached and version-stamped. The version is a SHA of the model and system prompt, so when either evolves, all cached renders auto-invalidate and re-render on next request.
+Rendered verses are cached and version-stamped. The default production renderer is still the original one-verse pipeline. The experimental section renderer is gated behind `RENDER_PIPELINE=section-v2` so it can be evaluated without invalidating production cache by accident.
 
 ## Core values
 
@@ -53,6 +53,14 @@ XAI_API_KEY=your-key node server.js
 
 Runs on port 3000. Open on a mobile device or a browser window narrower than 480px.
 
+To run the guarded renderer v2 smoke eval:
+
+```
+XAI_API_KEY=your-key npm run eval:v2
+```
+
+This renders exactly 15 reference-only verses through the section-aware Responses API path and prints note metrics. It does not write render cache files.
+
 ## Deploy
 
 Configured for [Railway](https://railway.app) via `railway.json`. Health check at `/health`.
@@ -76,6 +84,7 @@ Mount a Railway volume at `/data` so generated render cache and JSONL logs survi
 
 ```
 server.js            Express server, system prompt, rendering pipeline, caching, SEO
+rendererV2.js        Experimental section renderer, schema, section grouping, eval helpers
 public/
   index.html         Single-page app template
   app.js             Client application
@@ -83,6 +92,9 @@ public/
   manifest.json      PWA manifest
 data/
   bible.json         66 books with chapter and verse counts
+  sections.json      Explicit section map for renderer v2 smoke eval and grouping
+prompts/
+  margin-note-v2.md  Greenfield margin-note prompt for the guarded v2 renderer
 renders/             Cached verse renders (per-book JSON files)
 logger.js            Structured server logging and anonymous event analytics
 railway.json         Deployment configuration

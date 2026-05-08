@@ -1,0 +1,33 @@
+{
+  "version": "sections-v1",
+  "sections": [
+    {
+      "book": "Genesis",
+      "chapter": 1,
+      "start": 1,
+      "end": 5,
+      "label": "Creation begins with speech and light"
+    },
+    {
+      "book": "Ecclesiastes",
+      "chapter": 1,
+      "start": 1,
+      "end": 3,
+      "label": "The Teacher opens with vapour and toil"
+    },
+    {
+      "book": "Nehemiah",
+      "chapter": 12,
+      "start": 1,
+      "end": 4,
+      "label": "Returned priests and Levites are remembered by name"
+    },
+    {
+      "book": "Luke",
+      "chapter": 24,
+      "start": 25,
+      "end": 27,
+      "label": "Jesus opens Moses and the Prophets"
+    }
+  ]
+}
