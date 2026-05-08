@@ -13,8 +13,10 @@ const {
   V2_PROMPT_VERSION,
   V2_SCHEMA_VERSION,
   groupMissingVersesIntoSections,
+  parseRef,
   renderSectionOnce,
   renderVersionParts,
+  sectionRef,
 } = require('./rendererV2');
 
 // --- App version ---
@@ -187,6 +189,7 @@ const memCache = new Map();
 const etagCache = new Map(); // bookIndex:chapterKey → { body, etag }
 const saveChains = new Map();
 const chapterJobs = new Map();
+const sectionJobs = new Map();
 
 function safeDecodePath(p) {
   try { return decodeURIComponent(p); } catch { return null; }
@@ -304,6 +307,37 @@ function getChapterVerses(bookIndex, chNum) {
     }
   }
   return { cache, verses, missing };
+}
+
+function cacheEntryIsCurrent(location) {
+  const cache = loadCache(location.bookIndex);
+  const entry = cache[`${location.chapter - 1}:${location.verse - 1}`];
+  return Boolean(entry && entry.v === RENDER_VERSION);
+}
+
+function missingSectionRefs(section) {
+  return (section.targetReferences || section.references || [])
+    .filter(ref => !cacheEntryIsCurrent(parseRef(ref)));
+}
+
+async function writeSectionEntriesToCache(entries) {
+  const touched = new Map();
+  const now = Date.now();
+  for (const entry of entries) {
+    const location = parseRef(entry.ref);
+    const cache = loadCache(location.bookIndex);
+    cache[`${location.chapter - 1}:${location.verse - 1}`] = {
+      rendering: entry.rendering,
+      note: entry.note,
+      noteKind: entry.noteKind,
+      christConnection: entry.christConnection,
+      v: RENDER_VERSION,
+      t: now,
+    };
+    touched.set(location.bookIndex, cache);
+  }
+  await Promise.all([...touched.entries()].map(([bookIndex, cache]) => saveCache(bookIndex, cache)));
+  return touched.size;
 }
 
 function getRenderPriority(req) {
@@ -531,9 +565,9 @@ async function renderSection(book, chapter, section, job) {
       log.warn('section_render_retry', {
         book,
         chapter,
-        start: section.start,
-        end: section.end,
-        targetVerses: section.targetVerses.length,
+        sectionId: section.id,
+        sectionRef: sectionRef(section),
+        targetRefs: (section.targetReferences || section.references || []).length,
         attempt: attempt + 1,
         delay,
         durationMs: Date.now() - attemptStarted,
@@ -545,6 +579,58 @@ async function renderSection(book, chapter, section, job) {
       await new Promise(r => setTimeout(r, delay));
     }
   }
+}
+
+async function renderSectionAndCache(section, job) {
+  const missingRefs = missingSectionRefs(section);
+  if (missingRefs.length === 0) {
+    return { entries: [], skipped: true, timing: null };
+  }
+  const result = await renderSection(section.book, section.chapter, section, job);
+  const cacheFiles = await writeSectionEntriesToCache(result.entries);
+  return {
+    ...result,
+    cacheFiles,
+    skipped: false,
+  };
+}
+
+function sectionJobKey(section) {
+  return section.id || sectionRef(section);
+}
+
+function promoteSectionJob(job) {
+  if (!job) return;
+  job.priority = RENDER_PRIORITY_FOREGROUND;
+  trackForegroundJob(job);
+}
+
+function queueSectionRender(section, priority) {
+  const key = sectionJobKey(section);
+  const existing = sectionJobs.get(key);
+  if (existing) {
+    if (priority === RENDER_PRIORITY_FOREGROUND && existing.priority !== RENDER_PRIORITY_FOREGROUND) {
+      promoteSectionJob(existing);
+      return { status: 'promoted', promise: existing.promise };
+    }
+    return { status: 'inflight', promise: existing.promise };
+  }
+  const job = { priority, sectionId: key };
+  trackForegroundJob(job);
+  job.promise = renderSectionAndCache(section, job)
+    .catch(err => {
+      err.section = section;
+      throw err;
+    })
+    .finally(() => {
+      finishRenderJob(job);
+      sectionJobs.delete(key);
+    });
+  sectionJobs.set(key, job);
+  return {
+    status: priority === RENDER_PRIORITY_BACKGROUND ? 'started-background' : 'started',
+    promise: job.promise,
+  };
 }
 
 function avgMs(values) {
@@ -672,7 +758,12 @@ async function renderMissingChapterV2(ref, requestedMissing, job) {
     return;
   }
 
-  const sections = groupMissingVersesIntoSections(bookName, chNum, missing);
+  const sections = groupMissingVersesIntoSections(bookName, chNum, missing)
+    .filter(section => missingSectionRefs(section).length > 0);
+  if (sections.length === 0) {
+    finishRenderJob(job);
+    return;
+  }
   const startedAt = Date.now();
   log.info('chapter_render_started', {
     book: bookName,
@@ -692,32 +783,22 @@ async function renderMissingChapterV2(ref, requestedMissing, job) {
       batches++;
       const batch = sections.slice(i, i + RENDER_CONCURRENCY);
       const results = await Promise.allSettled(
-        batch.map(section => renderSection(bookName, chNum, section, job)
-          .then(r => ({ section, r }))
-          .catch(err => {
-            err.section = section;
-            throw err;
-          }))
+        batch.map(section => {
+          const queued = queueSectionRender(section, job.priority);
+          if (!job.sectionIds) job.sectionIds = new Set();
+          job.sectionIds.add(sectionJobKey(section));
+          return queued.promise.then(r => ({ section, r, status: queued.status }));
+        })
       );
       for (const result of results) {
         if (result.status === 'fulfilled') {
           const { r } = result.value;
-          for (const entry of r.entries) {
-            cache[`${chNum - 1}:${entry.verse - 1}`] = {
-              rendering: entry.rendering,
-              note: entry.note,
-              noteKind: entry.noteKind,
-              christConnection: entry.christConnection,
-              v: RENDER_VERSION,
-              t: Date.now(),
-            };
-            rendered++;
-          }
+          rendered += r.entries.length;
           if (r.timing) timings.push(r.timing);
         } else {
           const section = result.reason?.section;
           const timing = result.reason?.renderTiming || {};
-          const targetCount = section?.targetVerses?.length || 0;
+          const targetCount = (section?.targetReferences || section?.references || []).length;
           failed += targetCount || 1;
           timings.push({
             verseMs: timing.totalVerseMs,
@@ -727,9 +808,9 @@ async function renderMissingChapterV2(ref, requestedMissing, job) {
           log.warn('section_render_failed', {
             book: bookName,
             ch: chNum,
-            start: section?.start,
-            end: section?.end,
-            targetVerses: targetCount,
+            sectionId: section?.id,
+            sectionRef: section ? sectionRef(section) : undefined,
+            targetRefs: targetCount,
             reason: result.reason?.message || String(result.reason),
             attempts: timing.attempts,
             durationMs: timing.durationMs,
@@ -739,7 +820,6 @@ async function renderMissingChapterV2(ref, requestedMissing, job) {
           });
         }
       }
-      await saveCache(bookIndex, cache);
     }
   } finally {
     finishRenderJob(job);
@@ -772,6 +852,7 @@ function queueChapterRender(ref, missing, priority) {
     if (priority === RENDER_PRIORITY_FOREGROUND && existing.priority !== RENDER_PRIORITY_FOREGROUND) {
       existing.priority = RENDER_PRIORITY_FOREGROUND;
       trackForegroundJob(existing);
+      for (const sectionId of existing.sectionIds || []) promoteSectionJob(sectionJobs.get(sectionId));
       return 'promoted';
     }
     return 'inflight';

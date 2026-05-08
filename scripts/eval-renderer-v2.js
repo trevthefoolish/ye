@@ -9,8 +9,8 @@ const {
   V2_SCHEMA_VERSION,
   SECTIONS_VERSION,
   evalSections,
-  refForEntry,
   renderSectionOnce,
+  sectionRef: rendererSectionRef,
 } = require('../rendererV2');
 
 const API_URL = process.env.XAI_API_URL || 'https://api.x.ai/v1/responses';
@@ -55,15 +55,15 @@ function statusFor(condition, warn = 'warn') {
 }
 
 function sectionRef(section) {
-  return `${section.book} ${section.chapter}:${section.start}-${section.end}`;
+  return rendererSectionRef(section);
 }
 
 function entryKey(entry) {
   return `${entry.scenarioId || 'unknown'}|${entry.ref}`;
 }
 
-function sectionKey(section, verse) {
-  return `${section.scenarioId || 'unknown'}|${refForEntry(section.book, section.chapter, verse)}`;
+function sectionKey(section, ref) {
+  return `${section.scenarioId || 'unknown'}|${ref}`;
 }
 
 function duplicateValues(items, keyFor) {
@@ -133,8 +133,8 @@ function summarizeSectionGroups(sections, noteLengthWarningRefs, echoNoteRefs) {
 function expectedRenderedKeys(sections) {
   const expected = new Set();
   for (const section of sections) {
-    for (const verse of section.targetVerses || []) {
-      expected.add(sectionKey(section, verse));
+    for (const ref of section.targetReferences || section.references || []) {
+      expected.add(sectionKey(section, ref));
     }
   }
   return expected;
@@ -216,7 +216,7 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
       riskFlags: Array.isArray(section.riskFlags) ? section.riskFlags : [],
       evalSet: section.evalSet || evalSet,
       evalSets: Array.isArray(section.evalSets) ? section.evalSets : [],
-      targetVerses: section.targetVerses,
+      targetReferences: section.targetReferences || section.references || [],
       manualReview: {
         status: 'pending',
         notes: '',
@@ -245,7 +245,7 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
     rawAmericanVaporCount: sum(renderedWithKeys, e => ((e.rawRendering || '').match(/\bvapor\b/gi) || []).length + ((e.rawNote || '').match(/\bvapor\b/gi) || []).length),
     cleanedAmericanVaporCount: sum(renderedWithKeys, e => (e.rendering.match(/\bvapor\b/gi) || []).length + (e.note.match(/\bvapor\b/gi) || []).length),
     sectionCount: groupedSections.length,
-    maxTargetVerses: groupedSections.length ? Math.max(...groupedSections.map(section => section.targetVerses.length)) : 0,
+    maxTargetVerses: groupedSections.length ? Math.max(...groupedSections.map(section => section.targetReferences.length)) : 0,
     sectionSources: Object.fromEntries(sectionSources),
     referenceIntegrity,
   };
@@ -495,7 +495,7 @@ async function runEval({ fetchImpl } = {}) {
       const rawRendering = entry.rendering;
       const rawNote = entry.note;
       rendered.push({
-        ref: refForEntry(section.book, section.chapter, entry.verse),
+        ref: entry.ref,
         sectionRef: ref,
         scenarioId: section.scenarioId,
         mode: section.mode,

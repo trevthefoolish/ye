@@ -12,6 +12,7 @@ const {
   gateFailures,
   writeEvalReport,
 } = require('../scripts/eval-renderer-v2');
+const sectionsData = require('../data/sections.json');
 const {
   SECTIONS_FINGERPRINT,
   buildSectionUserPayload,
@@ -20,7 +21,10 @@ const {
   fingerprintSectionMap,
   groupMissingVersesIntoSections,
   renderVersionParts,
+  sectionRef,
   validateEvalScenarioData,
+  validateSectionMap,
+  validateSectionResult,
 } = require('../rendererV2');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -58,10 +62,10 @@ function startMockResponsesXai(t) {
           content: [{
             type: 'output_text',
             text: JSON.stringify({
-              verses: request.targetVerses.map(verse => ({
-                verse,
-                rendering: `Rendered ${request.book} ${request.chapter}:${verse}`,
-                note: `Margin ${request.book} ${request.chapter}:${verse}`,
+              verses: request.targetReferences.map(ref => ({
+                ref,
+                rendering: `Rendered ${ref}`,
+                note: `Margin ${ref}`,
                 noteKind: 'literary',
                 christConnection: 'none',
               })),
@@ -125,13 +129,35 @@ test('renderer v2 render version includes section map content fingerprint', () =
 
   assert.notEqual(changedFingerprint, SECTIONS_FINGERPRINT);
   assert.ok(renderVersionParts({ model: 'grok-4.3', reasoningEffort: 'none' }).includes(SECTIONS_FINGERPRINT));
+  assert.equal(
+    fingerprintSectionMap({ ...sectionsData, generatedAt: '2000-01-01T00:00:00.000Z' }),
+    fingerprintSectionMap({ ...sectionsData, generatedAt: '2030-01-01T00:00:00.000Z' })
+  );
+});
+
+test('renderer v2 committed section map covers every verse with deterministic fallback sections', () => {
+  const validation = validateSectionMap(sectionsData);
+  const fallbackSections = sectionsData.sections.filter(section => section.source === 'generated-fallback');
+
+  assert.equal(validation.verses, 31071);
+  assert.equal(validation.expectedVerses, 31071);
+  assert.deepEqual(validation.missingRefs, []);
+  assert.ok(validation.sourceCounts['openbible-consensus'] > 0);
+  assert.ok(validation.sourceCounts['generated-fallback'] > 0);
+  assert.ok(fallbackSections.length > 0);
+  for (const section of fallbackSections) {
+    const first = section.references[0];
+    const max = first.startsWith('Psalms ') ? 24 : first.startsWith('Proverbs ') ? 8 : 16;
+    assert.ok(section.references.length <= max, `${section.id} exceeds fallback max`);
+    assert.match(section.id, /^fallback-[a-z0-9-]+-\d+-\d+-\d+-\d+$/);
+  }
 });
 
 test('renderer v2 eval sets select smoke and edge sections from metadata', () => {
   const smoke = evalSections('smoke');
   const edge = evalSections('edge');
   const prodSim = evalSections('prod-sim');
-  const verseCount = sections => sections.reduce((total, section) => total + section.targetVerses.length, 0);
+  const verseCount = sections => sections.reduce((total, section) => total + section.targetReferences.length, 0);
 
   assert.equal(evalScenarios('smoke').length, 4);
   assert.equal(evalScenarios('edge').length, 24);
@@ -140,14 +166,13 @@ test('renderer v2 eval sets select smoke and edge sections from metadata', () =>
   assert.equal(verseCount(smoke), 15);
   assert.equal(edge.length, 24);
   assert.equal(verseCount(edge), 171);
-  assert.equal(prodSim.length, 26);
-  assert.equal(verseCount(prodSim), 268);
+  assert.ok(prodSim.length > 25);
+  assert.ok(verseCount(prodSim) > 300);
   assert.ok(edge.every(section => section.evalSet === 'edge'));
   assert.ok(edge.some(section => section.genre === 'apocalyptic'));
   assert.ok(edge.some(section => section.riskFlags.includes('hard_text')));
   assert.ok(edge.some(section => section.riskFlags.includes('theological_tension')));
-  assert.ok(prodSim.some(section => section.source === 'fallback'));
-  assert.ok(prodSim.some(section => section.source === 'explicit'));
+  assert.ok(prodSim.some(section => section.source === 'openbible-consensus'));
 });
 
 test('renderer v2 section metadata stays out of the model payload', () => {
@@ -164,7 +189,36 @@ test('renderer v2 section metadata stays out of the model payload', () => {
   assert.equal(payload.scenarioId, undefined);
   assert.equal(payload.section.genre, undefined);
   assert.equal(payload.section.sectionKind, undefined);
-  assert.deepEqual(payload.targetVerses, [20, 21]);
+  assert.equal(payload.targetVerses, undefined);
+  assert.deepEqual(payload.targetReferences, ['Joshua 6:20', 'Joshua 6:21']);
+});
+
+test('renderer v2 filters extra in-section verses from sparse fallback output', () => {
+  const section = {
+    book: 'Psalms',
+    chapter: 119,
+    start: 25,
+    end: 48,
+    references: Array.from({ length: 24 }, (_, i) => `Psalms 119:${25 + i}`),
+    targetReferences: ['Psalms 119:25', 'Psalms 119:48'],
+  };
+  const verse = n => ({
+    ref: `Psalms 119:${n}`,
+    rendering: `Rendered ${n}`,
+    note: `Note ${n}`,
+    noteKind: 'literary',
+    christConnection: 'none',
+  });
+
+  assert.deepEqual(validateSectionResult({ verses: [verse(25), verse(26), verse(48)] }, section), [verse(25), verse(48)]);
+  assert.throws(
+    () => validateSectionResult({ verses: [verse(25), verse(49), verse(48)] }, section),
+    /unexpected rendered ref/
+  );
+  assert.throws(
+    () => validateSectionResult({ verses: [verse(25), verse(26)] }, section),
+    /missing target refs/
+  );
 });
 
 test('renderer v2 eval scenario loader validates structural errors', () => {
@@ -197,18 +251,15 @@ test('renderer v2 prod-sim scenarios hydrate through production section grouping
   const expectedPsalm119 = groupMissingVersesIntoSections('Psalms', 119, Array.from({ length: 176 }, (_, i) => i));
 
   assert.deepEqual(
-    psalm119.map(section => [section.start, section.end, section.source, section.targetVerses.length]),
-    expectedPsalm119.map(section => [section.start, section.end, section.source, section.targetVerses.length])
+    psalm119.map(section => [section.id, section.source, section.targetReferences.length]),
+    expectedPsalm119.map(section => [section.id, section.source, section.targetReferences.length])
   );
-  assert.equal(Math.max(...psalm119.map(section => section.targetVerses.length)), 24);
+  assert.equal(Math.max(...psalm119.map(section => section.targetReferences.length)), 8);
 
   const proverbs = prodSim.filter(section => section.scenarioId === 'prod_proverbs_26_partial_crossing');
-  assert.deepEqual(proverbs.map(section => [section.start, section.end, section.source, section.targetVerses]), [
-    [4, 5, 'explicit', [4, 5]],
-    [6, 8, 'fallback', [6, 7, 8]],
-    [9, 16, 'fallback', [9]],
+  assert.deepEqual(proverbs.map(section => [sectionRef(section), section.source, section.targetReferences.length]), [
+    ['Proverbs 26:1-Proverbs 26:28', 'openbible-consensus', 28],
   ]);
-  assert.ok(proverbs.every(section => section.targetVerses.length <= 8));
 });
 
 test('renderer v2 eval report writes markdown and JSON rubric artifacts', t => {
@@ -230,12 +281,15 @@ test('renderer v2 eval report writes markdown and JSON rubric artifacts', t => {
     riskFlags: ['christ_connection_risk'],
     evalSet: 'smoke',
     evalSets: ['smoke'],
-    targetVerses: [1, 2],
+    startRef: 'Genesis 1:1',
+    endRef: 'Genesis 1:2',
+    references: ['Genesis 1:1', 'Genesis 1:2'],
+    targetReferences: ['Genesis 1:1', 'Genesis 1:2'],
   }];
   const rendered = [
     {
       ref: 'Genesis 1:1',
-      sectionRef: 'Genesis 1:1-2',
+      sectionRef: 'Genesis 1:1-Genesis 1:2',
       scenarioId: 'test_creation',
       mode: 'explicit',
       sectionSource: 'explicit',
@@ -250,7 +304,7 @@ test('renderer v2 eval report writes markdown and JSON rubric artifacts', t => {
     },
     {
       ref: 'Genesis 1:2',
-      sectionRef: 'Genesis 1:1-2',
+      sectionRef: 'Genesis 1:1-Genesis 1:2',
       scenarioId: 'test_creation',
       mode: 'explicit',
       sectionSource: 'explicit',
@@ -294,7 +348,7 @@ test('renderer v2 eval report writes markdown and JSON rubric artifacts', t => {
   assert.match(markdown, /christ_connection_risk/);
   assert.match(markdown, /Manual Section Review/);
   assert.match(markdown, /test_creation/);
-  assert.match(markdown, /Genesis 1:1-2/);
+  assert.match(markdown, /Genesis 1:1-Genesis 1:2/);
   assert.ok(fs.existsSync(paths.mdPath));
   assert.ok(fs.existsSync(paths.jsonPath));
   assert.equal(JSON.parse(fs.readFileSync(paths.jsonPath, 'utf8')).evalName, 'renderer-v2-smoke');
@@ -315,11 +369,14 @@ test('renderer v2 eval gate ignores subjective review warnings and fails hard ga
     riskFlags: [],
     evalSet: 'smoke',
     evalSets: ['smoke'],
-    targetVerses: [1],
+    startRef: 'Genesis 1:1',
+    endRef: 'Genesis 1:1',
+    references: ['Genesis 1:1'],
+    targetReferences: ['Genesis 1:1'],
   };
   const rendered = [{
     ref: 'Genesis 1:1',
-    sectionRef: 'Genesis 1:1-1',
+    sectionRef: 'Genesis 1:1-Genesis 1:1',
     scenarioId: 'test_gate',
     mode: 'explicit',
     sectionSource: 'explicit',

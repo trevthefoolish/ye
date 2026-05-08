@@ -14,6 +14,13 @@ const V2_SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'prompts', 'margin
 const SECTIONS_VERSION = SECTIONS_DATA.version || 'sections-v1';
 const EVAL_SCENARIOS_VERSION = EVAL_SCENARIOS_DATA.version || 'eval-scenarios-v1';
 const EVAL_SCENARIO_MODES = ['explicit', 'fallback-chapter', 'fallback-partial'];
+const SECTION_RENDER_TIMEOUT_MS = parsePositiveInt(process.env.RENDER_SECTION_TIMEOUT_MS, 90_000);
+const SECTION_SOURCE_VALUES = new Set(['openbible-consensus', 'generated-fallback', 'manual', 'explicit']);
+
+function parsePositiveInt(value, fallback) {
+  const n = Number.parseInt(value || '', 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
 
 function stableStringify(value) {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -23,10 +30,16 @@ function stableStringify(value) {
   return JSON.stringify(value);
 }
 
+function sectionMapFingerprintInput(data) {
+  if (!data || typeof data !== 'object') return data;
+  const { generatedAt, ...stable } = data;
+  return stable;
+}
+
 function fingerprintSectionMap(data = SECTIONS_DATA) {
   return crypto
     .createHash('sha256')
-    .update(stableStringify(data))
+    .update(stableStringify(sectionMapFingerprintInput(data)))
     .digest('hex')
     .slice(0, 12);
 }
@@ -61,9 +74,9 @@ const SECTION_RENDER_SCHEMA = {
       items: {
         type: 'object',
         properties: {
-          verse: {
-            type: 'integer',
-            description: 'The 1-based verse number rendered in this entry.',
+          ref: {
+            type: 'string',
+            description: 'The canonical verse reference rendered in this entry, for example "Genesis 1:1".',
           },
           rendering: {
             type: 'string',
@@ -84,7 +97,7 @@ const SECTION_RENDER_SCHEMA = {
             description: 'How explicit the Christ-centered canonical connection is.',
           },
         },
-        required: ['verse', 'rendering', 'note', 'noteKind', 'christConnection'],
+        required: ['ref', 'rendering', 'note', 'noteKind', 'christConnection'],
         additionalProperties: false,
       },
     },
@@ -93,11 +106,58 @@ const SECTION_RENDER_SCHEMA = {
   additionalProperties: false,
 };
 
+function refForEntry(book, chapter, verse) {
+  return `${book} ${chapter}:${verse}`;
+}
+
+const REF_RE = /^(.*) (\d+):(\d+)$/;
+const REF_TO_LOCATION = new Map();
+const REF_TO_ORDINAL = new Map();
+const ORDINAL_TO_REF = [];
+const BOOK_CHAPTER_REFS = new Map();
+
+for (const [bookIndex, book] of BOOKS.entries()) {
+  for (let chapter = 1; chapter <= VERSES[bookIndex].length; chapter++) {
+    const chapterRefs = [];
+    for (let verse = 1; verse <= VERSES[bookIndex][chapter - 1]; verse++) {
+      const ref = refForEntry(book, chapter, verse);
+      const location = { ref, book, bookIndex, chapter, verse };
+      REF_TO_LOCATION.set(ref, location);
+      REF_TO_ORDINAL.set(ref, ORDINAL_TO_REF.length);
+      ORDINAL_TO_REF.push(ref);
+      chapterRefs.push(ref);
+    }
+    BOOK_CHAPTER_REFS.set(`${book}:${chapter}`, chapterRefs);
+  }
+}
+
+function parseRef(ref) {
+  if (REF_TO_LOCATION.has(ref)) return REF_TO_LOCATION.get(ref);
+  const match = REF_RE.exec(ref);
+  if (!match) throw new Error(`malformed reference: ${ref}`);
+  throw new Error(`unknown reference: ${ref}`);
+}
+
+function compareRefs(a, b) {
+  return REF_TO_ORDINAL.get(a) - REF_TO_ORDINAL.get(b);
+}
+
+function refsForRange(startRef, endRef) {
+  const start = REF_TO_ORDINAL.get(startRef);
+  const end = REF_TO_ORDINAL.get(endRef);
+  if (start === undefined || end === undefined || end < start) {
+    throw new Error(`invalid section range: ${startRef}-${endRef}`);
+  }
+  return ORDINAL_TO_REF.slice(start, end + 1);
+}
+
+function refsForChapter(book, chapter) {
+  return BOOK_CHAPTER_REFS.get(`${book}:${chapter}`) || [];
+}
+
 function sectionRefs(bookName, chapter, startVerse, endVerse) {
   const refs = [];
-  for (let verse = startVerse; verse <= endVerse; verse++) {
-    refs.push(`${bookName} ${chapter}:${verse}`);
-  }
+  for (let verse = startVerse; verse <= endVerse; verse++) refs.push(refForEntry(bookName, chapter, verse));
   return refs;
 }
 
@@ -105,24 +165,114 @@ function targetVersesFor(section) {
   return Array.from({ length: section.end - section.start + 1 }, (_, i) => section.start + i);
 }
 
-function refForEntry(book, chapter, verse) {
-  return `${book} ${chapter}:${verse}`;
+function hydrateSectionRecord(section) {
+  const references = Array.isArray(section.references) && section.references.length
+    ? section.references
+    : refsForRange(section.startRef, section.endRef);
+  const first = parseRef(references[0]);
+  const last = parseRef(references[references.length - 1]);
+  const startRef = section.startRef || first.ref;
+  const endRef = section.endRef || last.ref;
+  return {
+    ...section,
+    id: section.id || sectionKey({ book: first.book, chapter: first.chapter, start: first.verse, end: last.verse }),
+    source: section.source || 'manual',
+    book: section.book || first.book,
+    chapter: first.chapter,
+    start: first.verse,
+    end: last.verse,
+    startRef,
+    endRef,
+    label: section.label || `${startRef}-${endRef}`,
+    references,
+    targetReferences: Array.isArray(section.targetReferences) && section.targetReferences.length
+      ? section.targetReferences
+      : references,
+    targetVerses: references.filter(ref => parseRef(ref).book === first.book && parseRef(ref).chapter === first.chapter).map(ref => parseRef(ref).verse),
+  };
+}
+
+function validateSectionMap(data = SECTIONS_DATA) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.sections)) {
+    throw new Error('sections data must contain a sections array');
+  }
+  const seenIds = new Set();
+  const covered = new Set();
+  const sourceCounts = {};
+  for (const raw of data.sections) {
+    const section = hydrateSectionRecord(raw);
+    if (seenIds.has(section.id)) throw new Error(`duplicate section id: ${section.id}`);
+    if (!SECTION_SOURCE_VALUES.has(section.source)) throw new Error(`unknown section source: ${section.source}`);
+    seenIds.add(section.id);
+    sourceCounts[section.source] = (sourceCounts[section.source] || 0) + 1;
+    for (const ref of section.references) {
+      parseRef(ref);
+      if (covered.has(ref)) throw new Error(`overlapping section ref: ${ref}`);
+      covered.add(ref);
+    }
+    for (const ref of section.targetReferences) {
+      if (!section.references.includes(ref)) throw new Error(`target ref outside section ${section.id}: ${ref}`);
+    }
+  }
+  const missingRefs = ORDINAL_TO_REF.filter(ref => !covered.has(ref));
+  if (missingRefs.length > 0) {
+    throw new Error(`section map has ${missingRefs.length} uncovered refs, first missing: ${missingRefs[0]}`);
+  }
+  return {
+    sections: data.sections.length,
+    verses: covered.size,
+    expectedVerses: ORDINAL_TO_REF.length,
+    missingRefs,
+    sourceCounts,
+  };
+}
+
+const SECTION_MAP_VALIDATION = validateSectionMap(SECTIONS_DATA);
+const HYDRATED_SECTIONS = SECTIONS_DATA.sections.map(hydrateSectionRecord);
+const SECTIONS_BY_REF = new Map();
+for (const section of HYDRATED_SECTIONS) {
+  for (const ref of section.references) {
+    if (!SECTIONS_BY_REF.has(ref)) SECTIONS_BY_REF.set(ref, []);
+    SECTIONS_BY_REF.get(ref).push(section);
+  }
+}
+
+function sectionRef(section) {
+  return `${section.startRef || refForEntry(section.book, section.chapter, section.start)}-${section.endRef || refForEntry(section.book, section.chapter, section.end)}`;
+}
+
+function sectionsForMissingRefs(bookName, chapter, missingZeroBased) {
+  const sections = new Map();
+  for (const missing of missingZeroBased) {
+    const ref = refForEntry(bookName, chapter, missing + 1);
+    for (const section of SECTIONS_BY_REF.get(ref) || []) sections.set(section.id, section);
+  }
+  return [...sections.values()].sort((a, b) => compareRefs(a.startRef, b.startRef) || compareRefs(a.endRef, b.endRef));
 }
 
 function hydrateEvalSection(section) {
+  const startRef = section.startRef || refForEntry(section.book, section.chapter, section.start);
+  const endRef = section.endRef || refForEntry(section.book, section.chapter, section.end);
+  const references = section.references || refsForRange(startRef, endRef);
   return {
     ...section,
     source: section.source || 'explicit',
-    targetVerses: targetVersesFor(section),
-    references: sectionRefs(section.book, section.chapter, section.start, section.end),
+    id: section.id || sectionKey(section),
+    startRef,
+    endRef,
+    targetVerses: section.targetVerses || targetVersesFor(section),
+    references,
+    targetReferences: section.targetReferences || references,
   };
 }
 
 function explicitSectionsFor(bookName, chapter) {
-  return SECTIONS_DATA.sections
-    .filter(s => s.book === bookName && s.chapter === chapter)
-    .map(s => ({ ...s, source: 'explicit' }))
-    .sort((a, b) => a.start - b.start || a.end - b.end);
+  return HYDRATED_SECTIONS
+    .filter(section => section.references.some(ref => {
+      const location = parseRef(ref);
+      return location.book === bookName && location.chapter === chapter;
+    }))
+    .sort((a, b) => compareRefs(a.startRef, b.startRef) || compareRefs(a.endRef, b.endRef));
 }
 
 function fallbackWindowSize(bookName) {
@@ -160,24 +310,7 @@ function groupMissingVersesIntoSections(bookName, chapter, missingZeroBased) {
   if (bookIndex === -1) throw new Error(`unknown book: ${bookName}`);
   const verseCount = VERSES[bookIndex]?.[chapter - 1];
   if (!verseCount) throw new Error(`unknown chapter: ${bookName} ${chapter}`);
-
-  const explicit = explicitSectionsFor(bookName, chapter);
-  const groups = new Map();
-  for (const v of missingZeroBased) {
-    const verse = v + 1;
-    const section = explicit.find(s => verse >= s.start && verse <= s.end)
-      || fallbackSectionOutsideExplicit(bookName, chapter, verse, verseCount, explicit);
-    const key = sectionKey(section);
-    if (!groups.has(key)) {
-      groups.set(key, {
-        ...section,
-        targetVerses: [],
-        references: sectionRefs(bookName, chapter, section.start, section.end),
-      });
-    }
-    groups.get(key).targetVerses.push(verse);
-  }
-  return [...groups.values()].sort((a, b) => a.start - b.start || a.end - b.end);
+  return sectionsForMissingRefs(bookName, chapter, missingZeroBased);
 }
 
 function validateBookChapter(book, chapter) {
@@ -286,25 +419,28 @@ function evalScenarios(evalSet = 'smoke', data = EVAL_SCENARIOS_DATA) {
 }
 
 function buildSectionUserPayload(bookName, chapter, section) {
+  const targetReferences = section.targetReferences || section.references;
   return {
     task: 'Render reference-only Bible verses for vapourware.ai.',
     book: bookName,
     chapter,
     section: {
-      startVerse: section.start,
-      endVerse: section.end,
+      id: section.id,
+      startRef: section.startRef,
+      endRef: section.endRef,
       label: section.label,
       source: section.source,
     },
     sectionReferences: section.references,
-    targetVerses: section.targetVerses,
+    targetReferences,
     noteKindOptions: NOTE_KIND_VALUES,
     christConnectionOptions: CHRIST_CONNECTION_VALUES,
     constraints: [
-      'Return exactly one entry for each target verse.',
+      'Return exactly one entry for each target reference in targetReferences.',
+      'Use the ref field exactly as provided in targetReferences.',
       'Every returned verse must have a rendering and a note.',
       'Keep notes brief and concrete.',
-      'Do not return entries for non-target verses.',
+      'Do not return entries for other sectionReferences; they are context only.',
     ],
   };
 }
@@ -341,24 +477,31 @@ function extractResponsesOutputText(data) {
 
 function validateSectionResult(parsed, section) {
   if (!parsed || !Array.isArray(parsed.verses)) throw new Error('malformed section rendering');
-  const wanted = new Set(section.targetVerses);
+  const targetReferences = section.targetReferences || section.references;
+  const wanted = new Set(targetReferences);
+  const sectionRefs = new Set(section.references);
+  const entriesByRef = new Map();
   const seen = new Set();
   for (const entry of parsed.verses) {
-    if (!Number.isInteger(entry.verse) || !wanted.has(entry.verse)) throw new Error('unexpected rendered verse');
-    if (seen.has(entry.verse)) throw new Error('duplicate rendered verse');
+    if (typeof entry.ref !== 'string') throw new Error('unexpected rendered ref');
+    parseRef(entry.ref);
+    if (!sectionRefs.has(entry.ref)) throw new Error('unexpected rendered ref');
     if (typeof entry.rendering !== 'string' || typeof entry.note !== 'string') throw new Error('malformed verse rendering');
     if (!NOTE_KIND_VALUES.includes(entry.noteKind)) throw new Error('malformed note kind');
     if (!CHRIST_CONNECTION_VALUES.includes(entry.christConnection)) throw new Error('malformed Christ connection');
-    seen.add(entry.verse);
+    if (!wanted.has(entry.ref)) continue;
+    if (seen.has(entry.ref)) throw new Error('duplicate rendered ref');
+    seen.add(entry.ref);
+    entriesByRef.set(entry.ref, entry);
   }
-  if (seen.size !== wanted.size) throw new Error('section rendering missing target verses');
-  return parsed.verses;
+  if (seen.size !== wanted.size) throw new Error('section rendering missing target refs');
+  return targetReferences.map(ref => entriesByRef.get(ref));
 }
 
 async function renderSectionOnce({ apiUrl, apiKey, model, reasoningEffort, bookName, chapter, section, fetchImpl = fetch }) {
   const r = await fetchImpl(apiUrl, {
     method: 'POST',
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(SECTION_RENDER_TIMEOUT_MS),
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify(buildSectionRequest({ model, reasoningEffort, bookName, chapter, section })),
   });
@@ -410,10 +553,15 @@ module.exports = {
   extractResponsesOutputText,
   fingerprintSectionMap,
   groupMissingVersesIntoSections,
+  parseRef,
   refForEntry,
+  refsForChapter,
   renderSectionOnce,
   renderVersionParts,
+  sectionRef,
+  sectionsForMissingRefs,
   smokeEvalSections,
   validateEvalScenarioData,
+  validateSectionMap,
   validateSectionResult,
 };

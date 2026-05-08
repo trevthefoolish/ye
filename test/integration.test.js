@@ -105,10 +105,10 @@ function startMockResponsesXai(t, opts = {}) {
           content: [{
             type: 'output_text',
             text: JSON.stringify({
-              verses: request.targetVerses.map(verse => ({
-                verse,
-                rendering: `Rendered ${request.book} ${request.chapter}:${verse}`,
-                note: `Margin ${request.book} ${request.chapter}:${verse}`,
+              verses: request.targetReferences.map(ref => ({
+                ref,
+                rendering: `Rendered ${ref}`,
+                note: `Margin ${ref}`,
                 noteKind: 'literary',
                 christConnection: 'none',
               })),
@@ -347,7 +347,7 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   assert.equal(version.renderPipeline, 'section-v2');
   assert.equal(version.promptVersion, 'margin-note-v2');
   assert.equal(version.schemaVersion, 'section-render-v1');
-  assert.equal(version.sectionVersion, 'sections-v1');
+  assert.equal(version.sectionVersion, 'sections-openbible-v1');
 
   const cold = await request(app.port, '/api/chapter/genesis/1');
   assert.equal(cold.status, 200);
@@ -371,8 +371,12 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   const user = JSON.parse(payload.input.find(m => m.role === 'user').content);
   assert.equal(user.book, 'Genesis');
   assert.equal(user.chapter, 1);
-  assert.deepEqual(user.targetVerses, [1, 2, 3, 4, 5]);
-  assert.equal(user.section.label, 'Creation begins with speech and light');
+  assert.equal(user.targetVerses, undefined);
+  assert.equal(user.section.startRef, 'Genesis 1:1');
+  assert.equal(user.section.endRef, 'Genesis 2:3');
+  assert.equal(user.section.source, 'openbible-consensus');
+  assert.deepEqual(user.targetReferences.slice(0, 3), ['Genesis 1:1', 'Genesis 1:2', 'Genesis 1:3']);
+  assert.deepEqual(user.targetReferences.slice(-3), ['Genesis 2:1', 'Genesis 2:2', 'Genesis 2:3']);
   assert.equal(user.genre, undefined);
   assert.equal(user.sectionKind, undefined);
   assert.equal(user.riskFlags, undefined);
@@ -386,6 +390,8 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   assert.equal(cache['0:0'].noteKind, 'literary');
   assert.equal(cache['0:0'].christConnection, 'none');
   assert.equal(cache['0:0'].v, version.version);
+  assert.equal(cache['1:0'].rendering, 'Rendered Genesis 2:1');
+  assert.equal(cache['1:0'].note, 'Margin Genesis 2:1');
 
   const publicChapter = await request(app.port, '/api/chapter/genesis/1');
   const publicData = JSON.parse(publicChapter.body);
@@ -395,6 +401,36 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   assert.equal(publicData.verses[0].christConnection, undefined);
   assert.equal(publicData.verses[0].genre, undefined);
   assert.equal(publicData.verses[0].riskFlags, undefined);
+});
+
+test('renderer v2 dedupes overlapping chapter requests by section id', async t => {
+  const mockXai = await startMockResponsesXai(t, { delayMs: 25 });
+  const app = await startApp(t, mockXai.url, {
+    RENDER_PIPELINE: 'section-v2',
+    RENDER_CONCURRENCY: '4',
+    SEED_RENDER_CACHE: '0',
+  });
+
+  const [genesis1, genesis2] = await Promise.all([
+    request(app.port, '/api/chapter/genesis/1'),
+    request(app.port, '/api/chapter/genesis/2'),
+  ]);
+  assert.equal(genesis1.status, 200);
+  assert.equal(genesis2.status, 200);
+
+  await Promise.all([
+    waitForComplete(app.port, '/api/chapter/genesis/1'),
+    waitForComplete(app.port, '/api/chapter/genesis/2'),
+  ]);
+
+  const renderedSections = mockXai.payloads.map(payload => {
+    const user = JSON.parse(payload.input.find(m => m.role === 'user').content);
+    return `${user.section.startRef}-${user.section.endRef}`;
+  });
+  assert.equal(
+    renderedSections.filter(ref => ref === 'Genesis 1:1-Genesis 2:3').length,
+    1
+  );
 });
 
 test('global render concurrency caps upstream XAI calls without request rate limiting', async t => {
@@ -435,6 +471,39 @@ test('foreground chapter rendering outranks background adjacent pre-rendering', 
   await waitForComplete(app.port, '/api/chapter/3-john/1');
 
   const refs = mockXai.payloads.map(payload => payload.messages.find(m => m.role === 'user').content);
+  const firstBackgroundAfterStart = refs.findIndex((ref, i) => i > 0 && ref.startsWith('2 John '));
+  const lastForeground = refs.findLastIndex(ref => ref.startsWith('3 John '));
+
+  assert.equal(refs[0], '2 John 1:1');
+  assert.equal(refs[1], '3 John 1:1');
+  assert.ok(
+    firstBackgroundAfterStart === -1 || firstBackgroundAfterStart > lastForeground,
+    `background resumed before foreground completed: ${refs.join(', ')}`
+  );
+});
+
+test('foreground section-v2 rendering outranks background adjacent pre-rendering', async t => {
+  const mockXai = await startMockResponsesXai(t, { delayMs: 25 });
+  const app = await startApp(t, mockXai.url, {
+    RENDER_PIPELINE: 'section-v2',
+    RENDER_CONCURRENCY: '1',
+    SEED_RENDER_CACHE: '0',
+  });
+
+  const background = await request(app.port, '/api/chapter/2-john/1?priority=background');
+  assert.equal(background.status, 200);
+  assert.equal(JSON.parse(background.body).renderPriority, 'background');
+
+  const foreground = await request(app.port, '/api/chapter/3-john/1');
+  assert.equal(foreground.status, 200);
+  assert.equal(JSON.parse(foreground.body).renderPriority, 'foreground');
+
+  await waitForComplete(app.port, '/api/chapter/3-john/1');
+
+  const refs = mockXai.payloads.map(payload => {
+    const user = JSON.parse(payload.input.find(m => m.role === 'user').content);
+    return user.section.startRef;
+  });
   const firstBackgroundAfterStart = refs.findIndex((ref, i) => i > 0 && ref.startsWith('2 John '));
   const lastForeground = refs.findLastIndex(ref => ref.startsWith('3 John '));
 
