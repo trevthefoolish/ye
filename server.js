@@ -24,6 +24,9 @@ const RENDER_CONCURRENCY = 8;
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 30;
 const RATE_CLEANUP_MS = 5 * 60_000;
+const DEFAULT_PATH = '/ecclesiastes/1';
+const PARTIAL_RETRY_MS = 2_000;
+const RATE_LIMITED_RETRY_MS = 10_000;
 
 // --- Asset fingerprinting ---
 const CSS_SRC = fs.readFileSync(path.join(__dirname, 'public', 'style.css'), 'utf8');
@@ -38,9 +41,11 @@ const app = express();
 app.set('trust proxy', 2);
 const XAI_API_KEY = process.env.XAI_API_KEY;
 if (!XAI_API_KEY) { log.error('missing_api_key'); process.exit(1); }
+const XAI_API_URL = process.env.XAI_API_URL || 'https://api.x.ai/v1/chat/completions';
 process.on('unhandledRejection', reason => log.error('unhandled_rejection', { err: String(reason) }));
-const RENDERS_DIR = path.join(__dirname, 'renders');
-if (!fs.existsSync(RENDERS_DIR)) fs.mkdirSync(RENDERS_DIR);
+const SOURCE_RENDERS_DIR = path.join(__dirname, 'renders');
+const RENDERS_DIR = process.env.RENDERS_DIR ? path.resolve(process.env.RENDERS_DIR) : SOURCE_RENDERS_DIR;
+fs.mkdirSync(RENDERS_DIR, { recursive: true });
 
 const RENDER_MODEL = 'grok-4.20-0309-non-reasoning';
 const SYSTEM_PROMPT = `You are a biblical scholar who helps people see how the Bible is a unified story that leads to Jesus. Your voice is warm, curious, and accessible — like a friend who's deeply studied this stuff and can't wait to show you what they found.
@@ -92,7 +97,7 @@ const RENDER_VERSION = crypto
 function toSlug(name) { return name.toLowerCase().replace(/ /g, '-'); }
 
 function cleanText(s) {
-  return s.replaceAll('\u2014', ', ').replaceAll('vapor', 'vapour');
+  return s.replaceAll('\u2014', ', ').replace(/\bvapor\b/g, 'vapour');
 }
 
 function escapeHtml(s) {
@@ -157,6 +162,48 @@ app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 // --- In-memory cache layer over disk ---
 const memCache = new Map();
 const etagCache = new Map(); // bookIndex:chapterKey → { body, etag }
+const saveChains = new Map();
+const chapterJobs = new Map();
+
+function safeDecodePath(p) {
+  try { return decodeURIComponent(p); } catch { return null; }
+}
+
+function isAssetPath(p) {
+  const last = p.split('/').pop() || '';
+  return last.includes('.');
+}
+
+function seedRenderCache() {
+  if (process.env.SEED_RENDER_CACHE === '0' || RENDERS_DIR === SOURCE_RENDERS_DIR) return;
+  let seeded = 0;
+  try {
+    for (const f of fs.readdirSync(SOURCE_RENDERS_DIR)) {
+      if (!f.endsWith('.json')) continue;
+      const src = path.join(SOURCE_RENDERS_DIR, f);
+      const dest = path.join(RENDERS_DIR, f);
+      const sourceData = JSON.parse(fs.readFileSync(src, 'utf8'));
+      let destData = {};
+      let changed = false;
+      try { destData = JSON.parse(fs.readFileSync(dest, 'utf8')); } catch {}
+      for (const [key, value] of Object.entries(sourceData)) {
+        if (!(key in destData)) {
+          destData[key] = value;
+          changed = true;
+        }
+      }
+      if (changed || !fs.existsSync(dest)) {
+        fs.writeFileSync(dest, JSON.stringify(destData, null, 2));
+        seeded++;
+      }
+    }
+    if (seeded > 0) log.info('render_cache_seeded', { files: seeded, dir: RENDERS_DIR });
+  } catch (err) {
+    log.error('render_cache_seed_failed', { err: err.message });
+  }
+}
+
+seedRenderCache();
 
 function loadCache(bookIndex) {
   if (memCache.has(bookIndex)) return memCache.get(bookIndex);
@@ -173,10 +220,23 @@ function saveCache(bookIndex, cache) {
   for (const key of etagCache.keys()) {
     if (key.startsWith(bookIndex + ':')) etagCache.delete(key);
   }
-  fs.promises.writeFile(
-    path.join(RENDERS_DIR, `${bookIndex}.json`),
-    JSON.stringify(cache, null, 2)
-  ).catch(err => log.error('cache_write_failed', { book: bookIndex, err: err.message }));
+  const file = path.join(RENDERS_DIR, `${bookIndex}.json`);
+  const tmp = file + `.${process.pid}.${Date.now()}.${crypto.randomUUID()}.tmp`;
+  const body = JSON.stringify(cache, null, 2);
+  const previous = saveChains.get(bookIndex) || Promise.resolve();
+  const next = previous
+    .catch(() => {})
+    .then(async () => {
+      await fs.promises.mkdir(RENDERS_DIR, { recursive: true });
+      await fs.promises.writeFile(tmp, body);
+      await fs.promises.rename(tmp, file);
+    });
+  const tracked = next.finally(() => {
+    if (saveChains.get(bookIndex) === tracked) saveChains.delete(bookIndex);
+  });
+  saveChains.set(bookIndex, tracked);
+  tracked.catch(err => log.error('cache_write_failed', { book: bookIndex, err: err.message }));
+  return tracked;
 }
 
 // --- Shared helpers ---
@@ -185,7 +245,8 @@ function resolveChapter(bookSlug, chapterStr) {
   const bookName = bookSlug.replace(/-/g, ' ');
   const bookIndex = BOOKS_LOWER.indexOf(bookName.toLowerCase());
   if (bookIndex === -1) return null;
-  const chNum = parseInt(chapterStr);
+  if (!/^\d+$/.test(chapterStr)) return null;
+  const chNum = Number(chapterStr);
   if (!Number.isFinite(chNum) || chNum < 1) return null;
   const verseCount = VERSES[bookIndex]?.[chNum - 1];
   if (!verseCount) return null;
@@ -195,7 +256,7 @@ function resolveChapter(bookSlug, chapterStr) {
 function getChapterVerses(bookIndex, chNum) {
   const cache = loadCache(bookIndex);
   const verseCount = VERSES[bookIndex][chNum - 1];
-  const verses = [];
+  const verses = Array(verseCount).fill(null);
   const missing = [];
   for (let v = 0; v < verseCount; v++) {
     const entry = cache[`${chNum - 1}:${v}`];
@@ -226,7 +287,7 @@ async function renderVerse(book, chapter, verse) {
 
 async function renderVerseOnce(book, chapter, verse) {
   const ref = `${book} ${chapter}:${verse}`;
-  const r = await fetch('https://api.x.ai/v1/chat/completions', {
+  const r = await fetch(XAI_API_URL, {
     method: 'POST',
     signal: AbortSignal.timeout(API_TIMEOUT_MS),
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${XAI_API_KEY}` },
@@ -273,7 +334,7 @@ async function renderVerseOnce(book, chapter, verse) {
   parsed.note = cleanText(parsed.note);
   // Model quality feedback: note should be shorter than rendering
   if (parsed.note.length >= parsed.rendering.length) {
-    log.warn('note_too_long', { book, chapter, verse, noteLen: parsed.note.length, renderLen: parsed.rendering.length });
+    log.debug('note_too_long', { book, chapter, verse, noteLen: parsed.note.length, renderLen: parsed.rendering.length });
   }
   return parsed;
 }
@@ -281,48 +342,69 @@ async function renderVerseOnce(book, chapter, verse) {
 // --- Rate limiting ---
 const checkApiRate = createRateLimiter(RATE_WINDOW_MS, RATE_LIMIT, RATE_CLEANUP_MS);
 
-function rateLimit(req, res) {
-  if (!checkApiRate(req.ip)) {
-    res.status(429).json({ error: 'too many requests' });
-    return false;
+async function renderMissingChapter(ref, requestedMissing) {
+  const { bookIndex, bookName, chNum } = ref;
+  const cache = loadCache(bookIndex);
+  const missing = requestedMissing.filter(v => {
+    const entry = cache[`${chNum - 1}:${v}`];
+    return !entry || entry.v !== RENDER_VERSION;
+  });
+  if (missing.length === 0) return;
+
+  log.info('chapter_render_started', { book: bookName, ch: chNum, missing: missing.length });
+  let rendered = 0;
+  for (let i = 0; i < missing.length; i += RENDER_CONCURRENCY) {
+    const batch = missing.slice(i, i + RENDER_CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(v => renderVerse(bookName, chNum, v + 1).then(r => ({ v, r })))
+    );
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result.status === 'fulfilled') {
+        const { v, r } = result.value;
+        cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
+        rendered++;
+      } else {
+        log.warn('verse_render_failed', { book: bookName, ch: chNum, verse: batch[j] + 1, reason: result.reason?.message || String(result.reason) });
+      }
+    }
+    await saveCache(bookIndex, cache);
   }
-  return true;
+  log.info('chapter_render_finished', { book: bookName, ch: chNum, rendered });
+}
+
+function queueChapterRender(ref, missing, req) {
+  const key = `${ref.bookIndex}:${ref.chNum}`;
+  if (chapterJobs.has(key)) return 'inflight';
+  if (!checkApiRate(req.ip)) return 'rate_limited';
+  const job = renderMissingChapter(ref, missing)
+    .catch(err => log.error('chapter_render_failed', { book: ref.bookName, ch: ref.chNum, err: err.message }))
+    .finally(() => chapterJobs.delete(key));
+  chapterJobs.set(key, job);
+  return 'started';
 }
 
 app.get('/api/chapter/:book/:chapter', async (req, res) => {
-  if (!rateLimit(req, res)) return;
-
   const ref = resolveChapter(req.params.book, req.params.chapter);
   if (!ref) return res.status(400).json({ error: 'invalid book or chapter' });
   const { bookIndex, bookName, chNum } = ref;
 
-  const { cache, verses, missing } = getChapterVerses(bookIndex, chNum);
-
-  // Render missing verses in batches (limit concurrency to avoid API rate limits)
+  let { verses, missing } = getChapterVerses(bookIndex, chNum);
   if (missing.length > 0) {
-    for (let i = 0; i < missing.length; i += RENDER_CONCURRENCY) {
-      const batch = missing.slice(i, i + RENDER_CONCURRENCY);
-      const results = await Promise.allSettled(
-        batch.map(v => renderVerse(bookName, chNum, v + 1).then(r => ({ v, r })))
-      );
-      for (let j = 0; j < results.length; j++) {
-        const result = results[j];
-        if (result.status === 'fulfilled') {
-          const { v, r } = result.value;
-          verses[v] = { rendering: r.rendering, note: r.note };
-          cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
-        } else {
-          log.warn('verse_render_failed', { book: bookName, ch: chNum, verse: batch[j] + 1, reason: result.reason?.message || String(result.reason) });
-        }
-      }
-    }
-    saveCache(bookIndex, cache);
+    const state = queueChapterRender({ bookIndex, bookName, chNum }, missing, req);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.json({
+      verses,
+      complete: false,
+      missingCount: missing.length,
+      retryAfterMs: state === 'rate_limited' ? RATE_LIMITED_RETRY_MS : PARTIAL_RETRY_MS,
+    });
   }
 
-  const body = JSON.stringify({ verses });
+  const body = JSON.stringify({ verses, complete: true, missingCount: 0 });
 
   // Cache fully-rendered chapters with pre-computed ETag
-  const allRendered = !verses.includes(undefined) && verses.length > 0;
+  const allRendered = !verses.includes(null) && verses.length > 0;
   if (allRendered) {
     const cacheKey = `${bookIndex}:${chNum}`;
     let cached = etagCache.get(cacheKey);
@@ -344,6 +426,10 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', CACHE_ONE_DAY);
   res.json({ version: RENDER_VERSION, model: RENDER_MODEL, appVersion: APP_VERSION });
+});
+
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: 'not found' });
 });
 
 const CONFIG_JSON = JSON.stringify({ books: BOOKS, chapters: CHAPTERS, rv: RENDER_VERSION, v: APP_VERSION }).replace(/<\//g, '<\\/');
@@ -385,7 +471,9 @@ function buildJsonLd(bookName, chNum, slug, canonical) {
 
 app.get('{*path}', (req, res) => {
   // Redirect root visits to remembered chapter
-  const rawPath = decodeURIComponent(req.path);
+  const rawPath = safeDecodePath(req.path);
+  if (rawPath === null) return res.redirect(302, DEFAULT_PATH);
+  if (isAssetPath(rawPath)) return res.status(404).end();
   const pathParts = rawPath.split('/').filter(Boolean);
   if (pathParts.length === 0) {
     const lastPos = parseCookie(req.headers.cookie, 'lastPos');
@@ -398,6 +486,7 @@ app.get('{*path}', (req, res) => {
         return res.redirect(302, '/' + toSlug(BOOKS[bi]) + '/' + (ch + 1));
       }
     }
+    return res.redirect(302, DEFAULT_PATH);
   }
 
   let title = 'vapourware.ai';
@@ -407,7 +496,7 @@ app.get('{*path}', (req, res) => {
   let preloadData = '';
   let jsonLd = buildJsonLd();
   try {
-    const parts = pathParts.length ? pathParts : decodeURIComponent(req.path).split('/').filter(Boolean);
+    const parts = pathParts;
     if (parts.length === 2) {
       const ref = resolveChapter(parts[0], parts[1]);
       if (ref) {
@@ -432,7 +521,11 @@ app.get('{*path}', (req, res) => {
             desc = bookName + ' ' + chNum + ', rendered in modern English with scholarly notes.';
           }
         }
+      } else {
+        return res.redirect(302, DEFAULT_PATH);
       }
+    } else {
+      return res.redirect(302, DEFAULT_PATH);
     }
   } catch (e) { log.warn('path_parse_failed', { path: req.path, err: e.message }); }
   const html = INDEX_HTML
@@ -443,6 +536,19 @@ app.get('{*path}', (req, res) => {
     .replace('<!--PRELOAD_DATA-->', preloadData)
     .replace('<!--JSON_LD-->', '<script type="application/ld+json">' + jsonLd.replace(/<\//g, '<\\/') + '</script>');
   res.type('html').send(html);
+});
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const pathName = req.path || '';
+  if (err instanceof URIError) {
+    if (pathName.startsWith('/api/')) return res.status(400).json({ error: 'bad request' });
+    if (isAssetPath(pathName)) return res.status(404).end();
+    return res.redirect(302, DEFAULT_PATH);
+  }
+  log.error('request_failed', { path: pathName, err: err.message });
+  if (pathName.startsWith('/api/')) return res.status(500).json({ error: 'internal server error' });
+  res.status(500).type('text').send('Internal server error');
 });
 
 const PORT = process.env.PORT || 3000;

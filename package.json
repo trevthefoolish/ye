@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "check": "node --check server.js && node --check logger.js && node --check rateLimit.js && node --check logUtils.js && node --check public/app.js",
+    "test": "node --test"
   },
   "keywords": [],
   "author": "vapourware.ai",

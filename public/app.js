@@ -84,10 +84,17 @@ const BOOKS_LOWER = BOOKS.map(b => b.toLowerCase());
 const chapterCache = new Map();
 const inflightFetches = new Map();
 const scrollPositions = new Map();
+const chapterRetryTimers = new Map();
 
-function fetchChapter(bookName, chNum) {
+function clearChapterRetry(p) {
+  const t = chapterRetryTimers.get(p);
+  if (t) clearTimeout(t);
+  chapterRetryTimers.delete(p);
+}
+
+function fetchChapter(bookName, chNum, opts = {}) {
   const key = `${bookName}/${chNum}`;
-  if (chapterCache.has(key)) return Promise.resolve(chapterCache.get(key));
+  if (!opts.force && chapterCache.has(key)) return Promise.resolve(chapterCache.get(key));
   if (inflightFetches.has(key)) return inflightFetches.get(key);
   const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}?v=${RENDER_VERSION}`, { signal: AbortSignal.timeout(35000) })
     .then(res => {
@@ -95,7 +102,7 @@ function fetchChapter(bookName, chNum) {
       return res.json();
     })
     .then(data => {
-      if (data.verses?.length) chapterCache.set(key, data);
+      if (data.verses?.length && data.complete !== false) chapterCache.set(key, data);
       inflightFetches.delete(key);
       return data;
     })
@@ -271,8 +278,15 @@ nav.addEventListener('click', closeNav);
 // --- RENDER ---
 function renderVersesInto(scroll, verses) {
   const frag = document.createDocumentFragment();
-  for (const v of verses) {
-    if (!v) continue;
+  for (let i = 0; i < verses.length; i++) {
+    const v = verses[i];
+    if (!v) {
+      const line = document.createElement('div');
+      line.className = 'skeleton-line';
+      line.style.width = SKELETON_WIDTHS[i % SKELETON_WIDTHS.length] + '%';
+      frag.appendChild(line);
+      continue;
+    }
     const wrap = document.createElement('div');
     wrap.className = 'verse-wrap';
     const vText = document.createElement('div');
@@ -303,6 +317,32 @@ function renderVersesInto(scroll, verses) {
   scroll.appendChild(frag);
 }
 
+function scheduleChapterRetry(panel, scroll, p, delayMs) {
+  clearChapterRetry(p);
+  const timer = setTimeout(async () => {
+    chapterRetryTimers.delete(p);
+    if (!scroll.isConnected || scroll.dataset.p !== String(p)) return;
+    const e = ALL[p];
+    const bookName = BOOKS[e.bi];
+    const chNum = e.ch + 1;
+    try {
+      const data = await fetchChapter(bookName, chNum, { force: true });
+      if (!scroll.isConnected || scroll.dataset.p !== String(p)) return;
+      scroll.replaceChildren();
+      renderVersesInto(scroll, data.verses || []);
+      if (data.complete === false) {
+        scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000);
+      } else {
+        bindScrollShadow();
+      }
+    } catch (err) {
+      reportError('chapter_retry', bookName + ' ' + chNum + ': ' + err.message);
+      scheduleChapterRetry(panel, scroll, p, delayMs);
+    }
+  }, delayMs);
+  chapterRetryTimers.set(p, timer);
+}
+
 // Fill a single panel with chapter content
 async function fillPanel(panel, p) {
   const scroll = document.createElement('div');
@@ -311,6 +351,7 @@ async function fillPanel(panel, p) {
   panel.replaceChildren();
   panel.appendChild(scroll);
   if (p === null || p < 0 || p >= TOTAL) return;
+  clearChapterRetry(p);
 
   const stale = () => !scroll.isConnected || scroll.dataset.p !== String(p);
   const e = ALL[p];
@@ -344,6 +385,9 @@ async function fillPanel(panel, p) {
     }
     scroll.replaceChildren();
     renderVersesInto(scroll, verses);
+    if (data.complete === false) {
+      scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000);
+    }
     // Restore saved scroll position
     const savedScroll = scrollPositions.get(p);
     if (savedScroll) scroll.scrollTop = savedScroll;
@@ -358,6 +402,7 @@ async function fillPanel(panel, p) {
       }, { once: true });
     }
   } catch (err) {
+    clearChapterRetry(p);
     if (stale()) return;
     reportError('chapter_load', bookName + ' ' + chNum + ': ' + err.message);
     scroll.replaceChildren();
@@ -636,7 +681,7 @@ try {
   if (pre) {
     const d = JSON.parse(pre.textContent);
     if (d.book && d.ch && d.verses?.length) {
-      chapterCache.set(d.book + '/' + d.ch, { verses: d.verses });
+      chapterCache.set(d.book + '/' + d.ch, { verses: d.verses, complete: true, missingCount: 0 });
     }
   }
 } catch (e) { reportError('preload_parse', e.message); }

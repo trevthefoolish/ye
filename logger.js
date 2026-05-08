@@ -6,6 +6,10 @@ const express = require('express');
 const createRateLimiter = require('./rateLimit');
 const { dateStr, cleanupLogs } = require('./logUtils');
 
+const LOG_ROOT = process.env.LOG_DIR
+  ? path.resolve(process.env.LOG_DIR)
+  : path.join(__dirname, 'logs');
+
 // --- Shared JSONL writer ---
 function writeLine(dir, entry) {
   const line = JSON.stringify(entry) + '\n';
@@ -14,13 +18,20 @@ function writeLine(dir, entry) {
 }
 
 // --- Server logging (7-day retention) ---
-const SERVER_DIR = path.join(__dirname, 'logs', 'server');
+const SERVER_DIR = path.join(LOG_ROOT, 'server');
 fs.mkdirSync(SERVER_DIR, { recursive: true });
+
+function shouldWriteDebug() {
+  return process.env.LOG_LEVEL === 'debug' || process.env.NODE_ENV !== 'production';
+}
 
 const log = {
   info:  (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'info',  event, ...data }),
   warn:  (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'warn',  event, ...data }),
   error: (event, data = {}) => writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'error', event, ...data }),
+  debug: (event, data = {}) => {
+    if (shouldWriteDebug()) writeLine(SERVER_DIR, { ts: new Date().toISOString(), source: 'server', level: 'debug', event, ...data });
+  },
 };
 
 // --- Client error reporting ---
@@ -28,7 +39,10 @@ const logRouter = express.Router();
 const checkLogRate = createRateLimiter(60_000, 30);
 
 logRouter.post('/api/log', express.json({ limit: '2kb' }), (req, res) => {
-  if (!checkLogRate(req.ip)) return res.status(429).end();
+  if (!checkLogRate(req.ip)) {
+    log.debug('client_error_rate_limited', { ip: req.ip });
+    return res.status(204).end();
+  }
   const { type, msg, stack, url } = req.body || {};
   if (typeof type !== 'string' || typeof msg !== 'string') {
     return res.status(400).end();
@@ -43,7 +57,7 @@ logRouter.post('/api/log', express.json({ limit: '2kb' }), (req, res) => {
 });
 
 // --- Analytics (30-day retention) ---
-const ANALYTICS_DIR = path.join(__dirname, 'logs', 'analytics');
+const ANALYTICS_DIR = path.join(LOG_ROOT, 'analytics');
 fs.mkdirSync(ANALYTICS_DIR, { recursive: true });
 
 const VALID_TYPES = new Set(['view', 'nav', 'session', 'perf', 'error']);
@@ -67,13 +81,21 @@ const analyticsRouter = express.Router();
 function parseCookie(header, name) {
   if (!header) return null;
   const match = header.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }
 
 analyticsRouter.post('/api/ev', express.json({ limit: '1kb' }), (req, res) => {
   const { type, ...data } = req.body || {};
   if (!VALID_TYPES.has(type)) return res.status(400).end();
-  if (!checkAnalyticsRate(req.ip)) return res.status(429).end();
+  if (!checkAnalyticsRate(req.ip)) {
+    log.debug('analytics_rate_limited', { ip: req.ip });
+    return res.status(204).end();
+  }
 
   const anonId = crypto.createHash('sha256').update(req.ip + dateStr()).digest('hex').slice(0, 8);
 

@@ -55,7 +55,22 @@ Runs on port 3000. Open on a mobile device or a browser window narrower than 480
 
 ## Deploy
 
-Configured for [Railway](https://railway.app) via `railway.json`. Health check at `/health`. Set `XAI_API_KEY` as an environment variable.
+Configured for [Railway](https://railway.app) via `railway.json`. Health check at `/health`.
+
+Set these production variables:
+
+```
+XAI_API_KEY=...
+NODE_ENV=production
+RENDERS_DIR=/data/renders
+LOG_DIR=/data/logs
+```
+
+Mount a Railway volume at `/data` so generated render cache and JSONL logs survive deploys and restarts. The committed `renders/` directory remains the baseline seed. To bring production-generated renders back into GitHub for review, run:
+
+```
+./scripts/sync-railway-renders.sh
+```
 
 ## Project structure
 
@@ -69,8 +84,7 @@ public/
 data/
   bible.json         66 books with chapter and verse counts
 renders/             Cached verse renders (per-book JSON files)
-logger.js            Structured server logging
-analytics.js         Anonymous event analytics
+logger.js            Structured server logging and anonymous event analytics
 railway.json         Deployment configuration
 ```
 

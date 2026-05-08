@@ -9,7 +9,7 @@ Guide for AI agents working on vapourware.ai — a mobile-first Bible reader tha
 Express serves a single-page app. The server does most of the heavy lifting:
 
 1. **Rendering pipeline** — Grok renders each verse on-demand via JSON schema (`renderVerse` in `server.js`). Each verse produces a `{ rendering, note }` pair. Up to 8 verses render concurrently per request.
-2. **Caching** — Renders are stored to disk as `renders/{bookIndex}.json` (e.g., `0.json` is Genesis). An in-memory `Map` sits on top for fast reads. Pre-computed ETags enable 304 responses for fully-rendered chapters.
+2. **Caching** — Renders are stored to disk as `renders/{bookIndex}.json` locally, or `RENDERS_DIR/{bookIndex}.json` in production (Railway uses `/data/renders`). An in-memory `Map` sits on top for fast reads. Pre-computed ETags enable 304 responses for fully-rendered chapters.
 3. **Version stamping** — `RENDER_VERSION` is a SHA of the model name + system prompt. When either changes, the hash changes, and all cached renders auto-invalidate on next request.
 4. **HTML assembly** — At startup, CSS is inlined into the HTML template and JS is minified and fingerprinted. Per-request, the catch-all route injects OG tags, JSON-LD, canonical URLs, and preloaded chapter data.
 
@@ -57,9 +57,8 @@ These are load-bearing constraints. Don't break them:
 | `public/style.css` | All styling — theming, dark/light, animations, Fibonacci Symmetry Engine |
 | `public/index.html` | HTML template with config/preload placeholders and ASCII art cross |
 | `data/bible.json` | 66 books with chapter counts and per-chapter verse counts |
-| `renders/` | Cached renders per book (JSON, keyed by `chapterIndex:verseIndex`). Intentionally committed — each render costs an API call |
-| `logger.js` | Structured JSONL server logging with daily rotation, 7-day retention |
-| `analytics.js` | Anonymous event logging with daily rotation, 30-day retention |
+| `renders/` | Baseline cached renders per book (JSON, keyed by `chapterIndex:verseIndex`). Intentionally committed — each render costs an API call |
+| `logger.js` | Structured JSONL server logging and anonymous event logging |
 | `railway.json` | Railway deployment config — health check, restart policy |
 
 ## Patterns to follow
@@ -72,12 +71,13 @@ These are load-bearing constraints. Don't break them:
 
 ## Testing changes
 
-1. `XAI_API_KEY=your-key node server.js`
-2. Open in a browser window < 480px wide (or mobile device)
-3. Verify dark and light themes both work (toggle your OS setting)
-4. Swipe between chapters — previous and next should load instantly
-5. Tap a verse to expand its note
-6. Check the server console for structured log output and any warnings
+1. `npm test`
+2. `XAI_API_KEY=your-key NODE_ENV=production node server.js`
+3. Open in a browser window < 480px wide (or mobile device)
+4. Verify dark and light themes both work (toggle your OS setting)
+5. Swipe between chapters — previous and next should load instantly
+6. Tap a verse to expand its note
+7. Check the server console for structured log output and any warnings
 
 ---
 
