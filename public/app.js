@@ -95,22 +95,28 @@ function clearChapterRetry(p) {
 function fetchChapter(bookName, chNum, opts = {}) {
   const key = `${bookName}/${chNum}`;
   if (!opts.force && chapterCache.has(key)) return Promise.resolve(chapterCache.get(key));
-  if (inflightFetches.has(key)) return inflightFetches.get(key);
-  const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}?v=${RENDER_VERSION}`, { signal: AbortSignal.timeout(35000) })
+  const renderMissing = opts.render !== false;
+  const priority = opts.priority === 'background' ? 'background' : 'foreground';
+  const fetchKey = key + ':' + (renderMissing ? priority : 'cache');
+  if (inflightFetches.has(fetchKey)) return inflightFetches.get(fetchKey);
+  const params = new URLSearchParams({ v: RENDER_VERSION });
+  if (!renderMissing) params.set('render', '0');
+  else if (priority === 'background') params.set('priority', 'background');
+  const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}?${params}`, { signal: AbortSignal.timeout(35000) })
     .then(res => {
       if (!res.ok) throw new Error(`fetch ${res.status}`);
       return res.json();
     })
     .then(data => {
       if (data.verses?.length && data.complete !== false) chapterCache.set(key, data);
-      inflightFetches.delete(key);
+      inflightFetches.delete(fetchKey);
       return data;
     })
     .catch(err => {
-      inflightFetches.delete(key);
+      inflightFetches.delete(fetchKey);
       throw err;
     });
-  inflightFetches.set(key, promise);
+  inflightFetches.set(fetchKey, promise);
   return promise;
 }
 
@@ -119,7 +125,7 @@ function prefetchAdjacent(p, dir) {
   if (ahead >= 0 && ahead < TOTAL) {
     const e = ALL[ahead];
     const idle = window.requestIdleCallback || (cb => setTimeout(cb, SYM.durInstant * 1000));
-    idle(() => fetchChapter(BOOKS[e.bi], e.ch + 1).catch(err => reportError('prefetch', err.message)));
+    idle(() => fetchChapter(BOOKS[e.bi], e.ch + 1, { priority: 'background' }).catch(err => reportError('prefetch', err.message)));
   }
 }
 
@@ -325,7 +331,7 @@ function renderVersesInto(scroll, verses, expandedVerses = new Set()) {
   scroll.appendChild(frag);
 }
 
-function scheduleChapterRetry(panel, scroll, p, delayMs) {
+function scheduleChapterRetry(panel, scroll, p, delayMs, opts = {}) {
   clearChapterRetry(p);
   const timer = setTimeout(async () => {
     chapterRetryTimers.delete(p);
@@ -334,26 +340,26 @@ function scheduleChapterRetry(panel, scroll, p, delayMs) {
     const bookName = BOOKS[e.bi];
     const chNum = e.ch + 1;
     try {
-      const data = await fetchChapter(bookName, chNum, { force: true });
+      const data = await fetchChapter(bookName, chNum, { force: true, render: opts.render, priority: opts.priority });
       if (!scroll.isConnected || scroll.dataset.p !== String(p)) return;
       const expandedVerses = getExpandedVerseIndexes(scroll);
       scroll.replaceChildren();
       renderVersesInto(scroll, data.verses || [], expandedVerses);
       if (data.complete === false) {
-        scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000);
+        scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000, opts);
       } else {
         bindScrollShadow();
       }
     } catch (err) {
       reportError('chapter_retry', bookName + ' ' + chNum + ': ' + err.message);
-      scheduleChapterRetry(panel, scroll, p, delayMs);
+      scheduleChapterRetry(panel, scroll, p, delayMs, opts);
     }
   }, delayMs);
   chapterRetryTimers.set(p, timer);
 }
 
 // Fill a single panel with chapter content
-async function fillPanel(panel, p) {
+async function fillPanel(panel, p, opts = {}) {
   const scroll = document.createElement('div');
   scroll.className = 'chapter-scroll';
   scroll.dataset.p = p;
@@ -366,6 +372,8 @@ async function fillPanel(panel, p) {
   const e = ALL[p];
   const bookName = BOOKS[e.bi];
   const chNum = e.ch + 1;
+  const renderMissing = opts.render !== false;
+  const priority = opts.priority === 'background' ? 'background' : 'foreground';
 
   // Show skeleton while loading (only for non-cached content)
   const key = `${bookName}/${chNum}`;
@@ -380,7 +388,7 @@ async function fillPanel(panel, p) {
   }
 
   try {
-    const data = await fetchChapter(bookName, chNum);
+    const data = await fetchChapter(bookName, chNum, { render: renderMissing, priority });
     if (stale()) return;
     const { verses } = data;
     if (stale()) return;
@@ -394,8 +402,8 @@ async function fillPanel(panel, p) {
     }
     scroll.replaceChildren();
     renderVersesInto(scroll, verses);
-    if (data.complete === false) {
-      scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000);
+    if (data.complete === false && renderMissing) {
+      scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000, { render: renderMissing, priority });
     }
     // Restore saved scroll position
     const savedScroll = scrollPositions.get(p);
@@ -447,13 +455,24 @@ function navJump() {
 
 // Fill all 3 panels from scratch (used for init + nav jumps)
 function fillAllPanels() {
-  fillPanel(panels[0], pos > 0 ? pos - 1 : null);
-  fillPanel(panels[1], pos);
-  fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
+  const currentLoad = fillPanel(panels[1], pos);
+  currentLoad.finally(() => {
+    fillPanel(panels[0], pos > 0 ? pos - 1 : null, { priority: 'background' });
+    fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null, { priority: 'background' });
+  });
   resetTrack();
   updateHeader();
   header.classList.remove('scrolled');
   bindScrollShadow();
+}
+
+function promoteVisiblePanel() {
+  const e = ALL[pos];
+  const key = `${BOOKS[e.bi]}/${e.ch + 1}`;
+  if (!chapterCache.has(key)) {
+    return fillPanel(panels[1], pos).then(bindScrollShadow);
+  }
+  return Promise.resolve();
 }
 
 // Reset track to center position with no transition
@@ -559,12 +578,15 @@ function slideTo(dir, velocity) {
     clearPanelEffects();
     resetTrack();
     bindScrollShadow();
+    const currentLoad = promoteVisiblePanel();
 
-    if (dir === 1) {
-      fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null);
-    } else {
-      fillPanel(panels[0], pos > 0 ? pos - 1 : null);
-    }
+    currentLoad.finally(() => {
+      if (dir === 1) {
+        fillPanel(panels[2], pos < TOTAL - 1 ? pos + 1 : null, { priority: 'background' });
+      } else {
+        fillPanel(panels[0], pos > 0 ? pos - 1 : null, { priority: 'background' });
+      }
+    });
 
     sliding = false;
 

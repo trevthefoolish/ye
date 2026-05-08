@@ -178,6 +178,18 @@ test('server hardening and chapter rendering behavior', async t => {
     assert.equal(typeof data.version, 'string');
   });
 
+  await t.test('cache-only chapter requests do not start background rendering', async () => {
+    const before = mockXai.calls;
+    const cold = await request(app.port, '/api/chapter/jude/1?render=0');
+    assert.equal(cold.status, 200);
+    const partial = JSON.parse(cold.body);
+    assert.equal(partial.complete, false);
+    assert.equal(partial.renderQueued, 'skipped');
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(mockXai.calls, before);
+  });
+
   await t.test('complete cached chapters keep ETag behavior after mock rendering', async () => {
     const cold = await request(app.port, '/api/chapter/ecclesiastes/1');
     assert.equal(cold.status, 200);
@@ -248,4 +260,30 @@ test('global render concurrency caps upstream XAI calls without request rate lim
   await Promise.all(paths.map(p => waitForComplete(app.port, p)));
   assert.ok(mockXai.calls > 0);
   assert.ok(mockXai.maxActive <= 2, `saw ${mockXai.maxActive} concurrent XAI calls`);
+});
+
+test('foreground chapter rendering outranks background adjacent pre-rendering', async t => {
+  const mockXai = await startMockXai(t, { delayMs: 25 });
+  const app = await startApp(t, mockXai.url, { RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
+
+  const background = await request(app.port, '/api/chapter/2-john/1?priority=background');
+  assert.equal(background.status, 200);
+  assert.equal(JSON.parse(background.body).renderPriority, 'background');
+
+  const foreground = await request(app.port, '/api/chapter/3-john/1');
+  assert.equal(foreground.status, 200);
+  assert.equal(JSON.parse(foreground.body).renderPriority, 'foreground');
+
+  await waitForComplete(app.port, '/api/chapter/3-john/1');
+
+  const refs = mockXai.payloads.map(payload => payload.messages.find(m => m.role === 'user').content);
+  const firstBackgroundAfterStart = refs.findIndex((ref, i) => i > 0 && ref.startsWith('2 John '));
+  const lastForeground = refs.findLastIndex(ref => ref.startsWith('3 John '));
+
+  assert.equal(refs[0], '2 John 1:1');
+  assert.equal(refs[1], '3 John 1:1');
+  assert.ok(
+    firstBackgroundAfterStart === -1 || firstBackgroundAfterStart > lastForeground,
+    `background resumed before foreground completed: ${refs.join(', ')}`
+  );
 });
