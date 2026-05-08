@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check logger.js && node --check rateLimit.js && node --check logUtils.js && node --check public/app.js",
+    "check": "node --check server.js && node --check logger.js && node --check rateLimit.js && node --check logUtils.js && node --check renderCache.js && node --check public/app.js",
     "test": "node --test"
   },
   "keywords": [],

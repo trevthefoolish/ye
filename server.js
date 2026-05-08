@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { minify } = require('terser');
 const { log, logRouter, analyticsRouter, parseCookie } = require('./logger');
+const { mergeSeedRenderCache } = require('./renderCache');
 
 // --- App version ---
 const APP_VERSION = require('./package.json').version;
@@ -183,7 +184,13 @@ function isAssetPath(p) {
 
 function seedRenderCache() {
   if (process.env.SEED_RENDER_CACHE === '0' || RENDERS_DIR === SOURCE_RENDERS_DIR) return;
-  let seeded = 0;
+  const totals = {
+    files: 0,
+    entriesAdded: 0,
+    entriesReplaced: 0,
+    entriesSkippedStaleSource: 0,
+    entriesSkippedMalformed: 0,
+  };
   try {
     for (const f of fs.readdirSync(SOURCE_RENDERS_DIR)) {
       if (!f.endsWith('.json')) continue;
@@ -191,20 +198,28 @@ function seedRenderCache() {
       const dest = path.join(RENDERS_DIR, f);
       const sourceData = JSON.parse(fs.readFileSync(src, 'utf8'));
       let destData = {};
-      let changed = false;
-      try { destData = JSON.parse(fs.readFileSync(dest, 'utf8')); } catch {}
-      for (const [key, value] of Object.entries(sourceData)) {
-        if (!(key in destData)) {
-          destData[key] = value;
-          changed = true;
-        }
+      let destFileMalformed = false;
+      try {
+        destData = JSON.parse(fs.readFileSync(dest, 'utf8'));
+      } catch {
+        destFileMalformed = fs.existsSync(dest);
       }
-      if (changed || !fs.existsSync(dest)) {
-        fs.writeFileSync(dest, JSON.stringify(destData, null, 2));
-        seeded++;
+      const merged = mergeSeedRenderCache(sourceData, destData, RENDER_VERSION, { destFileMalformed });
+      totals.entriesAdded += merged.entriesAdded;
+      totals.entriesReplaced += merged.entriesReplaced;
+      totals.entriesSkippedStaleSource += merged.entriesSkippedStaleSource;
+      totals.entriesSkippedMalformed += merged.entriesSkippedMalformed;
+      if (merged.changed) {
+        fs.writeFileSync(dest, JSON.stringify(merged.cache, null, 2));
+        totals.files++;
       }
     }
-    if (seeded > 0) log.info('render_cache_seeded', { files: seeded, dir: RENDERS_DIR });
+    const touched = totals.files
+      + totals.entriesAdded
+      + totals.entriesReplaced
+      + totals.entriesSkippedStaleSource
+      + totals.entriesSkippedMalformed;
+    if (touched > 0) log.info('render_cache_seeded', { ...totals, dir: RENDERS_DIR });
   } catch (err) {
     log.error('render_cache_seed_failed', { err: err.message });
   }
@@ -314,9 +329,11 @@ function createPrioritySemaphore(limit, hasForegroundWork) {
     });
   }
   async function run(fn, job) {
+    const queuedAt = Date.now();
     await acquire(job);
+    const queueMs = Date.now() - queuedAt;
     try {
-      return await fn();
+      return await fn(queueMs);
     } finally {
       active--;
       drain();
@@ -345,12 +362,51 @@ function finishRenderJob(job) {
 }
 
 async function renderVerse(book, chapter, verse, job) {
+  const verseStarted = Date.now();
   for (let attempt = 0; attempt <= RENDER_RETRIES; attempt++) {
-    try { return await renderSlots.run(() => renderVerseOnce(book, chapter, verse), job); }
+    const attemptStarted = Date.now();
+    try {
+      return await renderSlots.run(async queueMs => {
+        const apiStarted = Date.now();
+        try {
+          const rendered = await renderVerseOnce(book, chapter, verse);
+          return {
+            ...rendered,
+            timing: {
+              attempts: attempt + 1,
+              queueMs,
+              apiMs: Date.now() - apiStarted,
+              verseMs: Date.now() - verseStarted,
+            },
+          };
+        } catch (err) {
+          err.renderTiming = {
+            attempts: attempt + 1,
+            queueMs,
+            apiMs: Date.now() - apiStarted,
+            durationMs: Date.now() - attemptStarted,
+            totalVerseMs: Date.now() - verseStarted,
+          };
+          throw err;
+        }
+      }, job);
+    }
     catch (err) {
       if (attempt === RENDER_RETRIES) throw err;
       const delay = RETRY_BASE_MS * Math.pow(2, attempt);
-      log.warn('verse_render_retry', { book, chapter, verse, attempt: attempt + 1, delay, err: err.message });
+      const timing = err.renderTiming || {};
+      log.warn('verse_render_retry', {
+        book,
+        chapter,
+        verse,
+        attempt: attempt + 1,
+        delay,
+        durationMs: Date.now() - attemptStarted,
+        queueMs: timing.queueMs,
+        apiMs: timing.apiMs,
+        totalVerseMs: Date.now() - verseStarted,
+        err: err.message,
+      });
       await new Promise(r => setTimeout(r, delay));
     }
   }
@@ -411,6 +467,43 @@ async function renderVerseOnce(book, chapter, verse) {
   return parsed;
 }
 
+function avgMs(values) {
+  if (values.length === 0) return 0;
+  return Math.round(values.reduce((sum, n) => sum + n, 0) / values.length);
+}
+
+function percentileMs(values, percentile) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.max(0, Math.ceil(sorted.length * percentile) - 1);
+  return Math.round(sorted[index]);
+}
+
+function maxMs(values) {
+  if (values.length === 0) return 0;
+  return Math.round(Math.max(...values));
+}
+
+function timingValues(timings, key) {
+  return timings
+    .map(t => t?.[key])
+    .filter(n => typeof n === 'number' && Number.isFinite(n));
+}
+
+function summarizeRenderTimings(timings) {
+  const verseMs = timingValues(timings, 'verseMs');
+  const queueMs = timingValues(timings, 'queueMs');
+  const apiMs = timingValues(timings, 'apiMs');
+  return {
+    avgVerseMs: avgMs(verseMs),
+    p95VerseMs: percentileMs(verseMs, 0.95),
+    maxVerseMs: maxMs(verseMs),
+    avgQueueMs: avgMs(queueMs),
+    avgApiMs: avgMs(apiMs),
+    maxApiMs: maxMs(apiMs),
+  };
+}
+
 async function renderMissingChapter(ref, requestedMissing, job) {
   const { bookIndex, bookName, chNum } = ref;
   const cache = loadCache(bookIndex);
@@ -423,10 +516,21 @@ async function renderMissingChapter(ref, requestedMissing, job) {
     return;
   }
 
-  log.info('chapter_render_started', { book: bookName, ch: chNum, missing: missing.length, priority: job.priority });
+  const startedAt = Date.now();
+  log.info('chapter_render_started', {
+    book: bookName,
+    ch: chNum,
+    missing: missing.length,
+    priority: job.priority,
+    renderConcurrency: RENDER_CONCURRENCY,
+  });
   let rendered = 0;
+  let failed = 0;
+  let batches = 0;
+  const timings = [];
   try {
     for (let i = 0; i < missing.length; i += RENDER_CONCURRENCY) {
+      batches++;
       const batch = missing.slice(i, i + RENDER_CONCURRENCY);
       const results = await Promise.allSettled(
         batch.map(v => renderVerse(bookName, chNum, v + 1, job).then(r => ({ v, r })))
@@ -436,9 +540,27 @@ async function renderMissingChapter(ref, requestedMissing, job) {
         if (result.status === 'fulfilled') {
           const { v, r } = result.value;
           cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
+          if (r.timing) timings.push(r.timing);
           rendered++;
         } else {
-          log.warn('verse_render_failed', { book: bookName, ch: chNum, verse: batch[j] + 1, reason: result.reason?.message || String(result.reason) });
+          failed++;
+          const timing = result.reason?.renderTiming || {};
+          timings.push({
+            verseMs: timing.totalVerseMs,
+            queueMs: timing.queueMs,
+            apiMs: timing.apiMs,
+          });
+          log.warn('verse_render_failed', {
+            book: bookName,
+            ch: chNum,
+            verse: batch[j] + 1,
+            reason: result.reason?.message || String(result.reason),
+            attempts: timing.attempts,
+            durationMs: timing.durationMs,
+            queueMs: timing.queueMs,
+            apiMs: timing.apiMs,
+            totalVerseMs: timing.totalVerseMs,
+          });
         }
       }
       await saveCache(bookIndex, cache);
@@ -446,7 +568,16 @@ async function renderMissingChapter(ref, requestedMissing, job) {
   } finally {
     finishRenderJob(job);
   }
-  log.info('chapter_render_finished', { book: bookName, ch: chNum, rendered });
+  log.info('chapter_render_finished', {
+    book: bookName,
+    ch: chNum,
+    durationMs: Date.now() - startedAt,
+    rendered,
+    failed,
+    missing: missing.length,
+    batches,
+    ...summarizeRenderTimings(timings),
+  });
 }
 
 function queueChapterRender(ref, missing, priority) {

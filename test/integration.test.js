@@ -83,6 +83,7 @@ function startApp(t, xaiUrl, extraEnv = {}) {
   const rendersDir = path.join(temp, 'renders');
   const logsDir = path.join(temp, 'logs');
   const port = 3200 + Math.floor(Math.random() * 1000);
+  let output = '';
   const child = spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
     env: {
@@ -103,18 +104,36 @@ function startApp(t, xaiUrl, extraEnv = {}) {
   });
 
   return new Promise((resolve, reject) => {
-    let output = '';
     const timeout = setTimeout(() => reject(new Error('server did not start: ' + output)), 8000);
     child.stdout.on('data', chunk => {
       output += chunk.toString();
       if (output.includes('"event":"server_started"')) {
         clearTimeout(timeout);
-        resolve({ port, rendersDir, logsDir, child });
+        resolve({ port, rendersDir, logsDir, child, getOutput: () => output });
       }
     });
     child.stderr.on('data', chunk => { output += chunk.toString(); });
     child.on('exit', code => reject(new Error(`server exited ${code}: ${output}`)));
   });
+}
+
+function serverLogs(app, event) {
+  return app.getOutput()
+    .split('\n')
+    .filter(Boolean)
+    .map(line => {
+      try { return JSON.parse(line); } catch { return null; }
+    })
+    .filter(entry => entry?.source === 'server' && (!event || entry.event === event));
+}
+
+async function waitForServerLog(app, event, predicate = () => true) {
+  for (let i = 0; i < 40; i++) {
+    const found = serverLogs(app, event).find(predicate);
+    if (found) return found;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw new Error(`server log not found: ${event}`);
 }
 
 async function waitForComplete(port, pathname) {
@@ -303,4 +322,36 @@ test('foreground chapter rendering outranks background adjacent pre-rendering', 
     firstBackgroundAfterStart === -1 || firstBackgroundAfterStart > lastForeground,
     `background resumed before foreground completed: ${refs.join(', ')}`
   );
+});
+
+test('chapter render logs timing summaries', async t => {
+  const mockXai = await startMockXai(t, { delayMs: 25 });
+  const app = await startApp(t, mockXai.url, { RENDER_CONCURRENCY: '2', SEED_RENDER_CACHE: '0' });
+
+  const cold = await request(app.port, '/api/chapter/2-john/1');
+  assert.equal(cold.status, 200);
+  const partial = JSON.parse(cold.body);
+  assert.equal(partial.complete, false);
+
+  await waitForComplete(app.port, '/api/chapter/2-john/1');
+
+  const started = await waitForServerLog(app, 'chapter_render_started', entry => entry.book === '2 John');
+  assert.equal(started.ch, 1);
+  assert.equal(started.missing, partial.missingCount);
+  assert.equal(started.priority, 'foreground');
+  assert.equal(started.renderConcurrency, 2);
+
+  const finished = await waitForServerLog(app, 'chapter_render_finished', entry => entry.book === '2 John');
+  assert.equal(finished.ch, 1);
+  assert.equal(finished.rendered, partial.missingCount);
+  assert.equal(finished.failed, 0);
+  assert.equal(finished.missing, partial.missingCount);
+  assert.ok(finished.batches > 0);
+  assert.ok(finished.durationMs > 0);
+  assert.ok(finished.avgVerseMs > 0);
+  assert.ok(finished.p95VerseMs > 0);
+  assert.ok(finished.maxVerseMs > 0);
+  assert.ok(finished.avgQueueMs >= 0);
+  assert.ok(finished.avgApiMs >= 20);
+  assert.ok(finished.maxApiMs >= finished.avgApiMs);
 });
