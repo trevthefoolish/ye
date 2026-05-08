@@ -276,7 +276,13 @@ header.addEventListener('click', () => {
 nav.addEventListener('click', closeNav);
 
 // --- RENDER ---
-function renderVersesInto(scroll, verses) {
+function getExpandedVerseIndexes(scroll) {
+  return new Set(Array.from(scroll.querySelectorAll('.verse-wrap.expanded'))
+    .map(el => Number.parseInt(el.dataset.verseIndex, 10))
+    .filter(Number.isInteger));
+}
+
+function renderVersesInto(scroll, verses, expandedVerses = new Set()) {
   const frag = document.createDocumentFragment();
   for (let i = 0; i < verses.length; i++) {
     const v = verses[i];
@@ -289,6 +295,8 @@ function renderVersesInto(scroll, verses) {
     }
     const wrap = document.createElement('div');
     wrap.className = 'verse-wrap';
+    wrap.dataset.verseIndex = String(i);
+    if (expandedVerses.has(i)) wrap.classList.add('expanded');
     const vText = document.createElement('div');
     vText.textContent = v.rendering;
     wrap.appendChild(vText);
@@ -328,8 +336,9 @@ function scheduleChapterRetry(panel, scroll, p, delayMs) {
     try {
       const data = await fetchChapter(bookName, chNum, { force: true });
       if (!scroll.isConnected || scroll.dataset.p !== String(p)) return;
+      const expandedVerses = getExpandedVerseIndexes(scroll);
       scroll.replaceChildren();
-      renderVersesInto(scroll, data.verses || []);
+      renderVersesInto(scroll, data.verses || [], expandedVerses);
       if (data.complete === false) {
         scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000);
       } else {
