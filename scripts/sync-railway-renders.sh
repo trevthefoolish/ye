@@ -30,7 +30,12 @@ for (const file of fs.readdirSync(remoteDir)) {
   let changed = false;
   for (const [key, value] of Object.entries(remote)) {
     const existing = local[key];
-    if (!existing || existing.v !== value.v || existing.rendering !== value.rendering || existing.note !== value.note) {
+    if (!existing
+      || existing.v !== value.v
+      || existing.rendering !== value.rendering
+      || existing.note !== value.note
+      || existing.noteKind !== value.noteKind
+      || existing.christConnection !== value.christConnection) {
       local[key] = value;
       changed = true;
     }

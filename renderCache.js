@@ -13,7 +13,9 @@ function sameRenderContent(a, b) {
     && isRenderEntry(b)
     && a.v === b.v
     && a.rendering === b.rendering
-    && a.note === b.note;
+    && a.note === b.note
+    && a.noteKind === b.noteKind
+    && a.christConnection === b.christConnection;
 }
 
 function mergeSeedRenderCache(sourceData, destData, renderVersion, opts = {}) {

@@ -7,6 +7,17 @@ const path = require('path');
 const { minify } = require('terser');
 const { log, logRouter, analyticsRouter, parseCookie } = require('./logger');
 const { mergeSeedRenderCache } = require('./renderCache');
+const {
+  RENDER_PIPELINE_V2,
+  SECTIONS_VERSION,
+  V2_PROMPT_VERSION,
+  V2_SCHEMA_VERSION,
+  groupMissingVersesIntoSections,
+  parseRef,
+  renderSectionOnce,
+  renderVersionParts,
+  sectionRef,
+} = require('./rendererV2');
 
 // --- App version ---
 const APP_VERSION = require('./package.json').version;
@@ -37,16 +48,20 @@ const app = express();
 // resolves to the real client IP for rate limiting and analytics. Trusting
 // a specific hop count (vs `true`) prevents XFF spoofing from the internet.
 app.set('trust proxy', 2);
+const RENDER_PIPELINE = process.env.RENDER_PIPELINE === RENDER_PIPELINE_V2 ? RENDER_PIPELINE_V2 : 'verse-v1';
+const RENDER_MODEL = process.env.RENDER_MODEL || 'grok-4.3';
+const RENDER_REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'none';
 const XAI_API_KEY = process.env.XAI_API_KEY;
 if (!XAI_API_KEY) { log.error('missing_api_key'); process.exit(1); }
-const XAI_API_URL = process.env.XAI_API_URL || 'https://api.x.ai/v1/chat/completions';
+const XAI_API_URL = process.env.XAI_API_URL
+  || (RENDER_PIPELINE === RENDER_PIPELINE_V2
+    ? 'https://api.x.ai/v1/responses'
+    : 'https://api.x.ai/v1/chat/completions');
 process.on('unhandledRejection', reason => log.error('unhandled_rejection', { err: String(reason) }));
 const SOURCE_RENDERS_DIR = path.join(__dirname, 'renders');
 const RENDERS_DIR = process.env.RENDERS_DIR ? path.resolve(process.env.RENDERS_DIR) : SOURCE_RENDERS_DIR;
 fs.mkdirSync(RENDERS_DIR, { recursive: true });
 
-const RENDER_MODEL = 'grok-4.3';
-const RENDER_REASONING_EFFORT = 'none';
 const SYSTEM_PROMPT = `You are a biblical scholar who helps people see how the Bible is a unified story that leads to Jesus. Your voice is warm, curious, and accessible — like a friend who's deeply studied this stuff and can't wait to show you what they found.
 
 <theological-framework>
@@ -89,7 +104,9 @@ CRITICAL LENGTH RULE: the note MUST be shorter than the verse. One sentence only
 
 const RENDER_VERSION = crypto
   .createHash('sha256')
-  .update(RENDER_MODEL + '\n' + SYSTEM_PROMPT)
+  .update(RENDER_PIPELINE === RENDER_PIPELINE_V2
+    ? renderVersionParts({ model: RENDER_MODEL, reasoningEffort: RENDER_REASONING_EFFORT }).join('\n')
+    : RENDER_MODEL + '\n' + SYSTEM_PROMPT)
   .digest('hex')
   .slice(0, 12);
 
@@ -101,7 +118,10 @@ function parsePositiveInt(value, fallback) {
 }
 
 function cleanText(s) {
-  return s.replaceAll('\u2014', ', ').replace(/\bvapor\b/g, 'vapour');
+  return s
+    .replaceAll('\u2014', ', ')
+    .replace(/\bvapors\b/gi, 'vapours')
+    .replace(/\bvapor\b/gi, 'vapour');
 }
 
 function escapeHtml(s) {
@@ -172,6 +192,7 @@ const memCache = new Map();
 const etagCache = new Map(); // bookIndex:chapterKey → { body, etag }
 const saveChains = new Map();
 const chapterJobs = new Map();
+const sectionJobs = new Map();
 
 function safeDecodePath(p) {
   try { return decodeURIComponent(p); } catch { return null; }
@@ -289,6 +310,37 @@ function getChapterVerses(bookIndex, chNum) {
     }
   }
   return { cache, verses, missing };
+}
+
+function cacheEntryIsCurrent(location) {
+  const cache = loadCache(location.bookIndex);
+  const entry = cache[`${location.chapter - 1}:${location.verse - 1}`];
+  return Boolean(entry && entry.v === RENDER_VERSION);
+}
+
+function missingSectionRefs(section) {
+  return (section.targetReferences || section.references || [])
+    .filter(ref => !cacheEntryIsCurrent(parseRef(ref)));
+}
+
+async function writeSectionEntriesToCache(entries) {
+  const touched = new Map();
+  const now = Date.now();
+  for (const entry of entries) {
+    const location = parseRef(entry.ref);
+    const cache = loadCache(location.bookIndex);
+    cache[`${location.chapter - 1}:${location.verse - 1}`] = {
+      rendering: entry.rendering,
+      note: entry.note,
+      noteKind: entry.noteKind,
+      christConnection: entry.christConnection,
+      v: RENDER_VERSION,
+      t: now,
+    };
+    touched.set(location.bookIndex, cache);
+  }
+  await Promise.all([...touched.entries()].map(([bookIndex, cache]) => saveCache(bookIndex, cache)));
+  return touched.size;
 }
 
 function getRenderPriority(req) {
@@ -467,6 +519,123 @@ async function renderVerseOnce(book, chapter, verse) {
   return parsed;
 }
 
+async function renderSection(book, chapter, section, job) {
+  const sectionStarted = Date.now();
+  for (let attempt = 0; attempt <= RENDER_RETRIES; attempt++) {
+    const attemptStarted = Date.now();
+    try {
+      return await renderSlots.run(async queueMs => {
+        const apiStarted = Date.now();
+        try {
+          const entries = await renderSectionOnce({
+            apiUrl: XAI_API_URL,
+            apiKey: XAI_API_KEY,
+            model: RENDER_MODEL,
+            reasoningEffort: RENDER_REASONING_EFFORT,
+            bookName: book,
+            chapter,
+            section,
+          });
+          return {
+            entries: entries.map(entry => ({
+              ...entry,
+              rendering: cleanText(entry.rendering),
+              note: cleanText(entry.note),
+            })),
+            timing: {
+              attempts: attempt + 1,
+              queueMs,
+              apiMs: Date.now() - apiStarted,
+              verseMs: Date.now() - sectionStarted,
+            },
+          };
+        } catch (err) {
+          err.renderTiming = {
+            attempts: attempt + 1,
+            queueMs,
+            apiMs: Date.now() - apiStarted,
+            durationMs: Date.now() - attemptStarted,
+            totalVerseMs: Date.now() - sectionStarted,
+          };
+          throw err;
+        }
+      }, job);
+    }
+    catch (err) {
+      if (attempt === RENDER_RETRIES) throw err;
+      const delay = RETRY_BASE_MS * Math.pow(2, attempt);
+      const timing = err.renderTiming || {};
+      log.warn('section_render_retry', {
+        book,
+        chapter,
+        sectionId: section.id,
+        sectionRef: sectionRef(section),
+        targetRefs: (section.targetReferences || section.references || []).length,
+        attempt: attempt + 1,
+        delay,
+        durationMs: Date.now() - attemptStarted,
+        queueMs: timing.queueMs,
+        apiMs: timing.apiMs,
+        totalVerseMs: Date.now() - sectionStarted,
+        err: err.message,
+      });
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
+async function renderSectionAndCache(section, job) {
+  const missingRefs = missingSectionRefs(section);
+  if (missingRefs.length === 0) {
+    return { entries: [], skipped: true, timing: null };
+  }
+  const result = await renderSection(section.book, section.chapter, section, job);
+  const cacheFiles = await writeSectionEntriesToCache(result.entries);
+  return {
+    ...result,
+    cacheFiles,
+    skipped: false,
+  };
+}
+
+function sectionJobKey(section) {
+  return section.id || sectionRef(section);
+}
+
+function promoteSectionJob(job) {
+  if (!job) return;
+  job.priority = RENDER_PRIORITY_FOREGROUND;
+  trackForegroundJob(job);
+}
+
+function queueSectionRender(section, priority) {
+  const key = sectionJobKey(section);
+  const existing = sectionJobs.get(key);
+  if (existing) {
+    if (priority === RENDER_PRIORITY_FOREGROUND && existing.priority !== RENDER_PRIORITY_FOREGROUND) {
+      promoteSectionJob(existing);
+      return { status: 'promoted', promise: existing.promise };
+    }
+    return { status: 'inflight', promise: existing.promise };
+  }
+  const job = { priority, sectionId: key };
+  trackForegroundJob(job);
+  job.promise = renderSectionAndCache(section, job)
+    .catch(err => {
+      err.section = section;
+      throw err;
+    })
+    .finally(() => {
+      finishRenderJob(job);
+      sectionJobs.delete(key);
+    });
+  sectionJobs.set(key, job);
+  return {
+    status: priority === RENDER_PRIORITY_BACKGROUND ? 'started-background' : 'started',
+    promise: job.promise,
+  };
+}
+
 function avgMs(values) {
   if (values.length === 0) return 0;
   return Math.round(values.reduce((sum, n) => sum + n, 0) / values.length);
@@ -504,7 +673,7 @@ function summarizeRenderTimings(timings) {
   };
 }
 
-async function renderMissingChapter(ref, requestedMissing, job) {
+async function renderMissingChapterV1(ref, requestedMissing, job) {
   const { bookIndex, bookName, chNum } = ref;
   const cache = loadCache(bookIndex);
   const missing = requestedMissing.filter(v => {
@@ -580,6 +749,105 @@ async function renderMissingChapter(ref, requestedMissing, job) {
   });
 }
 
+async function renderMissingChapterV2(ref, requestedMissing, job) {
+  const { bookIndex, bookName, chNum } = ref;
+  const cache = loadCache(bookIndex);
+  const missing = requestedMissing.filter(v => {
+    const entry = cache[`${chNum - 1}:${v}`];
+    return !entry || entry.v !== RENDER_VERSION;
+  });
+  if (missing.length === 0) {
+    finishRenderJob(job);
+    return;
+  }
+
+  const sections = groupMissingVersesIntoSections(bookName, chNum, missing)
+    .filter(section => missingSectionRefs(section).length > 0);
+  if (sections.length === 0) {
+    finishRenderJob(job);
+    return;
+  }
+  const startedAt = Date.now();
+  log.info('chapter_render_started', {
+    book: bookName,
+    ch: chNum,
+    missing: missing.length,
+    priority: job.priority,
+    renderConcurrency: RENDER_CONCURRENCY,
+    renderPipeline: RENDER_PIPELINE,
+    sections: sections.length,
+  });
+  let rendered = 0;
+  let failed = 0;
+  let batches = 0;
+  const timings = [];
+  try {
+    for (let i = 0; i < sections.length; i += RENDER_CONCURRENCY) {
+      batches++;
+      const batch = sections.slice(i, i + RENDER_CONCURRENCY);
+      const results = await Promise.allSettled(
+        batch.map(section => {
+          const queued = queueSectionRender(section, job.priority);
+          if (!job.sectionIds) job.sectionIds = new Set();
+          job.sectionIds.add(sectionJobKey(section));
+          return queued.promise.then(r => ({ section, r, status: queued.status }));
+        })
+      );
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const { r } = result.value;
+          rendered += r.entries.length;
+          if (r.timing) timings.push(r.timing);
+        } else {
+          const section = result.reason?.section;
+          const timing = result.reason?.renderTiming || {};
+          const targetCount = (section?.targetReferences || section?.references || []).length;
+          failed += targetCount || 1;
+          timings.push({
+            verseMs: timing.totalVerseMs,
+            queueMs: timing.queueMs,
+            apiMs: timing.apiMs,
+          });
+          log.warn('section_render_failed', {
+            book: bookName,
+            ch: chNum,
+            sectionId: section?.id,
+            sectionRef: section ? sectionRef(section) : undefined,
+            targetRefs: targetCount,
+            reason: result.reason?.message || String(result.reason),
+            attempts: timing.attempts,
+            durationMs: timing.durationMs,
+            queueMs: timing.queueMs,
+            apiMs: timing.apiMs,
+            totalVerseMs: timing.totalVerseMs,
+          });
+        }
+      }
+    }
+  } finally {
+    finishRenderJob(job);
+  }
+  log.info('chapter_render_finished', {
+    book: bookName,
+    ch: chNum,
+    durationMs: Date.now() - startedAt,
+    rendered,
+    failed,
+    missing: missing.length,
+    batches,
+    renderPipeline: RENDER_PIPELINE,
+    sections: sections.length,
+    ...summarizeRenderTimings(timings),
+  });
+}
+
+async function renderMissingChapter(ref, requestedMissing, job) {
+  if (RENDER_PIPELINE === RENDER_PIPELINE_V2) {
+    return renderMissingChapterV2(ref, requestedMissing, job);
+  }
+  return renderMissingChapterV1(ref, requestedMissing, job);
+}
+
 function queueChapterRender(ref, missing, priority) {
   const key = `${ref.bookIndex}:${ref.chNum}`;
   const existing = chapterJobs.get(key);
@@ -587,6 +855,7 @@ function queueChapterRender(ref, missing, priority) {
     if (priority === RENDER_PRIORITY_FOREGROUND && existing.priority !== RENDER_PRIORITY_FOREGROUND) {
       existing.priority = RENDER_PRIORITY_FOREGROUND;
       trackForegroundJob(existing);
+      for (const sectionId of existing.sectionIds || []) promoteSectionJob(sectionJobs.get(sectionId));
       return 'promoted';
     }
     return 'inflight';
@@ -646,7 +915,16 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
 
 app.get('/api/version', (req, res) => {
   res.setHeader('Cache-Control', CACHE_ONE_DAY);
-  res.json({ version: RENDER_VERSION, model: RENDER_MODEL, reasoningEffort: RENDER_REASONING_EFFORT, appVersion: APP_VERSION });
+  res.json({
+    version: RENDER_VERSION,
+    model: RENDER_MODEL,
+    reasoningEffort: RENDER_REASONING_EFFORT,
+    renderPipeline: RENDER_PIPELINE,
+    promptVersion: RENDER_PIPELINE === RENDER_PIPELINE_V2 ? V2_PROMPT_VERSION : 'inline-v1',
+    schemaVersion: RENDER_PIPELINE === RENDER_PIPELINE_V2 ? V2_SCHEMA_VERSION : 'verse-v1',
+    sectionVersion: RENDER_PIPELINE === RENDER_PIPELINE_V2 ? SECTIONS_VERSION : null,
+    appVersion: APP_VERSION,
+  });
 });
 
 app.use('/api', (req, res) => {

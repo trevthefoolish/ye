@@ -8,7 +8,12 @@
   },
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check logger.js && node --check rateLimit.js && node --check logUtils.js && node --check renderCache.js && node --check public/app.js",
+    "check": "node --check server.js && node --check logger.js && node --check rateLimit.js && node --check logUtils.js && node --check renderCache.js && node --check rendererV2.js && node --check public/app.js && node --check scripts/eval-renderer-v2.js && node --check scripts/generate-sections.js",
+    "sections:generate": "node scripts/generate-sections.js",
+    "eval:v2": "RENDER_PIPELINE=section-v2 node scripts/eval-renderer-v2.js",
+    "eval:v2:edge": "EVAL_SET=edge RENDER_PIPELINE=section-v2 node scripts/eval-renderer-v2.js",
+    "eval:v2:prod-sim": "EVAL_SET=prod-sim RENDER_PIPELINE=section-v2 node scripts/eval-renderer-v2.js",
+    "eval:v2:gate": "EVAL_SET=${EVAL_SET:-edge} EVAL_GATE=1 RENDER_PIPELINE=section-v2 node scripts/eval-renderer-v2.js",
     "test": "node --test"
   },
   "keywords": [],
