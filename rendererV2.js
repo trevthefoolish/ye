@@ -8,9 +8,9 @@ const SECTIONS_DATA = require('./data/sections.json');
 const EVAL_SCENARIOS_DATA = require('./data/eval-scenarios.json');
 
 const RENDER_PIPELINE_V2 = 'section-v2';
-const V2_PROMPT_VERSION = 'margin-note-v2';
+const V2_PROMPT_VERSION = 'margin-note-v3';
 const V2_SCHEMA_VERSION = 'section-render-v1';
-const V2_SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'prompts', 'margin-note-v2.md'), 'utf8').trim();
+const V2_SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'prompts', 'margin-note-v3.md'), 'utf8').trim();
 const SECTIONS_VERSION = SECTIONS_DATA.version || 'sections-v1';
 const EVAL_SCENARIOS_VERSION = EVAL_SCENARIOS_DATA.version || 'eval-scenarios-v1';
 const EVAL_SCENARIO_MODES = ['explicit', 'fallback-chapter', 'fallback-partial'];
@@ -84,7 +84,7 @@ const SECTION_RENDER_SCHEMA = {
           },
           note: {
             type: 'string',
-            description: 'One brief margin-note observation for this verse.',
+            description: 'One compact margin-note observation for this verse, usually 12 to 26 words in one or two short sentences.',
           },
           noteKind: {
             type: 'string',
@@ -439,7 +439,7 @@ function buildSectionUserPayload(bookName, chapter, section) {
       'Return exactly one entry for each target reference in targetReferences.',
       'Use the ref field exactly as provided in targetReferences.',
       'Every returned verse must have a rendering and a note.',
-      'Keep notes brief and concrete.',
+      'Keep notes compact, concrete, and useful. Aim for 12 to 26 words unless a very short list verse needs less.',
       'Do not return entries for other sectionReferences; they are context only.',
     ],
   };

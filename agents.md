@@ -30,7 +30,7 @@ The production v1 prompt is still located in `server.js` (the `SYSTEM_PROMPT` co
 - **Note guidelines** — notes must be shorter than the rendering. One sentence. "Margin scribble" not "commentary." Vary the angle. Don't moralize.
 - **Core values** — wonder over certainty, humility before the text, depth without jargon, faithfulness over novelty.
 
-Renderer v2 uses `prompts/margin-note-v2.md`: every verse gets a note, notes should feel like a Christian reader with good taste penciling sharp observations in the margin, and worthy Christ-shaped patterns are allowed without forcing allegory.
+Renderer v2 uses `prompts/margin-note-v3.md`: every verse gets a note, notes should feel like a Christian reader with good taste penciling sharp observations in the margin, and worthy Christ-shaped patterns are allowed without forcing allegory.
 
 Changing the active prompt, model, reasoning effort, schema version, or section-map version changes `RENDER_VERSION`, which invalidates active-pipeline cached renders. This is by design, but understand the cost before editing.
 
@@ -65,7 +65,7 @@ These are load-bearing constraints. Don't break them:
 | `data/bible.json` | 66 books with chapter counts and per-chapter verse counts |
 | `data/sections.json` | Generated production section map for renderer v2 grouping, including OpenBible consensus and generated fallback sections |
 | `data/eval-scenarios.json` | Eval-only smoke, edge, and prod-sim scenario metadata |
-| `prompts/margin-note-v2.md` | Greenfield margin-note prompt for renderer v2 |
+| `prompts/margin-note-v3.md` | Longer margin-note prompt for renderer v2 |
 | `renders/` | Baseline cached renders per book (JSON, keyed by `chapterIndex:verseIndex`). Intentionally committed — each render costs an API call |
 | `logger.js` | Structured JSONL server logging and anonymous event logging |
 | `railway.json` | Railway deployment config — health check, restart policy |

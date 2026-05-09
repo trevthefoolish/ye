@@ -345,7 +345,7 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   assert.equal(version.model, 'grok-4.3');
   assert.equal(version.reasoningEffort, 'none');
   assert.equal(version.renderPipeline, 'section-v2');
-  assert.equal(version.promptVersion, 'margin-note-v2');
+  assert.equal(version.promptVersion, 'margin-note-v3');
   assert.equal(version.schemaVersion, 'section-render-v1');
   assert.equal(version.sectionVersion, 'sections-openbible-v1');
 

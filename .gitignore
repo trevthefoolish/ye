@@ -3,4 +3,5 @@ node_modules/
 .claude/
 logs/
 reports/
+eval-reports/
 .env
