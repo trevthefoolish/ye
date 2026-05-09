@@ -20,6 +20,8 @@ const REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'none';
 const EVAL_SET = process.env.EVAL_SET || 'smoke';
 const EVAL_GATE = process.env.EVAL_GATE === '1' || process.env.EVAL_GATE === 'true';
 const REPORTS_DIR = process.env.EVAL_REPORTS_DIR || path.join(__dirname, '..', 'eval-reports');
+const NOTE_WORD_WARNING_MAX = 32;
+const AVG_NOTE_WORD_WARNING_MIN = 11;
 
 function cleanText(s) {
   return s
@@ -183,8 +185,8 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
   const completeEntries = renderedWithKeys.filter(e => e.rendering && e.note && e.noteKind && e.christConnection);
   const noteWords = renderedWithKeys.map(e => wordCount(e.note));
   const noteChars = renderedWithKeys.map(e => e.note.length);
-  const notesOver18Words = renderedWithKeys.filter(e => wordCount(e.note) > 18);
-  const notesLongerThanRendering = renderedWithKeys.filter(e => e.note.length >= e.rendering.length);
+  const avgNoteWords = noteWords.length ? Math.round(noteWords.reduce((a, b) => a + b, 0) / noteWords.length) : 0;
+  const notesOver32Words = renderedWithKeys.filter(e => wordCount(e.note) > NOTE_WORD_WARNING_MAX);
   const echoNotes = renderedWithKeys.filter(e => /\becho(?:es|ing|ed)?\b/i.test(e.note));
   const christReviewRefs = renderedWithKeys
     .filter(e => e.christConnection !== 'none')
@@ -227,7 +229,7 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
       entries: renderedWithKeys.filter(entry => entry.scenarioId === scenarioId && entry.sectionRef === ref),
     };
   });
-  const noteLengthWarningKeys = new Set([...notesOver18Words, ...notesLongerThanRendering].map(e => e.key));
+  const noteLengthWarningKeys = new Set(notesOver32Words.map(e => e.key));
   const echoNoteKeys = new Set(echoNotes.map(e => e.key));
   const groupSummaries = summarizeSectionGroups(groupedSections, noteLengthWarningKeys, echoNoteKeys);
   const referenceIntegrity = buildReferenceIntegrity(sections, renderedWithKeys);
@@ -238,7 +240,7 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
     schemaComplete: `${completeEntries.length}/${renderedWithKeys.length}`,
     schemaCompleteCount: completeEntries.length,
     echoNotes: echoNotes.length,
-    avgNoteWords: noteWords.length ? Math.round(noteWords.reduce((a, b) => a + b, 0) / noteWords.length) : 0,
+    avgNoteWords,
     avgNoteChars: noteChars.length ? Math.round(noteChars.reduce((a, b) => a + b, 0) / noteChars.length) : 0,
     repeatedOpenings: Object.fromEntries(repeatedOpenings),
     noteKinds: Object.fromEntries(noteKinds),
@@ -285,9 +287,11 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
         ...referenceIntegrity,
       },
       noteLength: {
-        status: statusFor(notesOver18Words.length === 0 && notesLongerThanRendering.length === 0),
-        notesOver18Words: notesOver18Words.map(e => e.ref),
-        notesLongerThanRendering: notesLongerThanRendering.map(e => e.ref),
+        status: statusFor(notesOver32Words.length === 0 && avgNoteWords >= AVG_NOTE_WORD_WARNING_MIN),
+        notesOver32Words: notesOver32Words.map(e => e.ref),
+        avgNoteWords,
+        minAvgNoteWords: AVG_NOTE_WORD_WARNING_MIN,
+        maxNoteWords: NOTE_WORD_WARNING_MAX,
       },
       repeatedOpenings: {
         status: statusFor(repeatedOpenings.length === 0),
@@ -365,7 +369,7 @@ function buildMarkdownReport(report) {
   const rubricRows = [
     ['Schema completeness', report.rubric.schemaCompleteness.status, report.rubric.schemaCompleteness.result],
     ['Reference integrity', report.rubric.referenceIntegrity.status, `duplicates: ${markdownList(report.rubric.referenceIntegrity.duplicateRenderedRefs)}; missing: ${markdownList(report.rubric.referenceIntegrity.missingRenderedRefs)}; unexpected: ${markdownList(report.rubric.referenceIntegrity.unexpectedRenderedRefs)}`],
-    ['Note length', report.rubric.noteLength.status, `>18 words: ${markdownList(report.rubric.noteLength.notesOver18Words)}; note >= rendering: ${markdownList(report.rubric.noteLength.notesLongerThanRendering)}`],
+    ['Note length', report.rubric.noteLength.status, `>32 words: ${markdownList(report.rubric.noteLength.notesOver32Words)}; avg words: ${report.rubric.noteLength.avgNoteWords}; target avg >= ${report.rubric.noteLength.minAvgNoteWords}`],
     ['Repeated openings', report.rubric.repeatedOpenings.status, Object.keys(report.rubric.repeatedOpenings.openings).length ? JSON.stringify(report.rubric.repeatedOpenings.openings) : 'none'],
     ['Generic echo language', report.rubric.genericEchoLanguage.status, markdownList(report.rubric.genericEchoLanguage.refs)],
     ['Forced Christ connections', report.rubric.forcedChristConnections.status, markdownList(report.rubric.forcedChristConnections.refs)],

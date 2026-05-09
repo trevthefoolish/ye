@@ -129,7 +129,7 @@ data/
   sections.json      Production section map for renderer v2 grouping
   eval-scenarios.json Eval-only smoke, edge, and prod-sim coverage metadata
 prompts/
-  margin-note-v2.md  Greenfield margin-note prompt for the guarded v2 renderer
+  margin-note-v3.md  Longer margin-note prompt for the guarded v2 renderer
 eval-reports/        Saved reviewed renderer v2 eval reports for PR review
 renders/             Cached verse renders (per-book JSON files)
 logger.js            Structured server logging and anonymous event analytics
