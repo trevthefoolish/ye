@@ -13,7 +13,7 @@ Express serves a single-page app. The server does most of the heavy lifting:
 3. **Version stamping** — The default v1 `RENDER_VERSION` remains a SHA of the model name + inline system prompt. The v2 hash additionally includes model, reasoning effort, prompt version/content, schema version, and production section-map version plus fingerprint. Eval scenario metadata is intentionally excluded from the render hash. Do not enable v2 in production casually.
 4. **HTML assembly** — At startup, CSS is inlined into the HTML template and JS is minified and fingerprinted. Per-request, the catch-all route injects OG tags, JSON-LD, canonical URLs, and preloaded chapter data.
 
-The client (`public/app.js`, ~600 lines vanilla JS) maintains a **three-panel swipe system** — previous, current, and next chapters are always in the DOM for instant gesture response. It handles:
+The client (`public/app.js`, ~800 lines vanilla JS) maintains a **three-panel swipe system** — previous, current, and next chapters are always in the DOM for instant gesture response. It handles:
 - Touch/swipe navigation with spring physics and GPU-composited depth effects
 - Book/chapter navigator overlay with animated grid
 - Verse tap-to-expand for margin notes
@@ -51,7 +51,7 @@ These are load-bearing constraints. Don't break them:
 - **Fibonacci Symmetry Engine (`--base: 3px`)** — all spacing is `Fib(n) × 3px` (3, 6, 9, 15, 24, 39, 63, 102px). Timing is `Fib(n) × 50ms`. Opacity is `Fib(n)/34`. Ratios converge on φ ≈ 1.618. See the perceptual basis comment block in `style.css :root`.
 - **HTML escaping** — `escapeHtml()` on all dynamic content injected into HTML. No exceptions.
 - **Security headers** — CSP (`default-src 'self'`), X-Frame-Options DENY, HSTS in production. Don't weaken.
-- **Rate limiting** — 30 requests/min per IP on the chapter API, 60 events/min on analytics.
+- **Rate limiting** — 30 requests/min per IP on the client log endpoint (`/api/log`), 60 events/min on analytics (`/api/ev`). The chapter API is deliberately not request-rate-limited; it is protected by the global render-concurrency semaphore instead.
 
 ## File map
 
@@ -66,8 +66,9 @@ These are load-bearing constraints. Don't break them:
 | `data/sections.json` | Generated production section map for renderer v2 grouping, including OpenBible consensus and generated fallback sections |
 | `data/eval-scenarios.json` | Eval-only smoke, edge, and prod-sim scenario metadata |
 | `prompts/margin-note-v3.md` | Longer margin-note prompt for renderer v2 |
-| `renders/` | Baseline cached renders per book (JSON, keyed by `chapterIndex:verseIndex`). Intentionally committed — each render costs an API call |
+| `renders/` | Baseline cached renders (JSON per book, keyed by `chapterIndex:verseIndex`; partial coverage). Intentionally committed — each render costs an API call. Only entries stamped with the current `RENDER_VERSION` seed the runtime cache |
 | `logger.js` | Structured JSONL server logging and anonymous event logging |
+| `utils.js` | Shared helpers: `cleanText` (em-dash and vapour invariants), `escapeHtml`, `parsePositiveInt`, `slugify` |
 | `railway.json` | Railway deployment config — health check, restart policy |
 
 ## Patterns to follow
@@ -75,7 +76,7 @@ These are load-bearing constraints. Don't break them:
 - **Vanilla JS only.** No frameworks, no new npm dependencies without strong justification.
 - **CSS custom properties** for theming. Both light and dark values defined in `:root` and `@media (prefers-color-scheme: dark)`.
 - **Structured logging** — use `log.info()`, `log.warn()`, `log.error()` from `logger.js`. First arg is a snake_case event name, second is a data object.
-- **Express static** serves `public/` but `index.html` is excluded (`index: false`) because the catch-all route handles it with injected metadata.
+- **Express static** serves `public/`, but the raw `index.html` template must never reach clients: `index: false` disables directory-index resolution and a normalizing guard (decode + `path.posix.normalize`, matching serve-static's own resolution) redirects any `/index.html` request — including encoded or dotted variants — to the catch-all, which serves the hydrated version with injected metadata.
 - **URL slugs** — book names lowercased with spaces replaced by hyphens (e.g., `1-kings`, `song-of-solomon`).
 
 ## Testing changes
@@ -94,7 +95,7 @@ These are load-bearing constraints. Don't break them:
 12. Tap a verse to expand its note
 13. Check the server console for structured log output and any warnings
 
-For PR review, run v2 evals locally with Railway-provided variables. Do not set `RENDER_PIPELINE=section-v2` on Railway production just to evaluate a draft PR. The eval commands write Markdown and JSON artifacts under `eval-reports/` or `EVAL_REPORTS_DIR`; prefer `/tmp` for exploratory edge/prod-sim runs and commit only reviewed artifacts. Review grouped metadata summaries, rubric, and manual section notes before taking the PR out of draft. Scenario metadata is currently eval/reporting-only and must not be added to the model payload until a later prompt-steering pass. When production v2 is approved, flip it with `RENDER_PIPELINE=section-v2`, `RENDERS_DIR=/data/renders-v2`, and `RENDER_SECTION_TIMEOUT_MS=90000`; rollback is unsetting the pipeline and restoring `/data/renders`.
+For PR review, run v2 evals locally with Railway-provided variables. Do not set `RENDER_PIPELINE=section-v2` on Railway production just to evaluate a draft PR. The eval commands write Markdown and JSON artifacts under `eval-reports/` (gitignored) or `EVAL_REPORTS_DIR`; prefer `/tmp` for exploratory edge/prod-sim runs and attach reviewed reports to the PR. Review grouped metadata summaries, rubric, and manual section notes before taking the PR out of draft. Scenario metadata is currently eval/reporting-only and must not be added to the model payload until a later prompt-steering pass. When production v2 is approved, flip it with `RENDER_PIPELINE=section-v2` and `RENDERS_DIR=/data/renders-v2` (`RENDER_SECTION_TIMEOUT_MS` already defaults to 90000); rollback is unsetting the pipeline and restoring `/data/renders`.
 
 ---
 

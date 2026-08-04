@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { books: BOOKS, verses: VERSES } = require('./data/bible.json');
 const SECTIONS_DATA = require('./data/sections.json');
 const EVAL_SCENARIOS_DATA = require('./data/eval-scenarios.json');
+const { parsePositiveInt } = require('./utils');
 
 const RENDER_PIPELINE_V2 = 'section-v2';
 const V2_PROMPT_VERSION = 'margin-note-v3';
@@ -16,11 +17,6 @@ const EVAL_SCENARIOS_VERSION = EVAL_SCENARIOS_DATA.version || 'eval-scenarios-v1
 const EVAL_SCENARIO_MODES = ['explicit', 'fallback-chapter', 'fallback-partial'];
 const SECTION_RENDER_TIMEOUT_MS = parsePositiveInt(process.env.RENDER_SECTION_TIMEOUT_MS, 90_000);
 const SECTION_SOURCE_VALUES = new Set(['openbible-consensus', 'generated-fallback', 'manual', 'explicit']);
-
-function parsePositiveInt(value, fallback) {
-  const n = Number.parseInt(value || '', 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-}
 
 function stableStringify(value) {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -114,20 +110,16 @@ const REF_RE = /^(.*) (\d+):(\d+)$/;
 const REF_TO_LOCATION = new Map();
 const REF_TO_ORDINAL = new Map();
 const ORDINAL_TO_REF = [];
-const BOOK_CHAPTER_REFS = new Map();
 
 for (const [bookIndex, book] of BOOKS.entries()) {
   for (let chapter = 1; chapter <= VERSES[bookIndex].length; chapter++) {
-    const chapterRefs = [];
     for (let verse = 1; verse <= VERSES[bookIndex][chapter - 1]; verse++) {
       const ref = refForEntry(book, chapter, verse);
       const location = { ref, book, bookIndex, chapter, verse };
       REF_TO_LOCATION.set(ref, location);
       REF_TO_ORDINAL.set(ref, ORDINAL_TO_REF.length);
       ORDINAL_TO_REF.push(ref);
-      chapterRefs.push(ref);
     }
-    BOOK_CHAPTER_REFS.set(`${book}:${chapter}`, chapterRefs);
   }
 }
 
@@ -149,16 +141,6 @@ function refsForRange(startRef, endRef) {
     throw new Error(`invalid section range: ${startRef}-${endRef}`);
   }
   return ORDINAL_TO_REF.slice(start, end + 1);
-}
-
-function refsForChapter(book, chapter) {
-  return BOOK_CHAPTER_REFS.get(`${book}:${chapter}`) || [];
-}
-
-function sectionRefs(bookName, chapter, startVerse, endVerse) {
-  const refs = [];
-  for (let verse = startVerse; verse <= endVerse; verse++) refs.push(refForEntry(bookName, chapter, verse));
-  return refs;
 }
 
 function targetVersesFor(section) {
@@ -188,7 +170,6 @@ function hydrateSectionRecord(section) {
     targetReferences: Array.isArray(section.targetReferences) && section.targetReferences.length
       ? section.targetReferences
       : references,
-    targetVerses: references.filter(ref => parseRef(ref).book === first.book && parseRef(ref).chapter === first.chapter).map(ref => parseRef(ref).verse),
   };
 }
 
@@ -199,6 +180,7 @@ function validateSectionMap(data = SECTIONS_DATA) {
   const seenIds = new Set();
   const covered = new Set();
   const sourceCounts = {};
+  const hydratedSections = [];
   for (const raw of data.sections) {
     const section = hydrateSectionRecord(raw);
     if (seenIds.has(section.id)) throw new Error(`duplicate section id: ${section.id}`);
@@ -213,6 +195,7 @@ function validateSectionMap(data = SECTIONS_DATA) {
     for (const ref of section.targetReferences) {
       if (!section.references.includes(ref)) throw new Error(`target ref outside section ${section.id}: ${ref}`);
     }
+    hydratedSections.push(section);
   }
   const missingRefs = ORDINAL_TO_REF.filter(ref => !covered.has(ref));
   if (missingRefs.length > 0) {
@@ -222,13 +205,14 @@ function validateSectionMap(data = SECTIONS_DATA) {
     sections: data.sections.length,
     verses: covered.size,
     expectedVerses: ORDINAL_TO_REF.length,
-    missingRefs,
     sourceCounts,
+    hydratedSections,
   };
 }
 
-const SECTION_MAP_VALIDATION = validateSectionMap(SECTIONS_DATA);
-const HYDRATED_SECTIONS = SECTIONS_DATA.sections.map(hydrateSectionRecord);
+// Validation hydrates every section already; reuse its output rather than
+// hydrating all 3,000+ sections a second time at startup.
+const HYDRATED_SECTIONS = validateSectionMap(SECTIONS_DATA).hydratedSections;
 const SECTIONS_BY_REF = new Map();
 for (const section of HYDRATED_SECTIONS) {
   for (const ref of section.references) {
@@ -260,45 +244,9 @@ function hydrateEvalSection(section) {
     id: section.id || sectionKey(section),
     startRef,
     endRef,
-    targetVerses: section.targetVerses || targetVersesFor(section),
     references,
     targetReferences: section.targetReferences || references,
   };
-}
-
-function explicitSectionsFor(bookName, chapter) {
-  return HYDRATED_SECTIONS
-    .filter(section => section.references.some(ref => {
-      const location = parseRef(ref);
-      return location.book === bookName && location.chapter === chapter;
-    }))
-    .sort((a, b) => compareRefs(a.startRef, b.startRef) || compareRefs(a.endRef, b.endRef));
-}
-
-function fallbackWindowSize(bookName) {
-  if (bookName === 'Psalms') return 24;
-  if (bookName === 'Proverbs') return 8;
-  return 16;
-}
-
-function fallbackSectionFor(bookName, chapter, verse, verseCount) {
-  if (bookName === 'Psalms' && verseCount <= 24) {
-    return { book: bookName, chapter, start: 1, end: verseCount, label: 'Whole psalm', source: 'fallback' };
-  }
-  const size = fallbackWindowSize(bookName);
-  const start = Math.floor((verse - 1) / size) * size + 1;
-  const end = Math.min(verseCount, start + size - 1);
-  return { book: bookName, chapter, start, end, label: `${bookName} ${chapter}:${start}-${end}`, source: 'fallback' };
-}
-
-function fallbackSectionOutsideExplicit(bookName, chapter, verse, verseCount, explicit) {
-  const section = fallbackSectionFor(bookName, chapter, verse, verseCount);
-  for (const s of explicit) {
-    if (s.end < verse && s.end >= section.start) section.start = s.end + 1;
-    if (s.start > verse && s.start <= section.end) section.end = s.start - 1;
-  }
-  section.label = `${bookName} ${chapter}:${section.start}-${section.end}`;
-  return section;
 }
 
 function sectionKey(section) {
@@ -306,10 +254,7 @@ function sectionKey(section) {
 }
 
 function groupMissingVersesIntoSections(bookName, chapter, missingZeroBased) {
-  const bookIndex = BOOKS.indexOf(bookName);
-  if (bookIndex === -1) throw new Error(`unknown book: ${bookName}`);
-  const verseCount = VERSES[bookIndex]?.[chapter - 1];
-  if (!verseCount) throw new Error(`unknown chapter: ${bookName} ${chapter}`);
+  validateBookChapter(bookName, chapter);
   return sectionsForMissingRefs(bookName, chapter, missingZeroBased);
 }
 
@@ -505,8 +450,15 @@ async function renderSectionOnce({ apiUrl, apiKey, model, reasoningEffort, bookN
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify(buildSectionRequest({ model, reasoningEffort, bookName, chapter, section })),
   });
+  if (!r.ok) {
+    let message = `section render failed (HTTP ${r.status})`;
+    try {
+      const errData = await r.json();
+      if (errData.error?.message) message = errData.error.message;
+    } catch { /* non-JSON error body; keep the status message */ }
+    throw new Error(message);
+  }
   const data = await r.json();
-  if (!r.ok) throw new Error(data.error?.message || 'section render failed');
   const raw = extractResponsesOutputText(data);
   if (typeof raw !== 'string') throw new Error('unexpected Responses API shape');
   let parsed;
@@ -516,10 +468,6 @@ async function renderSectionOnce({ apiUrl, apiKey, model, reasoningEffort, bookN
     throw new Error('malformed JSON from Responses API');
   }
   return validateSectionResult(parsed, section);
-}
-
-function smokeEvalSections() {
-  return evalSections('smoke');
 }
 
 function renderVersionParts({ model, reasoningEffort }) {
@@ -536,31 +484,22 @@ function renderVersionParts({ model, reasoningEffort }) {
 }
 
 module.exports = {
-  CHRIST_CONNECTION_VALUES,
   EVAL_SCENARIOS_VERSION,
-  NOTE_KIND_VALUES,
   RENDER_PIPELINE_V2,
   SECTIONS_FINGERPRINT,
   SECTIONS_VERSION,
-  SECTION_RENDER_SCHEMA,
   V2_PROMPT_VERSION,
   V2_SCHEMA_VERSION,
-  V2_SYSTEM_PROMPT,
-  buildSectionRequest,
   buildSectionUserPayload,
   evalScenarios,
   evalSections,
-  extractResponsesOutputText,
   fingerprintSectionMap,
   groupMissingVersesIntoSections,
   parseRef,
   refForEntry,
-  refsForChapter,
   renderSectionOnce,
   renderVersionParts,
   sectionRef,
-  sectionsForMissingRefs,
-  smokeEvalSections,
   validateEvalScenarioData,
   validateSectionMap,
   validateSectionResult,

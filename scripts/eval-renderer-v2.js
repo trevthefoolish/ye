@@ -10,25 +10,19 @@ const {
   SECTIONS_VERSION,
   evalSections,
   renderSectionOnce,
-  sectionRef: rendererSectionRef,
+  sectionRef,
 } = require('../rendererV2');
+const { cleanText, slugify } = require('../utils');
 
 const API_URL = process.env.XAI_API_URL || 'https://api.x.ai/v1/responses';
 const API_KEY = process.env.XAI_API_KEY;
-const MODEL = process.env.RENDER_MODEL || 'grok-4.3';
-const REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'none';
+const MODEL = process.env.RENDER_MODEL || 'grok-4.5';
+const REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'low';
 const EVAL_SET = process.env.EVAL_SET || 'smoke';
 const EVAL_GATE = process.env.EVAL_GATE === '1' || process.env.EVAL_GATE === 'true';
 const REPORTS_DIR = process.env.EVAL_REPORTS_DIR || path.join(__dirname, '..', 'eval-reports');
 const NOTE_WORD_WARNING_MAX = 32;
 const AVG_NOTE_WORD_WARNING_MIN = 11;
-
-function cleanText(s) {
-  return s
-    .replaceAll('\u2014', ', ')
-    .replace(/\bvapors\b/gi, 'vapours')
-    .replace(/\bvapor\b/gi, 'vapour');
-}
 
 function wordCount(s) {
   return s.trim().split(/\s+/).filter(Boolean).length;
@@ -51,23 +45,16 @@ function sum(items, fn) {
   return items.reduce((total, item) => total + fn(item), 0);
 }
 
-function safeSlug(value) {
-  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
-
-function statusFor(condition, warn = 'warn') {
-  return condition ? 'pass' : warn;
-}
-
-function sectionRef(section) {
-  return rendererSectionRef(section);
+function statusFor(condition) {
+  return condition ? 'pass' : 'warn';
 }
 
 function entryKey(entry) {
   return `${entry.scenarioId || 'unknown'}|${entry.ref}`;
 }
 
-function sectionKey(section, ref) {
+// Mirrors entryKey for a target ref that hasn't been rendered yet.
+function sectionEntryKey(section, ref) {
   return `${section.scenarioId || 'unknown'}|${ref}`;
 }
 
@@ -139,7 +126,7 @@ function expectedRenderedKeys(sections) {
   const expected = new Set();
   for (const section of sections) {
     for (const ref of section.targetReferences || section.references || []) {
-      expected.add(sectionKey(section, ref));
+      expected.add(sectionEntryKey(section, ref));
     }
   }
   return expected;
@@ -429,7 +416,7 @@ function buildMarkdownReport(report) {
     '',
     '| Scenario | Section | Mode | Source | Status | Notes |',
     '|---|---|---|---|---|---|',
-    ...report.sections.map(section => `| ${section.scenarioId} | ${section.ref} ${section.label ? `(${section.label})` : ''} | ${section.mode} | ${section.sectionSource} | pending |  |`),
+    ...report.sections.map(section => `| ${section.scenarioId} | ${section.ref} ${section.label ? `(${section.label})` : ''} | ${section.mode} | ${section.sectionSource} | ${section.manualReview?.status || 'pending'} | ${section.manualReview?.notes || ''} |`),
     '',
     '## Rendered Verses',
     '',
@@ -457,7 +444,7 @@ function buildMarkdownReport(report) {
 function writeEvalReport(report, reportsDir = REPORTS_DIR) {
   fs.mkdirSync(reportsDir, { recursive: true });
   const stamp = report.generatedAt.replace(/[:.]/g, '-');
-  const base = `${stamp}-${safeSlug(report.evalName)}`;
+  const base = `${stamp}-${slugify(report.evalName)}`;
   const jsonPath = path.join(reportsDir, `${base}.json`);
   const mdPath = path.join(reportsDir, `${base}.md`);
   fs.writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -580,13 +567,6 @@ if (require.main === module) {
 module.exports = {
   buildEvalReport,
   buildMarkdownReport,
-  cleanText,
-  countBy,
-  expectedRenderedKeys,
   gateFailures,
-  opening,
-  runEval,
-  safeSlug,
-  wordCount,
   writeEvalReport,
 };

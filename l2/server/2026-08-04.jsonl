@@ -1,0 +1,3 @@
+{"ts":"2026-08-04T22:19:58.569Z","source":"server","level":"info","event":"render_cache_seeded","files":0,"entriesAdded":0,"entriesReplaced":0,"entriesSkippedStaleSource":3437,"entriesSkippedMalformed":0,"dir":"/home/user/ye/r2"}
+{"ts":"2026-08-04T22:19:58.745Z","source":"server","level":"info","event":"js_minified","from":31887,"to":19631}
+{"ts":"2026-08-04T22:19:58.752Z","source":"server","level":"info","event":"server_started","port":39415,"version":"0.0.1"}

@@ -14,7 +14,10 @@ const LOG_ROOT = process.env.LOG_DIR
 function writeLine(dir, entry) {
   const line = JSON.stringify(entry) + '\n';
   process.stdout.write(line);
-  fs.appendFile(path.join(dir, dateStr() + '.jsonl'), line, () => {});
+  fs.appendFile(path.join(dir, dateStr() + '.jsonl'), line, err => {
+    // stderr, not log.*: a failing log disk must not recurse into itself.
+    if (err) process.stderr.write('log_append_failed: ' + err.message + '\n');
+  });
 }
 
 // --- Server logging (7-day retention) ---
@@ -80,7 +83,8 @@ const analyticsRouter = express.Router();
 
 function parseCookie(header, name) {
   if (!header) return null;
-  const match = header.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = header.match(new RegExp('(?:^|;\\s*)' + escaped + '=([^;]*)'));
   if (!match) return null;
   try {
     return decodeURIComponent(match[1]);
@@ -90,14 +94,21 @@ function parseCookie(header, name) {
 }
 
 analyticsRouter.post('/api/ev', express.json({ limit: '1kb' }), (req, res) => {
-  const { type, ...data } = req.body || {};
-  if (!VALID_TYPES.has(type)) return res.status(400).end();
+  // Rate limit before validation (same order as /api/log) so malformed
+  // events consume the same budget as valid ones.
   if (!checkAnalyticsRate(req.ip)) {
     log.debug('analytics_rate_limited', { ip: req.ip });
     return res.status(204).end();
   }
+  const { type, ...data } = req.body || {};
+  if (!VALID_TYPES.has(type)) return res.status(400).end();
 
-  const anonId = crypto.createHash('sha256').update(req.ip + dateStr()).digest('hex').slice(0, 8);
+  // ANALYTICS_SALT (optional) makes the anonymous id resistant to
+  // brute-forcing the IP space; without it the id is still daily-rotating.
+  const anonId = crypto.createHash('sha256')
+    .update((process.env.ANALYTICS_SALT || '') + req.ip + dateStr())
+    .digest('hex')
+    .slice(0, 8);
 
   // Session cookie: reuse existing or generate new
   let sid = parseCookie(req.headers.cookie, 'sid');
@@ -124,6 +135,6 @@ cleanupLogs(ANALYTICS_DIR, 30);
 setInterval(() => {
   cleanupLogs(SERVER_DIR, 7);
   cleanupLogs(ANALYTICS_DIR, 30);
-}, 86400000);
+}, 86400000).unref();
 
 module.exports = { log, logRouter, analyticsRouter, parseCookie };

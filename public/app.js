@@ -63,6 +63,9 @@ const TRACK_CENTER = 'translateX(-33.333%)';
 // Transition helper: fire fn on transitionend (filtered by prop) or safety timeout
 function onTransition(el, prop, timeoutMs, fn) {
   function handler(e) {
+    // Ignore transitionend bubbling up from descendants (e.g. panel effects
+    // ending while we wait for the track's own transform to finish).
+    if (e && e.target !== el) return;
     if (e && prop && e.propertyName !== prop) return;
     el.removeEventListener('transitionend', handler);
     clearTimeout(safety);
@@ -73,6 +76,12 @@ function onTransition(el, prop, timeoutMs, fn) {
     el.removeEventListener('transitionend', handler);
     fn();
   }, timeoutMs);
+}
+
+// requestIdleCallback with a setTimeout fallback (fallback delay in seconds)
+function onIdle(fn, fallbackDelayS) {
+  if (window.requestIdleCallback) window.requestIdleCallback(fn);
+  else setTimeout(fn, fallbackDelayS * 1000);
 }
 
 function toSlug(name) { return name.toLowerCase().replace(/ /g, '-'); }
@@ -118,14 +127,11 @@ function fetchChapter(bookName, chNum, opts = {}) {
   const key = chapterKey(bookName, chNum);
   const cached = chapterCache.get(key);
   if (!opts.force && cached?.verses?.length && cached.complete !== false) return Promise.resolve(cached);
-  if (!opts.force && opts.cacheOnly && cached?.verses?.length) return Promise.resolve(cached);
-  const renderMissing = opts.render !== false;
   const priority = opts.priority === 'background' ? 'background' : 'foreground';
-  const fetchKey = key + ':' + (renderMissing ? priority : 'cache');
+  const fetchKey = key + ':' + priority;
   if (inflightFetches.has(fetchKey)) return inflightFetches.get(fetchKey);
   const params = new URLSearchParams({ v: RENDER_VERSION });
-  if (!renderMissing) params.set('render', '0');
-  else if (priority === 'background') params.set('priority', 'background');
+  if (priority === 'background') params.set('priority', 'background');
   const promise = fetch(`/api/chapter/${encodeURIComponent(bookName)}/${chNum}?${params}`, { signal: AbortSignal.timeout(35000) })
     .then(res => {
       if (!res.ok) throw new Error(`fetch ${res.status}`);
@@ -148,8 +154,7 @@ function prefetchAdjacent(p, dir) {
   const ahead = p + (dir || 1) * PREFETCH_DISTANCE;
   if (ahead >= 0 && ahead < TOTAL) {
     const e = ALL[ahead];
-    const idle = window.requestIdleCallback || (cb => setTimeout(cb, SYM.durInstant * 1000));
-    idle(() => fetchChapter(BOOKS[e.bi], e.ch + 1, { priority: 'background' }).catch(err => reportError('prefetch', err.message)));
+    onIdle(() => fetchChapter(BOOKS[e.bi], e.ch + 1, { priority: 'background' }).catch(err => reportError('prefetch', err.message)), SYM.durInstant);
   }
 }
 
@@ -229,10 +234,13 @@ function fadeNavOut(onComplete) {
     if (onComplete) onComplete();
   });
 }
-function closeNav() {
+function closeNav(viaHistory) {
   if (!navOpen) return;
   navOpen = false;
   fadeNavOut();
+  // Opening the nav pushed a history entry; consume it when closing by tap
+  // so a later back press doesn't hit a dead entry.
+  if (!viaHistory && history.state?.nav) history.back();
 }
 
 header.addEventListener('click', () => {
@@ -264,9 +272,9 @@ header.addEventListener('click', () => {
         if (np < 0) return;
         navOpen = false;
         fadeNavOut(() => {
-          pos = np; ev('nav', { method: 'tap' }); saveScroll(); fillAllPanels();
-          requestAnimationFrame(() => { nav.classList.remove('curtain'); });
+          pos = np; ev('nav', { method: 'tap' }); fillAllPanels();
         });
+        saveAllScrolls();
       });
       grid.appendChild(pill);
     }
@@ -303,7 +311,8 @@ header.addEventListener('click', () => {
   if (currentItem) currentItem.scrollIntoView({ block: 'center' });
 });
 
-nav.addEventListener('click', closeNav);
+// Wrap so the MouseEvent is not mistaken for closeNav's viaHistory flag.
+nav.addEventListener('click', () => closeNav());
 
 // --- RENDER ---
 function getExpandedVerseIndexes(scroll) {
@@ -312,15 +321,19 @@ function getExpandedVerseIndexes(scroll) {
     .filter(Number.isInteger));
 }
 
+function skeletonLine(i) {
+  const line = document.createElement('div');
+  line.className = 'skeleton-line';
+  line.style.width = SKELETON_WIDTHS[i % SKELETON_WIDTHS.length] + '%';
+  return line;
+}
+
 function renderVersesInto(scroll, verses, expandedVerses = new Set()) {
   const frag = document.createDocumentFragment();
   for (let i = 0; i < verses.length; i++) {
     const v = verses[i];
     if (!v) {
-      const line = document.createElement('div');
-      line.className = 'skeleton-line';
-      line.style.width = SKELETON_WIDTHS[i % SKELETON_WIDTHS.length] + '%';
-      frag.appendChild(line);
+      frag.appendChild(skeletonLine(i));
       continue;
     }
     const wrap = document.createElement('div');
@@ -362,6 +375,11 @@ function renderChapterData(scroll, data, opts = {}) {
   const currentRendered = Number.parseInt(scroll.dataset.renderedCount || '-1', 10);
   const currentComplete = scroll.dataset.complete === 'true';
   const hasChapterContent = scroll.dataset.chapterContent === 'true';
+  // Already showing this chapter, complete, same verse count: skip the
+  // rebuild (avoids constructing the verse DOM twice on cache-hit fills).
+  if (hasChapterContent && currentComplete && data.complete !== false && renderedCount === currentRendered) {
+    return false;
+  }
   const improved = opts.force || !hasChapterContent || data.complete !== false
     || (!currentComplete && renderedCount > currentRendered);
   if (!improved) return false;
@@ -373,13 +391,21 @@ function renderChapterData(scroll, data, opts = {}) {
   scroll.dataset.chapterContent = 'true';
   scroll.dataset.renderedCount = String(renderedCount);
   scroll.dataset.complete = data.complete === false ? 'false' : 'true';
-  scroll.dataset.missingCount = String(data.missingCount ?? Math.max(0, verses.length - renderedCount));
   if (opts.preserveScroll) scroll.scrollTop = scrollTop;
   return true;
 }
 
-function scheduleChapterRetry(panel, scroll, p, delayMs, opts = {}) {
+const RETRY_MAX_ERRORS = 5;
+const RETRY_MAX_POLLS = 90;
+const RETRY_MAX_DELAY_MS = 30000;
+
+function scheduleChapterRetry(scroll, p, delayMs, opts = {}) {
   clearChapterRetry(p);
+  const errors = opts.errors || 0;
+  const polls = opts.polls || 0;
+  // Give up eventually: a wedged server must not be polled (and re-queued
+  // for upstream rendering) every 2s forever.
+  if (errors >= RETRY_MAX_ERRORS || polls >= RETRY_MAX_POLLS) return;
   const timer = setTimeout(async () => {
     chapterRetryTimers.delete(p);
     if (!scroll.isConnected || scroll.dataset.p !== String(p)) return;
@@ -387,17 +413,28 @@ function scheduleChapterRetry(panel, scroll, p, delayMs, opts = {}) {
     const bookName = BOOKS[e.bi];
     const chNum = e.ch + 1;
     try {
-      const data = await fetchChapter(bookName, chNum, { force: true, render: opts.render, priority: opts.priority });
+      const data = await fetchChapter(bookName, chNum, { force: true, priority: opts.priority });
       if (!scroll.isConnected || scroll.dataset.p !== String(p)) return;
       renderChapterData(scroll, data, { preserveScroll: true });
       if (data.complete === false) {
-        scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000, opts);
+        // The poll budget only counts polls that show no new verses, so a
+        // slow but progressing render (long chapters under contention) is
+        // never cut off; only a wedged server exhausts the cap.
+        const rendered = countRenderedVerses(data.verses);
+        const progressed = rendered > (opts.lastRendered ?? -1);
+        scheduleChapterRetry(scroll, p, data.retryAfterMs || 2000, {
+          ...opts,
+          errors: 0,
+          polls: progressed ? 0 : polls + 1,
+          lastRendered: rendered,
+        });
       } else {
         bindScrollShadow();
       }
     } catch (err) {
       reportError('chapter_retry', bookName + ' ' + chNum + ': ' + err.message);
-      scheduleChapterRetry(panel, scroll, p, delayMs, opts);
+      const backoff = Math.min(RETRY_MAX_DELAY_MS, Math.max(delayMs, 1000) * 2);
+      scheduleChapterRetry(scroll, p, backoff, { ...opts, errors: errors + 1, polls: polls + 1 });
     }
   }, delayMs);
   chapterRetryTimers.set(p, timer);
@@ -421,7 +458,6 @@ async function fillPanel(panel, p, opts = {}) {
   const e = ALL[p];
   const bookName = BOOKS[e.bi];
   const chNum = e.ch + 1;
-  const renderMissing = opts.render !== false;
   const priority = opts.priority === 'background' ? 'background' : 'foreground';
 
   const key = chapterKey(bookName, chNum);
@@ -436,18 +472,14 @@ async function fillPanel(panel, p, opts = {}) {
   const willFade = !hasSnapshot && !hasExistingContent;
   if (willFade) {
     for (let i = 0; i < SKELETON_WIDTHS.length; i++) {
-      const line = document.createElement('div');
-      line.className = 'skeleton-line';
-      line.style.width = SKELETON_WIDTHS[i] + '%';
-      scroll.appendChild(line);
+      scroll.appendChild(skeletonLine(i));
     }
   }
 
   try {
-    const data = await fetchChapter(bookName, chNum, { force: opts.force, render: renderMissing, priority });
+    const data = await fetchChapter(bookName, chNum, { force: opts.force, priority });
     if (stale()) return;
     const { verses } = data;
-    if (stale()) return;
     if (!verses || verses.length === 0) {
       if (!hasExistingContent) {
         scroll.replaceChildren();
@@ -459,8 +491,8 @@ async function fillPanel(panel, p, opts = {}) {
       return;
     }
     const didRender = renderChapterData(scroll, data, { preserveScroll: reuseExisting });
-    if (data.complete === false && renderMissing) {
-      scheduleChapterRetry(panel, scroll, p, data.retryAfterMs || 2000, { render: renderMissing, priority });
+    if (data.complete === false) {
+      scheduleChapterRetry(scroll, p, data.retryAfterMs || 2000, { priority });
     }
     // Restore saved scroll position
     const savedScroll = scrollPositions.get(p);
@@ -479,28 +511,40 @@ async function fillPanel(panel, p, opts = {}) {
     clearChapterRetry(p);
     if (stale()) return;
     reportError('chapter_load', bookName + ' ' + chNum + ': ' + err.message);
-    scroll.replaceChildren();
-    const msg = document.createElement('div');
-    msg.className = 'empty-msg';
-    msg.textContent = 'Could not load this chapter. Try again shortly.';
-    scroll.appendChild(msg);
+    // Keep whatever chapter content is already on screen; only replace
+    // emptiness (or a skeleton) with the error message.
+    if (scroll.dataset.chapterContent !== 'true') {
+      scroll.replaceChildren();
+      const msg = document.createElement('div');
+      msg.className = 'empty-msg';
+      msg.textContent = 'Could not load this chapter. Try again shortly.';
+      scroll.appendChild(msg);
+    }
   }
 }
 
 function saveScroll(panel) {
   const scroll = (panel || panels[1]).querySelector('.chapter-scroll');
-  if (scroll && scroll.dataset.p != null) {
+  // Only panels showing real chapter content carry a meaningful position;
+  // a skeleton or still-loading panel would clobber the saved value with 0.
+  if (scroll && scroll.dataset.p != null && scroll.dataset.chapterContent === 'true') {
     const p = parseInt(scroll.dataset.p);
     if (!isNaN(p)) {
+      // Delete-then-set refreshes Map insertion order, making this a true LRU.
+      scrollPositions.delete(p);
       scrollPositions.set(p, scroll.scrollTop);
       if (scrollPositions.size > SCROLL_LRU_MAX) scrollPositions.delete(scrollPositions.keys().next().value);
     }
   }
 }
 
+function saveAllScrolls() {
+  for (const panel of panels) saveScroll(panel);
+}
+
 const reading = document.getElementById('reading');
 function navJump() {
-  saveScroll();
+  saveAllScrolls();
   reading.style.transition = 'opacity ' + SYM.navFadeOut + 's ' + SYM.easeOut;
   reading.style.opacity = '0';
   setTimeout(() => {
@@ -527,14 +571,14 @@ function promoteVisiblePanel() {
   const e = ALL[pos];
   const key = chapterKey(BOOKS[e.bi], e.ch + 1);
   const scroll = panels[1].querySelector('.chapter-scroll');
-  if (scroll?.dataset.p === String(pos) && scroll.childElementCount > 0) {
-    if (hasCompleteChapter(key)) return Promise.resolve();
-    return fillPanel(panels[1], pos, { force: true, preserveExisting: true }).then(bindScrollShadow);
-  }
-  if (!hasCompleteChapter(key)) {
-    return fillPanel(panels[1], pos, { force: true }).then(bindScrollShadow);
-  }
-  return Promise.resolve();
+  const showingCurrent = scroll?.dataset.p === String(pos) && scroll.childElementCount > 0;
+  if (showingCurrent && hasCompleteChapter(key)) return Promise.resolve();
+  // Refill in every other case, including a stale panel whose chapter is
+  // already complete in the client cache (no force needed then).
+  return fillPanel(panels[1], pos, {
+    force: !hasCompleteChapter(key),
+    preserveExisting: showingCurrent,
+  }).then(bindScrollShadow);
 }
 
 // Reset track to center position with no transition
@@ -652,6 +696,12 @@ function slideTo(dir, velocity) {
 
     sliding = false;
 
+    if (pendingPopPos !== null) {
+      const target = pendingPopPos;
+      pendingPopPos = null;
+      applyPopPos(target);
+    }
+
     // Prefetch the chapter beyond the new adjacent (warm cache for next swipe)
     prefetchAdjacent(pos, dir);
   });
@@ -728,10 +778,10 @@ container.addEventListener('touchend', () => {
   edgeL.style.opacity = '0';
   edgeR.style.opacity = '0';
 
-  // Boundary: just spring back
+  // Boundary: just spring back (springBack also clears any depth effects
+  // applied while the drag direction briefly flipped inward)
   if (atBoundary(pos, touch.dx)) {
-    track.style.transition = 'transform ' + SYM.springDur + 's ' + SYM.easeSpring;
-    track.style.transform = TRACK_CENTER;
+    springBack();
     return;
   }
 
@@ -756,15 +806,21 @@ container.addEventListener('touchend', () => {
 });
 
 // --- POPSTATE (back/forward) ---
-window.addEventListener('popstate', (e) => {
-  // If nav overlay is open, back button closes it
-  if (navOpen) { closeNav(); return; }
-  if (sliding) return;
-  const newPos = e.state?.pos ?? posFromPath();
+let pendingPopPos = null;
+function applyPopPos(newPos) {
   if (newPos !== pos && newPos >= 0 && newPos < TOTAL) {
     pos = newPos;
     navJump();
   }
+}
+window.addEventListener('popstate', (e) => {
+  // If nav overlay is open, back button closes it
+  if (navOpen) { closeNav(true); return; }
+  const newPos = e.state?.pos ?? posFromPath();
+  // Mid-slide: remember the target and apply it once the slide settles,
+  // instead of silently desyncing URL and content.
+  if (sliding) { pendingPopPos = newPos; return; }
+  applyPopPos(newPos);
 });
 
 // --- INIT ---
@@ -783,14 +839,16 @@ try {
   }
 } catch (e) { reportError('preload_parse', e.message); }
 
-fillAllPanels();
+// Canonicalize the URL before fillAllPanels runs updateHeader, so a
+// non-canonical entry URL is replaced rather than left behind a pushState.
 history.replaceState({ pos }, '', '/' + toSlug(BOOKS[ALL[pos].bi]) + '/' + (ALL[pos].ch + 1));
+fillAllPanels();
 
 // Prefetch chapters 2 steps ahead/behind on idle
-(window.requestIdleCallback || (cb => setTimeout(cb, SYM.durBreath * 1000)))(() => {
+onIdle(() => {
   prefetchAdjacent(pos, 1);
   prefetchAdjacent(pos, -1);
-});
+}, SYM.durBreath);
 
 // Session depth: report how many chapters read when leaving
 document.addEventListener('visibilitychange', () => {

@@ -136,21 +136,22 @@ function startApp(t, xaiUrl, extraEnv = {}) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ye-test-'));
   const rendersDir = path.join(temp, 'renders');
   const logsDir = path.join(temp, 'logs');
-  const port = 3200 + Math.floor(Math.random() * 1000);
   let output = '';
   const child = spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
     env: {
       ...process.env,
-      PORT: String(port),
+      // PORT=0 lets the OS assign a free port (no EADDRINUSE flakes); the
+      // assigned port is read back from the server_started log line.
+      PORT: '0',
       NODE_ENV: 'production',
       XAI_API_KEY: 'test-key',
       XAI_API_URL: xaiUrl,
       RENDERS_DIR: rendersDir,
       LOG_DIR: logsDir,
       RENDER_PIPELINE: 'verse-v1',
-      RENDER_MODEL: 'grok-4.3',
-      RENDER_REASONING_EFFORT: 'none',
+      RENDER_MODEL: 'grok-4.5',
+      RENDER_REASONING_EFFORT: 'low',
       ...extraEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -162,11 +163,18 @@ function startApp(t, xaiUrl, extraEnv = {}) {
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('server did not start: ' + output)), 8000);
+    let resolved = false;
     child.stdout.on('data', chunk => {
       output += chunk.toString();
-      if (output.includes('"event":"server_started"')) {
+      if (resolved) return;
+      for (const line of output.split('\n').slice(0, -1)) {
+        if (!line.includes('"event":"server_started"')) continue;
+        let entry;
+        try { entry = JSON.parse(line); } catch { continue; }
+        resolved = true;
         clearTimeout(timeout);
-        resolve({ port, rendersDir, logsDir, child, getOutput: () => output });
+        resolve({ port: entry.port, rendersDir, logsDir, child, getOutput: () => output });
+        return;
       }
     });
     child.stderr.on('data', chunk => { output += chunk.toString(); });
@@ -238,18 +246,29 @@ test('server hardening and chapter rendering behavior', async t => {
     assert.equal(res.status, 404);
   });
 
+  await t.test('raw index.html template is never served, including encoded variants', async () => {
+    for (const p of ['/index.html', '/%69ndex.html', '//index.html', '/./index.html', '/Index.html']) {
+      const res = await request(app.port, p);
+      assert.equal(res.status, 301, `expected redirect for ${p}`);
+      assert.equal(res.headers.location, '/', `expected / location for ${p}`);
+      assert.ok(!res.body.includes('__CONFIG__'), `raw template leaked via ${p}`);
+    }
+    const css = await request(app.port, '/style.css');
+    assert.equal(css.status, 200);
+  });
+
   await t.test('favicon.ico redirects to the SVG favicon', async () => {
     const res = await request(app.port, '/favicon.ico');
     assert.equal(res.status, 301);
     assert.equal(res.headers.location, '/favicon.svg');
   });
 
-  await t.test('version endpoint reports Grok 4.3 and disabled reasoning', async () => {
+  await t.test('version endpoint reports Grok 4.5 and low reasoning', async () => {
     const res = await request(app.port, '/api/version');
     assert.equal(res.status, 200);
     const data = JSON.parse(res.body);
-    assert.equal(data.model, 'grok-4.3');
-    assert.equal(data.reasoningEffort, 'none');
+    assert.equal(data.model, 'grok-4.5');
+    assert.equal(data.reasoningEffort, 'low');
     assert.equal(data.appVersion, '0.0.1');
     assert.equal(typeof data.version, 'string');
   });
@@ -309,9 +328,30 @@ test('server hardening and chapter rendering behavior', async t => {
     }
 
     const payload = mockXai.payloads[0];
-    assert.equal(payload.model, 'grok-4.3');
-    assert.equal(payload.reasoning_effort, 'none');
+    assert.equal(payload.model, 'grok-4.5');
+    assert.equal(payload.reasoning_effort, 'low');
     assert.equal(payload.store, false);
+  });
+
+  await t.test('stale-version cache entries are treated as missing and re-rendered', async () => {
+    const versionRes = await request(app.port, '/api/version');
+    assert.equal(versionRes.status, 200);
+    const bible = require('../data/bible.json');
+    const bookIndex = bible.books.indexOf('3 John');
+    assert.ok(bookIndex >= 0);
+    // An entry stamped with an old RENDER_VERSION must not be served.
+    fs.writeFileSync(path.join(app.rendersDir, `${bookIndex}.json`), JSON.stringify({
+      '0:0': { rendering: 'Old-version verse', note: 'Old-version note', v: 'stale-version', t: Date.now() },
+    }));
+
+    const cold = await request(app.port, '/api/chapter/3-john/1');
+    assert.equal(cold.status, 200);
+    const data = JSON.parse(cold.body);
+    assert.equal(data.complete, false);
+    assert.equal(data.verses[0], null);
+
+    const complete = await waitForComplete(app.port, '/api/chapter/3-john/1');
+    assert.equal(complete.verses[0].rendering, 'Rendered 3 John 1:1');
   });
 
   await t.test('cold chapters return partial data quickly and complete in background', async () => {
@@ -342,8 +382,8 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   const versionRes = await request(app.port, '/api/version');
   assert.equal(versionRes.status, 200);
   const version = JSON.parse(versionRes.body);
-  assert.equal(version.model, 'grok-4.3');
-  assert.equal(version.reasoningEffort, 'none');
+  assert.equal(version.model, 'grok-4.5');
+  assert.equal(version.reasoningEffort, 'low');
   assert.equal(version.renderPipeline, 'section-v2');
   assert.equal(version.promptVersion, 'margin-note-v3');
   assert.equal(version.schemaVersion, 'section-render-v1');
@@ -359,9 +399,9 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   assert.ok(mockXai.calls > 0);
 
   const payload = mockXai.payloads[0];
-  assert.equal(payload.model, 'grok-4.3');
+  assert.equal(payload.model, 'grok-4.5');
   assert.equal(payload.store, false);
-  assert.deepEqual(payload.reasoning, { effort: 'none' });
+  assert.deepEqual(payload.reasoning, { effort: 'low' });
   assert.equal(payload.messages, undefined);
   assert.ok(Array.isArray(payload.input));
   assert.equal(payload.text.format.type, 'json_schema');
