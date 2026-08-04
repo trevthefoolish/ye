@@ -129,7 +129,7 @@ test('renderer v2 render version includes section map content fingerprint', () =
   });
 
   assert.notEqual(changedFingerprint, SECTIONS_FINGERPRINT);
-  assert.ok(renderVersionParts({ model: 'grok-4.3', reasoningEffort: 'none' }).includes(SECTIONS_FINGERPRINT));
+  assert.ok(renderVersionParts({ model: 'grok-4.5', reasoningEffort: 'low' }).includes(SECTIONS_FINGERPRINT));
   assert.equal(
     fingerprintSectionMap({ ...sectionsData, generatedAt: '2000-01-01T00:00:00.000Z' }),
     fingerprintSectionMap({ ...sectionsData, generatedAt: '2030-01-01T00:00:00.000Z' })

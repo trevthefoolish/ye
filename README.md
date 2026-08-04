@@ -13,7 +13,7 @@ It's designed for deep, repeated reading. The kind that reveals its meaning over
 
 ## How it works
 
-Each verse is rendered on-demand by [Grok](https://x.ai) through a theological framework built on seven lenses:
+Each verse is rendered on-demand by [Grok](https://x.ai) (Grok 4.5 by default, overridable via `RENDER_MODEL`) through a theological framework built on seven lenses:
 
 - **Messianic** — every narrative thread contributes to the story that finds fulfillment in Jesus
 - **Communal** — the Bible addresses communities and peoples, not just isolated individuals
@@ -97,6 +97,13 @@ LOG_DIR=/data/logs
 ```
 
 Mount a Railway volume at `/data` so generated render cache and JSONL logs survive deploys and restarts. The committed `renders/` directory remains the baseline seed.
+
+The renderer defaults to `grok-4.5` with `reasoning_effort: low` (Grok 4.5 dropped the `none` effort level that Grok 4.3 accepted). Changing the model or effort changes `RENDER_VERSION`, so verses re-render on demand and the old cache stops being served. To keep serving an existing Grok 4.3 cache, pin the previous behavior explicitly:
+
+```
+RENDER_MODEL=grok-4.3
+RENDER_REASONING_EFFORT=none
+```
 
 For the first v2 production flip, use a fresh cache directory:
 

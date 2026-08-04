@@ -49,8 +49,13 @@ const app = express();
 // a specific hop count (vs `true`) prevents XFF spoofing from the internet.
 app.set('trust proxy', 2);
 const RENDER_PIPELINE = process.env.RENDER_PIPELINE === RENDER_PIPELINE_V2 ? RENDER_PIPELINE_V2 : 'verse-v1';
-const RENDER_MODEL = process.env.RENDER_MODEL || 'grok-4.3';
-const RENDER_REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'none';
+// grok-4.5 supports reasoning_effort low|medium|high only ('none' was removed
+// after grok-4.3). 'low' keeps verse rendering fast while staying valid.
+// Changing either value changes RENDER_VERSION, which invalidates cached
+// renders; pin RENDER_MODEL=grok-4.3 RENDER_REASONING_EFFORT=none to keep
+// serving an existing cache.
+const RENDER_MODEL = process.env.RENDER_MODEL || 'grok-4.5';
+const RENDER_REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'low';
 const XAI_API_KEY = process.env.XAI_API_KEY;
 if (!XAI_API_KEY) { log.error('missing_api_key'); process.exit(1); }
 const XAI_API_URL = process.env.XAI_API_URL

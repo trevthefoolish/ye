@@ -15,8 +15,8 @@ const {
 
 const API_URL = process.env.XAI_API_URL || 'https://api.x.ai/v1/responses';
 const API_KEY = process.env.XAI_API_KEY;
-const MODEL = process.env.RENDER_MODEL || 'grok-4.3';
-const REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'none';
+const MODEL = process.env.RENDER_MODEL || 'grok-4.5';
+const REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'low';
 const EVAL_SET = process.env.EVAL_SET || 'smoke';
 const EVAL_GATE = process.env.EVAL_GATE === '1' || process.env.EVAL_GATE === 'true';
 const REPORTS_DIR = process.env.EVAL_REPORTS_DIR || path.join(__dirname, '..', 'eval-reports');

@@ -149,8 +149,8 @@ function startApp(t, xaiUrl, extraEnv = {}) {
       RENDERS_DIR: rendersDir,
       LOG_DIR: logsDir,
       RENDER_PIPELINE: 'verse-v1',
-      RENDER_MODEL: 'grok-4.3',
-      RENDER_REASONING_EFFORT: 'none',
+      RENDER_MODEL: 'grok-4.5',
+      RENDER_REASONING_EFFORT: 'low',
       ...extraEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -244,12 +244,12 @@ test('server hardening and chapter rendering behavior', async t => {
     assert.equal(res.headers.location, '/favicon.svg');
   });
 
-  await t.test('version endpoint reports Grok 4.3 and disabled reasoning', async () => {
+  await t.test('version endpoint reports Grok 4.5 and low reasoning', async () => {
     const res = await request(app.port, '/api/version');
     assert.equal(res.status, 200);
     const data = JSON.parse(res.body);
-    assert.equal(data.model, 'grok-4.3');
-    assert.equal(data.reasoningEffort, 'none');
+    assert.equal(data.model, 'grok-4.5');
+    assert.equal(data.reasoningEffort, 'low');
     assert.equal(data.appVersion, '0.0.1');
     assert.equal(typeof data.version, 'string');
   });
@@ -309,8 +309,8 @@ test('server hardening and chapter rendering behavior', async t => {
     }
 
     const payload = mockXai.payloads[0];
-    assert.equal(payload.model, 'grok-4.3');
-    assert.equal(payload.reasoning_effort, 'none');
+    assert.equal(payload.model, 'grok-4.5');
+    assert.equal(payload.reasoning_effort, 'low');
     assert.equal(payload.store, false);
   });
 
@@ -342,8 +342,8 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   const versionRes = await request(app.port, '/api/version');
   assert.equal(versionRes.status, 200);
   const version = JSON.parse(versionRes.body);
-  assert.equal(version.model, 'grok-4.3');
-  assert.equal(version.reasoningEffort, 'none');
+  assert.equal(version.model, 'grok-4.5');
+  assert.equal(version.reasoningEffort, 'low');
   assert.equal(version.renderPipeline, 'section-v2');
   assert.equal(version.promptVersion, 'margin-note-v3');
   assert.equal(version.schemaVersion, 'section-render-v1');
@@ -359,9 +359,9 @@ test('renderer v2 uses Responses API sections while preserving public chapter sh
   assert.ok(mockXai.calls > 0);
 
   const payload = mockXai.payloads[0];
-  assert.equal(payload.model, 'grok-4.3');
+  assert.equal(payload.model, 'grok-4.5');
   assert.equal(payload.store, false);
-  assert.deepEqual(payload.reasoning, { effort: 'none' });
+  assert.deepEqual(payload.reasoning, { effort: 'low' });
   assert.equal(payload.messages, undefined);
   assert.ok(Array.isArray(payload.input));
   assert.equal(payload.text.format.type, 'json_schema');
