@@ -60,6 +60,5 @@ function mergeSeedRenderCache(sourceData, destData, renderVersion, opts = {}) {
 }
 
 module.exports = {
-  isRenderEntry,
   mergeSeedRenderCache,
 };

@@ -5,6 +5,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
 const BIBLE = require('../data/bible.json');
+const { parsePositiveInt, slugify } = require('../utils');
 const OUT_PATH = path.join(ROOT, 'data', 'sections.json');
 const OPENBIBLE_URL = process.env.OPENBIBLE_SECTIONS_URL || 'https://a.openbible.info/data/bible-section-counts.txt';
 const OPENBIBLE_MAX_VERSES = parsePositiveInt(process.env.OPENBIBLE_MAX_SECTION_VERSES, 48);
@@ -99,11 +100,6 @@ for (const [bookIndex, book] of BOOKS.entries()) {
   BOOK_BOUNDS.push({ book, start, end: ordinal });
 }
 
-function parsePositiveInt(value, fallback) {
-  const n = Number.parseInt(value || '', 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-}
-
 function fallbackWindowSize(book) {
   if (book === 'Psalms') return 24;
   if (book === 'Proverbs') return 8;
@@ -112,14 +108,6 @@ function fallbackWindowSize(book) {
 
 function refForEntry(book, chapter, verse) {
   return `${book} ${chapter}:${verse}`;
-}
-
-function slug(value) {
-  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
-
-function osisSlug(ref) {
-  return ref.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 function parseOsisRef(ref) {
@@ -149,7 +137,6 @@ function fallbackCandidatesFor(book, from, bookEnd) {
       to: from + len,
       votes: 0,
       score: 1,
-      sortScore: 1,
     });
   }
   return candidates;
@@ -159,7 +146,7 @@ function parseOpenBibleRows(text) {
   const rows = [];
   for (const line of text.split(/\r?\n/)) {
     if (!line || line.startsWith('#')) continue;
-    const [startOsis, endOsis, nextOsis, countValue] = line.split('\t');
+    const [startOsis, endOsis, , countValue] = line.split('\t');
     const start = parseOsisRef(startOsis);
     const end = parseOsisRef(endOsis);
     if (!start || !end || start.book !== end.book) continue;
@@ -173,10 +160,8 @@ function parseOpenBibleRows(text) {
       to: end.ord + 1,
       startOsis,
       endOsis,
-      nextOsis,
       votes,
       score,
-      sortScore: score,
     });
   }
   return rows;
@@ -227,8 +212,8 @@ function sectionFromCandidate(candidate) {
   const sectionRef = `${start.ref}-${end.ref}`;
   const idPrefix = candidate.source === 'openbible-consensus' ? 'ob' : 'fallback';
   const id = candidate.source === 'openbible-consensus'
-    ? `${idPrefix}-${osisSlug(candidate.startOsis)}-${osisSlug(candidate.endOsis)}`
-    : `${idPrefix}-${slug(start.book)}-${start.chapter}-${start.verse}-${end.chapter}-${end.verse}`;
+    ? `${idPrefix}-${slugify(candidate.startOsis)}-${slugify(candidate.endOsis)}`
+    : `${idPrefix}-${slugify(start.book)}-${start.chapter}-${start.verse}-${end.chapter}-${end.verse}`;
   return {
     id,
     source: candidate.source,

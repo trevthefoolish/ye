@@ -136,13 +136,14 @@ function startApp(t, xaiUrl, extraEnv = {}) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'ye-test-'));
   const rendersDir = path.join(temp, 'renders');
   const logsDir = path.join(temp, 'logs');
-  const port = 3200 + Math.floor(Math.random() * 1000);
   let output = '';
   const child = spawn(process.execPath, ['server.js'], {
     cwd: ROOT,
     env: {
       ...process.env,
-      PORT: String(port),
+      // PORT=0 lets the OS assign a free port (no EADDRINUSE flakes); the
+      // assigned port is read back from the server_started log line.
+      PORT: '0',
       NODE_ENV: 'production',
       XAI_API_KEY: 'test-key',
       XAI_API_URL: xaiUrl,
@@ -162,11 +163,18 @@ function startApp(t, xaiUrl, extraEnv = {}) {
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('server did not start: ' + output)), 8000);
+    let resolved = false;
     child.stdout.on('data', chunk => {
       output += chunk.toString();
-      if (output.includes('"event":"server_started"')) {
+      if (resolved) return;
+      for (const line of output.split('\n').slice(0, -1)) {
+        if (!line.includes('"event":"server_started"')) continue;
+        let entry;
+        try { entry = JSON.parse(line); } catch { continue; }
+        resolved = true;
         clearTimeout(timeout);
-        resolve({ port, rendersDir, logsDir, child, getOutput: () => output });
+        resolve({ port: entry.port, rendersDir, logsDir, child, getOutput: () => output });
+        return;
       }
     });
     child.stderr.on('data', chunk => { output += chunk.toString(); });
@@ -312,6 +320,27 @@ test('server hardening and chapter rendering behavior', async t => {
     assert.equal(payload.model, 'grok-4.5');
     assert.equal(payload.reasoning_effort, 'low');
     assert.equal(payload.store, false);
+  });
+
+  await t.test('stale-version cache entries are treated as missing and re-rendered', async () => {
+    const versionRes = await request(app.port, '/api/version');
+    assert.equal(versionRes.status, 200);
+    const bible = require('../data/bible.json');
+    const bookIndex = bible.books.indexOf('3 John');
+    assert.ok(bookIndex >= 0);
+    // An entry stamped with an old RENDER_VERSION must not be served.
+    fs.writeFileSync(path.join(app.rendersDir, `${bookIndex}.json`), JSON.stringify({
+      '0:0': { rendering: 'Old-version verse', note: 'Old-version note', v: 'stale-version', t: Date.now() },
+    }));
+
+    const cold = await request(app.port, '/api/chapter/3-john/1');
+    assert.equal(cold.status, 200);
+    const data = JSON.parse(cold.body);
+    assert.equal(data.complete, false);
+    assert.equal(data.verses[0], null);
+
+    const complete = await waitForComplete(app.port, '/api/chapter/3-john/1');
+    assert.equal(complete.verses[0].rendering, 'Rendered 3 John 1:1');
   });
 
   await t.test('cold chapters return partial data quickly and complete in background', async () => {

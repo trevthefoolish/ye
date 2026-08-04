@@ -7,6 +7,7 @@ const path = require('path');
 const { minify } = require('terser');
 const { log, logRouter, analyticsRouter, parseCookie } = require('./logger');
 const { mergeSeedRenderCache } = require('./renderCache');
+const { parsePositiveInt, cleanText, escapeHtml } = require('./utils');
 const {
   RENDER_PIPELINE_V2,
   SECTIONS_VERSION,
@@ -117,22 +118,6 @@ const RENDER_VERSION = crypto
 
 function toSlug(name) { return name.toLowerCase().replace(/ /g, '-'); }
 
-function parsePositiveInt(value, fallback) {
-  const n = Number.parseInt(value || '', 10);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-}
-
-function cleanText(s) {
-  return s
-    .replaceAll('\u2014', ', ')
-    .replace(/\bvapors\b/gi, 'vapours')
-    .replace(/\bvapor\b/gi, 'vapour');
-}
-
-function escapeHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;');
-}
-
 app.disable('x-powered-by');
 
 // --- Security headers ---
@@ -190,6 +175,13 @@ app.get('/favicon.ico', (req, res) => {
   res.redirect(301, '/favicon.svg');
 });
 
+// index: false stops directory-index resolution, but a direct /index.html
+// request would still serve the raw template (with __CONFIG__ placeholders)
+// from disk. Redirect it into the catch-all instead.
+app.get('/index.html', (req, res) => {
+  res.redirect(301, '/');
+});
+
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // --- In-memory cache layer over disk ---
@@ -200,7 +192,9 @@ const chapterJobs = new Map();
 const sectionJobs = new Map();
 
 function safeDecodePath(p) {
-  try { return decodeURIComponent(p); } catch { return null; }
+  // Express 5 rejects undecodable paths before route handlers run, so the
+  // fallback only guards against future routing changes.
+  try { return decodeURIComponent(p); } catch { return p; }
 }
 
 function isAssetPath(p) {
@@ -236,7 +230,11 @@ function seedRenderCache() {
       totals.entriesSkippedStaleSource += merged.entriesSkippedStaleSource;
       totals.entriesSkippedMalformed += merged.entriesSkippedMalformed;
       if (merged.changed) {
-        fs.writeFileSync(dest, JSON.stringify(merged.cache, null, 2));
+        // Write-then-rename so a crash mid-seed cannot truncate a live cache
+        // file that may hold production-only renders.
+        const tmp = dest + `.${process.pid}.seed.tmp`;
+        fs.writeFileSync(tmp, JSON.stringify(merged.cache, null, 2));
+        fs.renameSync(tmp, dest);
         totals.files++;
       }
     }
@@ -256,8 +254,17 @@ seedRenderCache();
 function loadCache(bookIndex) {
   if (memCache.has(bookIndex)) return memCache.get(bookIndex);
   const file = path.join(RENDERS_DIR, `${bookIndex}.json`);
-  let data;
-  try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { data = {}; }
+  let data = {};
+  try {
+    data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (err) {
+    // Missing file is the normal cold path; anything else (corrupt JSON,
+    // permission error) deserves a trace because the empty cache we memoize
+    // here will be re-rendered and eventually written back over the file.
+    if (err.code !== 'ENOENT') {
+      log.warn('render_cache_read_failed', { book: bookIndex, err: err.message });
+    }
+  }
   memCache.set(bookIndex, data);
   return data;
 }
@@ -314,7 +321,7 @@ function getChapterVerses(bookIndex, chNum) {
       missing.push(v);
     }
   }
-  return { cache, verses, missing };
+  return { verses, missing };
 }
 
 function cacheEntryIsCurrent(location) {
@@ -351,7 +358,8 @@ async function writeSectionEntriesToCache(entries) {
 function getRenderPriority(req) {
   const render = String(req.query.render || '1').toLowerCase();
   if (render === '0' || render === 'false' || render === 'cache-only') return null;
-  const priority = String(req.query.priority || render || RENDER_PRIORITY_FOREGROUND).toLowerCase();
+  // ?render= doubles as a priority hint when ?priority= is absent.
+  const priority = String(req.query.priority || render).toLowerCase();
   return priority === RENDER_PRIORITY_BACKGROUND || priority === 'low'
     ? RENDER_PRIORITY_BACKGROUND
     : RENDER_PRIORITY_FOREGROUND;
@@ -418,22 +426,26 @@ function finishRenderJob(job) {
   }
 }
 
-async function renderVerse(book, chapter, verse, job) {
-  const verseStarted = Date.now();
+// Shared retry/timing wrapper for both render pipelines: runs `task` through
+// the priority semaphore with exponential backoff, capturing per-attempt
+// timings. Returns { result, timing }; a failed final attempt rethrows with
+// err.renderTiming attached.
+async function withRenderRetry(job, task, onRetry) {
+  const startedAt = Date.now();
   for (let attempt = 0; attempt <= RENDER_RETRIES; attempt++) {
     const attemptStarted = Date.now();
     try {
       return await renderSlots.run(async queueMs => {
         const apiStarted = Date.now();
         try {
-          const rendered = await renderVerseOnce(book, chapter, verse);
+          const result = await task();
           return {
-            ...rendered,
+            result,
             timing: {
               attempts: attempt + 1,
               queueMs,
               apiMs: Date.now() - apiStarted,
-              verseMs: Date.now() - verseStarted,
+              totalMs: Date.now() - startedAt,
             },
           };
         } catch (err) {
@@ -442,7 +454,7 @@ async function renderVerse(book, chapter, verse, job) {
             queueMs,
             apiMs: Date.now() - apiStarted,
             durationMs: Date.now() - attemptStarted,
-            totalVerseMs: Date.now() - verseStarted,
+            totalMs: Date.now() - startedAt,
           };
           throw err;
         }
@@ -452,21 +464,27 @@ async function renderVerse(book, chapter, verse, job) {
       if (attempt === RENDER_RETRIES) throw err;
       const delay = RETRY_BASE_MS * Math.pow(2, attempt);
       const timing = err.renderTiming || {};
-      log.warn('verse_render_retry', {
-        book,
-        chapter,
-        verse,
+      onRetry({
         attempt: attempt + 1,
         delay,
         durationMs: Date.now() - attemptStarted,
         queueMs: timing.queueMs,
         apiMs: timing.apiMs,
-        totalVerseMs: Date.now() - verseStarted,
+        totalMs: Date.now() - startedAt,
         err: err.message,
       });
       await new Promise(r => setTimeout(r, delay));
     }
   }
+}
+
+async function renderVerse(book, chapter, verse, job) {
+  const { result, timing } = await withRenderRetry(
+    job,
+    () => renderVerseOnce(book, chapter, verse),
+    retry => log.warn('verse_render_retry', { book, chapter, verse, ...retry })
+  );
+  return { ...result, timing };
 }
 
 async function renderVerseOnce(book, chapter, verse) {
@@ -501,8 +519,15 @@ async function renderVerseOnce(book, chapter, verse) {
       },
     }),
   });
+  if (!r.ok) {
+    let message = `render failed (HTTP ${r.status})`;
+    try {
+      const errData = await r.json();
+      if (errData.error?.message) message = errData.error.message;
+    } catch { /* non-JSON error body; keep the status message */ }
+    throw new Error(message);
+  }
   const data = await r.json();
-  if (!r.ok) throw new Error(data.error?.message || 'render failed');
   const raw = data.choices?.[0]?.message?.content;
   if (typeof raw !== 'string') throw new Error('unexpected API response shape');
   let parsed;
@@ -517,90 +542,53 @@ async function renderVerseOnce(book, chapter, verse) {
   }
   parsed.rendering = cleanText(parsed.rendering);
   parsed.note = cleanText(parsed.note);
-  // Model quality feedback: note should be shorter than rendering
+  // Model quality feedback: note should be shorter than rendering. Warn so
+  // the violation is visible in production logs (agents.md invariant).
   if (parsed.note.length >= parsed.rendering.length) {
-    log.debug('note_too_long', { book, chapter, verse, noteLen: parsed.note.length, renderLen: parsed.rendering.length });
+    log.warn('note_too_long', { book, chapter, verse, noteLen: parsed.note.length, renderLen: parsed.rendering.length });
   }
   return parsed;
 }
 
 async function renderSection(book, chapter, section, job) {
-  const sectionStarted = Date.now();
-  for (let attempt = 0; attempt <= RENDER_RETRIES; attempt++) {
-    const attemptStarted = Date.now();
-    try {
-      return await renderSlots.run(async queueMs => {
-        const apiStarted = Date.now();
-        try {
-          const entries = await renderSectionOnce({
-            apiUrl: XAI_API_URL,
-            apiKey: XAI_API_KEY,
-            model: RENDER_MODEL,
-            reasoningEffort: RENDER_REASONING_EFFORT,
-            bookName: book,
-            chapter,
-            section,
-          });
-          return {
-            entries: entries.map(entry => ({
-              ...entry,
-              rendering: cleanText(entry.rendering),
-              note: cleanText(entry.note),
-            })),
-            timing: {
-              attempts: attempt + 1,
-              queueMs,
-              apiMs: Date.now() - apiStarted,
-              verseMs: Date.now() - sectionStarted,
-            },
-          };
-        } catch (err) {
-          err.renderTiming = {
-            attempts: attempt + 1,
-            queueMs,
-            apiMs: Date.now() - apiStarted,
-            durationMs: Date.now() - attemptStarted,
-            totalVerseMs: Date.now() - sectionStarted,
-          };
-          throw err;
-        }
-      }, job);
-    }
-    catch (err) {
-      if (attempt === RENDER_RETRIES) throw err;
-      const delay = RETRY_BASE_MS * Math.pow(2, attempt);
-      const timing = err.renderTiming || {};
-      log.warn('section_render_retry', {
-        book,
-        chapter,
-        sectionId: section.id,
-        sectionRef: sectionRef(section),
-        targetRefs: (section.targetReferences || section.references || []).length,
-        attempt: attempt + 1,
-        delay,
-        durationMs: Date.now() - attemptStarted,
-        queueMs: timing.queueMs,
-        apiMs: timing.apiMs,
-        totalVerseMs: Date.now() - sectionStarted,
-        err: err.message,
-      });
-      await new Promise(r => setTimeout(r, delay));
-    }
-  }
+  const { result, timing } = await withRenderRetry(
+    job,
+    () => renderSectionOnce({
+      apiUrl: XAI_API_URL,
+      apiKey: XAI_API_KEY,
+      model: RENDER_MODEL,
+      reasoningEffort: RENDER_REASONING_EFFORT,
+      bookName: book,
+      chapter,
+      section,
+    }),
+    retry => log.warn('section_render_retry', {
+      book,
+      chapter,
+      sectionId: section.id,
+      sectionRef: sectionRef(section),
+      targetRefs: (section.targetReferences || section.references || []).length,
+      ...retry,
+    })
+  );
+  return {
+    entries: result.map(entry => ({
+      ...entry,
+      rendering: cleanText(entry.rendering),
+      note: cleanText(entry.note),
+    })),
+    timing,
+  };
 }
 
 async function renderSectionAndCache(section, job) {
   const missingRefs = missingSectionRefs(section);
   if (missingRefs.length === 0) {
-    return { entries: [], skipped: true, timing: null };
+    return { entries: [], timing: null };
   }
   const result = await renderSection(section.book, section.chapter, section, job);
-  const cacheFiles = await writeSectionEntriesToCache(result.entries);
-  return {
-    ...result,
-    cacheFiles,
-    skipped: false,
-  };
+  await writeSectionEntriesToCache(result.entries);
+  return result;
 }
 
 function sectionJobKey(section) {
@@ -626,10 +614,6 @@ function queueSectionRender(section, priority) {
   const job = { priority, sectionId: key };
   trackForegroundJob(job);
   job.promise = renderSectionAndCache(section, job)
-    .catch(err => {
-      err.section = section;
-      throw err;
-    })
     .finally(() => {
       finishRenderJob(job);
       sectionJobs.delete(key);
@@ -664,31 +648,34 @@ function timingValues(timings, key) {
     .filter(n => typeof n === 'number' && Number.isFinite(n));
 }
 
-function summarizeRenderTimings(timings) {
-  const verseMs = timingValues(timings, 'verseMs');
+// `unit` labels what one timing covers: a verse (v1) or a section (v2).
+function summarizeRenderTimings(timings, unit) {
+  const totalMs = timingValues(timings, 'totalMs');
   const queueMs = timingValues(timings, 'queueMs');
   const apiMs = timingValues(timings, 'apiMs');
+  const cap = unit[0].toUpperCase() + unit.slice(1);
   return {
-    avgVerseMs: avgMs(verseMs),
-    p95VerseMs: percentileMs(verseMs, 0.95),
-    maxVerseMs: maxMs(verseMs),
+    [`avg${cap}Ms`]: avgMs(totalMs),
+    [`p95${cap}Ms`]: percentileMs(totalMs, 0.95),
+    [`max${cap}Ms`]: maxMs(totalMs),
     avgQueueMs: avgMs(queueMs),
     avgApiMs: avgMs(apiMs),
     maxApiMs: maxMs(apiMs),
   };
 }
 
-async function renderMissingChapterV1(ref, requestedMissing, job) {
-  const { bookIndex, bookName, chNum } = ref;
-  const cache = loadCache(bookIndex);
-  const missing = requestedMissing.filter(v => {
+function filterStillMissing(cache, chNum, requestedMissing) {
+  return requestedMissing.filter(v => {
     const entry = cache[`${chNum - 1}:${v}`];
     return !entry || entry.v !== RENDER_VERSION;
   });
-  if (missing.length === 0) {
-    finishRenderJob(job);
-    return;
-  }
+}
+
+async function renderMissingChapterV1(ref, requestedMissing, job) {
+  const { bookIndex, bookName, chNum } = ref;
+  const cache = loadCache(bookIndex);
+  const missing = filterStillMissing(cache, chNum, requestedMissing);
+  if (missing.length === 0) return;
 
   const startedAt = Date.now();
   log.info('chapter_render_started', {
@@ -702,45 +689,43 @@ async function renderMissingChapterV1(ref, requestedMissing, job) {
   let failed = 0;
   let batches = 0;
   const timings = [];
-  try {
-    for (let i = 0; i < missing.length; i += RENDER_CONCURRENCY) {
-      batches++;
-      const batch = missing.slice(i, i + RENDER_CONCURRENCY);
-      const results = await Promise.allSettled(
-        batch.map(v => renderVerse(bookName, chNum, v + 1, job).then(r => ({ v, r })))
-      );
-      for (let j = 0; j < results.length; j++) {
-        const result = results[j];
-        if (result.status === 'fulfilled') {
-          const { v, r } = result.value;
-          cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
-          if (r.timing) timings.push(r.timing);
-          rendered++;
-        } else {
-          failed++;
-          const timing = result.reason?.renderTiming || {};
-          timings.push({
-            verseMs: timing.totalVerseMs,
-            queueMs: timing.queueMs,
-            apiMs: timing.apiMs,
-          });
-          log.warn('verse_render_failed', {
-            book: bookName,
-            ch: chNum,
-            verse: batch[j] + 1,
-            reason: result.reason?.message || String(result.reason),
-            attempts: timing.attempts,
-            durationMs: timing.durationMs,
-            queueMs: timing.queueMs,
-            apiMs: timing.apiMs,
-            totalVerseMs: timing.totalVerseMs,
-          });
-        }
+  // Batching here is deliberate: it bounds how much finished work a crash
+  // can lose, because the cache is persisted after every batch.
+  for (let i = 0; i < missing.length; i += RENDER_CONCURRENCY) {
+    batches++;
+    const batch = missing.slice(i, i + RENDER_CONCURRENCY);
+    const results = await Promise.allSettled(
+      batch.map(v => renderVerse(bookName, chNum, v + 1, job).then(r => ({ v, r })))
+    );
+    for (let j = 0; j < results.length; j++) {
+      const result = results[j];
+      if (result.status === 'fulfilled') {
+        const { v, r } = result.value;
+        cache[`${chNum - 1}:${v}`] = { rendering: r.rendering, note: r.note, v: RENDER_VERSION, t: Date.now() };
+        if (r.timing) timings.push(r.timing);
+        rendered++;
+      } else {
+        failed++;
+        const timing = result.reason?.renderTiming || {};
+        timings.push({
+          totalMs: timing.totalMs,
+          queueMs: timing.queueMs,
+          apiMs: timing.apiMs,
+        });
+        log.warn('verse_render_failed', {
+          book: bookName,
+          ch: chNum,
+          verse: batch[j] + 1,
+          reason: result.reason?.message || String(result.reason),
+          attempts: timing.attempts,
+          durationMs: timing.durationMs,
+          queueMs: timing.queueMs,
+          apiMs: timing.apiMs,
+          totalMs: timing.totalMs,
+        });
       }
-      await saveCache(bookIndex, cache);
     }
-  } finally {
-    finishRenderJob(job);
+    await saveCache(bookIndex, cache);
   }
   log.info('chapter_render_finished', {
     book: bookName,
@@ -750,28 +735,18 @@ async function renderMissingChapterV1(ref, requestedMissing, job) {
     failed,
     missing: missing.length,
     batches,
-    ...summarizeRenderTimings(timings),
+    ...summarizeRenderTimings(timings, 'verse'),
   });
 }
 
 async function renderMissingChapterV2(ref, requestedMissing, job) {
   const { bookIndex, bookName, chNum } = ref;
-  const cache = loadCache(bookIndex);
-  const missing = requestedMissing.filter(v => {
-    const entry = cache[`${chNum - 1}:${v}`];
-    return !entry || entry.v !== RENDER_VERSION;
-  });
-  if (missing.length === 0) {
-    finishRenderJob(job);
-    return;
-  }
+  const missing = filterStillMissing(loadCache(bookIndex), chNum, requestedMissing);
+  if (missing.length === 0) return;
 
   const sections = groupMissingVersesIntoSections(bookName, chNum, missing)
     .filter(section => missingSectionRefs(section).length > 0);
-  if (sections.length === 0) {
-    finishRenderJob(job);
-    return;
-  }
+  if (sections.length === 0) return;
   const startedAt = Date.now();
   log.info('chapter_render_started', {
     book: bookName,
@@ -784,54 +759,45 @@ async function renderMissingChapterV2(ref, requestedMissing, job) {
   });
   let rendered = 0;
   let failed = 0;
-  let batches = 0;
   const timings = [];
-  try {
-    for (let i = 0; i < sections.length; i += RENDER_CONCURRENCY) {
-      batches++;
-      const batch = sections.slice(i, i + RENDER_CONCURRENCY);
-      const results = await Promise.allSettled(
-        batch.map(section => {
-          const queued = queueSectionRender(section, job.priority);
-          if (!job.sectionIds) job.sectionIds = new Set();
-          job.sectionIds.add(sectionJobKey(section));
-          return queued.promise.then(r => ({ section, r, status: queued.status }));
-        })
-      );
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          const { r } = result.value;
-          rendered += r.entries.length;
-          if (r.timing) timings.push(r.timing);
-        } else {
-          const section = result.reason?.section;
-          const timing = result.reason?.renderTiming || {};
-          const targetCount = (section?.targetReferences || section?.references || []).length;
-          failed += targetCount || 1;
-          timings.push({
-            verseMs: timing.totalVerseMs,
-            queueMs: timing.queueMs,
-            apiMs: timing.apiMs,
-          });
-          log.warn('section_render_failed', {
-            book: bookName,
-            ch: chNum,
-            sectionId: section?.id,
-            sectionRef: section ? sectionRef(section) : undefined,
-            targetRefs: targetCount,
-            reason: result.reason?.message || String(result.reason),
-            attempts: timing.attempts,
-            durationMs: timing.durationMs,
-            queueMs: timing.queueMs,
-            apiMs: timing.apiMs,
-            totalVerseMs: timing.totalVerseMs,
-          });
-        }
-      }
+  // Queue every section at once: the priority semaphore already bounds
+  // concurrency, and each section persists its own results on completion.
+  job.sectionIds = new Set();
+  const results = await Promise.allSettled(
+    sections.map(section => {
+      job.sectionIds.add(sectionJobKey(section));
+      return queueSectionRender(section, job.priority).promise;
+    })
+  );
+  results.forEach((result, i) => {
+    const section = sections[i];
+    if (result.status === 'fulfilled') {
+      rendered += result.value.entries.length;
+      if (result.value.timing) timings.push(result.value.timing);
+    } else {
+      const timing = result.reason?.renderTiming || {};
+      const targetCount = (section.targetReferences || section.references || []).length;
+      failed += targetCount || 1;
+      timings.push({
+        totalMs: timing.totalMs,
+        queueMs: timing.queueMs,
+        apiMs: timing.apiMs,
+      });
+      log.warn('section_render_failed', {
+        book: bookName,
+        ch: chNum,
+        sectionId: section.id,
+        sectionRef: sectionRef(section),
+        targetRefs: targetCount,
+        reason: result.reason?.message || String(result.reason),
+        attempts: timing.attempts,
+        durationMs: timing.durationMs,
+        queueMs: timing.queueMs,
+        apiMs: timing.apiMs,
+        totalMs: timing.totalMs,
+      });
     }
-  } finally {
-    finishRenderJob(job);
-  }
+  });
   log.info('chapter_render_finished', {
     book: bookName,
     ch: chNum,
@@ -839,10 +805,9 @@ async function renderMissingChapterV2(ref, requestedMissing, job) {
     rendered,
     failed,
     missing: missing.length,
-    batches,
     renderPipeline: RENDER_PIPELINE,
     sections: sections.length,
-    ...summarizeRenderTimings(timings),
+    ...summarizeRenderTimings(timings, 'section'),
   });
 }
 
@@ -867,10 +832,15 @@ function queueChapterRender(ref, missing, priority) {
   }
   const job = { priority };
   trackForegroundJob(job);
-  job.promise = renderMissingChapter(ref, missing, job)
-    .catch(err => log.error('chapter_render_failed', { book: ref.bookName, ch: ref.chNum, err: err.message }))
-    .finally(() => chapterJobs.delete(key));
   chapterJobs.set(key, job);
+  // finishRenderJob lives here (not in the chapter renderers) so the
+  // foreground counter is released even if a renderer throws early.
+  renderMissingChapter(ref, missing, job)
+    .catch(err => log.error('chapter_render_failed', { book: ref.bookName, ch: ref.chNum, err: err.message }))
+    .finally(() => {
+      finishRenderJob(job);
+      chapterJobs.delete(key);
+    });
   return priority === RENDER_PRIORITY_BACKGROUND ? 'started-background' : 'started';
 }
 
@@ -896,23 +866,20 @@ app.get('/api/chapter/:book/:chapter', async (req, res) => {
     });
   }
 
+  // Fully rendered (missing is empty, so no verse is null): cache with a
+  // pre-computed ETag for 304 responses.
   const body = JSON.stringify({ verses, complete: true, missingCount: 0 });
-
-  // Cache fully-rendered chapters with pre-computed ETag
-  const allRendered = !verses.includes(null) && verses.length > 0;
-  if (allRendered) {
-    const cacheKey = `${bookIndex}:${chNum}`;
-    let cached = etagCache.get(cacheKey);
-    if (!cached || cached.body !== body) {
-      const etag = '"' + crypto.createHash('sha256').update(body).digest('hex').slice(0, 16) + '"';
-      cached = { body, etag };
-      etagCache.set(cacheKey, cached);
-    }
-    res.setHeader('Cache-Control', CACHE_ONE_DAY);
-    res.setHeader('ETag', cached.etag);
-    if (req.headers['if-none-match'] === cached.etag) {
-      return res.status(304).end();
-    }
+  const cacheKey = `${bookIndex}:${chNum}`;
+  let cached = etagCache.get(cacheKey);
+  if (!cached || cached.body !== body) {
+    const etag = '"' + crypto.createHash('sha256').update(body).digest('hex').slice(0, 16) + '"';
+    cached = { body, etag };
+    etagCache.set(cacheKey, cached);
+  }
+  res.setHeader('Cache-Control', CACHE_ONE_DAY);
+  res.setHeader('ETag', cached.etag);
+  if (req.headers['if-none-match'] === cached.etag) {
+    return res.status(304).end();
   }
 
   res.type('json').send(body);
@@ -976,7 +943,6 @@ function buildJsonLd(bookName, chNum, slug, canonical) {
 app.get('{*path}', (req, res) => {
   // Redirect root visits to remembered chapter
   const rawPath = safeDecodePath(req.path);
-  if (rawPath === null) return res.redirect(302, DEFAULT_PATH);
   if (isAssetPath(rawPath)) return res.status(404).end();
   const pathParts = rawPath.split('/').filter(Boolean);
   if (pathParts.length === 0) {
@@ -1000,12 +966,13 @@ app.get('{*path}', (req, res) => {
   let preloadData = '';
   let jsonLd = buildJsonLd();
   try {
-    const parts = pathParts;
-    if (parts.length === 2) {
-      const ref = resolveChapter(parts[0], parts[1]);
+    if (pathParts.length === 2) {
+      const ref = resolveChapter(pathParts[0], pathParts[1]);
       if (ref) {
         const { bookIndex, bookName, chNum } = ref;
-        const slug = parts[0].toLowerCase();
+        // Canonicalize from the book name, not the raw request slug, so
+        // space-form paths still produce a valid canonical URL.
+        const slug = toSlug(bookName);
         title = bookName + ' ' + chNum;
         ogTitle = bookName + ' ' + chNum;
         canonical = ORIGIN + '/' + slug + '/' + chNum;
@@ -1021,13 +988,12 @@ app.get('{*path}', (req, res) => {
           preloadData = '<script id="preloaded" type="application/json">' + payload + '</script>';
           desc = verses.find(Boolean)?.rendering || desc;
         } else {
-          const cache = loadCache(bookIndex);
-          const firstVerse = cache[`${chNum - 1}:0`];
-          if (firstVerse && firstVerse.rendering && firstVerse.v === RENDER_VERSION) {
-            desc = firstVerse.rendering;
-          } else {
-            desc = bookName + ' ' + chNum + ', rendered in modern English with scholarly notes.';
-          }
+          // No current-version verses; a stale (previous-version) rendering
+          // still beats generic copy for the meta description.
+          const firstVerse = loadCache(bookIndex)[`${chNum - 1}:0`];
+          desc = typeof firstVerse?.rendering === 'string'
+            ? firstVerse.rendering
+            : bookName + ' ' + chNum + ', rendered in modern English with scholarly notes.';
         }
       } else {
         return res.redirect(302, DEFAULT_PATH);
@@ -1054,6 +1020,12 @@ app.use((err, req, res, next) => {
     if (isAssetPath(pathName)) return res.status(404).end();
     return res.redirect(302, DEFAULT_PATH);
   }
+  // Malformed or oversized JSON bodies (from express.json on /api/log and
+  // /api/ev) are client errors, not server failures: no error-level log.
+  if (err.type === 'entity.parse.failed' || err.type === 'entity.too.large') {
+    log.debug('bad_request_body', { path: pathName, type: err.type });
+    return res.status(err.status || 400).json({ error: 'bad request' });
+  }
   log.error('request_failed', { path: pathName, err: err.message });
   if (pathName.startsWith('/api/')) return res.status(500).json({ error: 'internal server error' });
   res.status(500).type('text').send('Internal server error');
@@ -1079,5 +1051,8 @@ const PORT = process.env.PORT || 3000;
   INDEX_HTML = INDEX_RAW
     .replace('src="/app.js"', `src="/app.${JS_HASH}.js"`)
     .replace('<!--PRELOAD-->', `<link rel="preload" href="/app.${JS_HASH}.js" as="script">`);
-  app.listen(PORT, () => log.info('server_started', { port: PORT, version: APP_VERSION }));
+  const server = app.listen(PORT, () => {
+    // Log the assigned port (not the env value) so PORT=0 works in tests.
+    log.info('server_started', { port: server.address().port, version: APP_VERSION });
+  });
 })();
