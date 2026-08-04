@@ -311,7 +311,8 @@ header.addEventListener('click', () => {
   if (currentItem) currentItem.scrollIntoView({ block: 'center' });
 });
 
-nav.addEventListener('click', closeNav);
+// Wrap so the MouseEvent is not mistaken for closeNav's viaHistory flag.
+nav.addEventListener('click', () => closeNav());
 
 // --- RENDER ---
 function getExpandedVerseIndexes(scroll) {
@@ -416,7 +417,17 @@ function scheduleChapterRetry(scroll, p, delayMs, opts = {}) {
       if (!scroll.isConnected || scroll.dataset.p !== String(p)) return;
       renderChapterData(scroll, data, { preserveScroll: true });
       if (data.complete === false) {
-        scheduleChapterRetry(scroll, p, data.retryAfterMs || 2000, { ...opts, errors: 0, polls: polls + 1 });
+        // The poll budget only counts polls that show no new verses, so a
+        // slow but progressing render (long chapters under contention) is
+        // never cut off; only a wedged server exhausts the cap.
+        const rendered = countRenderedVerses(data.verses);
+        const progressed = rendered > (opts.lastRendered ?? -1);
+        scheduleChapterRetry(scroll, p, data.retryAfterMs || 2000, {
+          ...opts,
+          errors: 0,
+          polls: progressed ? 0 : polls + 1,
+          lastRendered: rendered,
+        });
       } else {
         bindScrollShadow();
       }
@@ -514,7 +525,9 @@ async function fillPanel(panel, p, opts = {}) {
 
 function saveScroll(panel) {
   const scroll = (panel || panels[1]).querySelector('.chapter-scroll');
-  if (scroll && scroll.dataset.p != null) {
+  // Only panels showing real chapter content carry a meaningful position;
+  // a skeleton or still-loading panel would clobber the saved value with 0.
+  if (scroll && scroll.dataset.p != null && scroll.dataset.chapterContent === 'true') {
     const p = parseInt(scroll.dataset.p);
     if (!isNaN(p)) {
       // Delete-then-set refreshes Map insertion order, making this a true LRU.

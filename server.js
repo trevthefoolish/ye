@@ -175,11 +175,16 @@ app.get('/favicon.ico', (req, res) => {
   res.redirect(301, '/favicon.svg');
 });
 
-// index: false stops directory-index resolution, but a direct /index.html
-// request would still serve the raw template (with __CONFIG__ placeholders)
-// from disk. Redirect it into the catch-all instead.
-app.get('/index.html', (req, res) => {
-  res.redirect(301, '/');
+// index: false stops directory-index resolution, but a direct request for
+// /index.html would still serve the raw template (with __CONFIG__
+// placeholders) from disk. serve-static decodes and normalizes paths before
+// resolving files, so compare against the same normalization to also catch
+// encoded or dotted variants (/%69ndex.html, //index.html, /./index.html).
+app.use((req, res, next) => {
+  if (path.posix.normalize(safeDecodePath(req.path)).toLowerCase() === '/index.html') {
+    return res.redirect(301, '/');
+  }
+  next();
 });
 
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
@@ -1051,7 +1056,14 @@ const PORT = process.env.PORT || 3000;
   INDEX_HTML = INDEX_RAW
     .replace('src="/app.js"', `src="/app.${JS_HASH}.js"`)
     .replace('<!--PRELOAD-->', `<link rel="preload" href="/app.${JS_HASH}.js" as="script">`);
-  const server = app.listen(PORT, () => {
+  // Express 5 invokes the callback with the error when listen fails, in
+  // which case server.address() is null; log the real cause and exit
+  // instead of dying on a TypeError.
+  const server = app.listen(PORT, err => {
+    if (err) {
+      log.error('listen_failed', { port: PORT, err: err.message });
+      process.exit(1);
+    }
     // Log the assigned port (not the env value) so PORT=0 works in tests.
     log.info('server_started', { port: server.address().port, version: APP_VERSION });
   });

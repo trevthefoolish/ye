@@ -246,6 +246,17 @@ test('server hardening and chapter rendering behavior', async t => {
     assert.equal(res.status, 404);
   });
 
+  await t.test('raw index.html template is never served, including encoded variants', async () => {
+    for (const p of ['/index.html', '/%69ndex.html', '//index.html', '/./index.html', '/Index.html']) {
+      const res = await request(app.port, p);
+      assert.equal(res.status, 301, `expected redirect for ${p}`);
+      assert.equal(res.headers.location, '/', `expected / location for ${p}`);
+      assert.ok(!res.body.includes('__CONFIG__'), `raw template leaked via ${p}`);
+    }
+    const css = await request(app.port, '/style.css');
+    assert.equal(css.status, 200);
+  });
+
   await t.test('favicon.ico redirects to the SVG favicon', async () => {
     const res = await request(app.port, '/favicon.ico');
     assert.equal(res.status, 301);

@@ -33,7 +33,7 @@ Rendered verses are cached and version-stamped. The default production renderer 
 
 ## How it's built
 
-Node and Express. Vanilla JavaScript on the client (~600 lines). Zero frameworks. Mobile-only by design.
+Node and Express. Vanilla JavaScript on the client (~800 lines). Zero frameworks. Mobile-only by design.
 
 - **Fibonacci Symmetry Engine** — every spatial, timing, and opacity value derives from the Fibonacci sequence. Spatial: `Fib(n) × 3px`. Timing: `Fib(n) × 50ms`. Opacity: `Fib(n)/34`. Consecutive ratios converge on φ ≈ 1.618, grounded in Weber-Fechner perceptual law, Gestalt proximity, and Fitts's Law. See `style.css :root` for the full derivation.
 - **Swipe navigation** with spring physics — three panels always loaded (previous, current, next) for instant gesture response

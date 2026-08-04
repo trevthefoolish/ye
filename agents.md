@@ -76,7 +76,7 @@ These are load-bearing constraints. Don't break them:
 - **Vanilla JS only.** No frameworks, no new npm dependencies without strong justification.
 - **CSS custom properties** for theming. Both light and dark values defined in `:root` and `@media (prefers-color-scheme: dark)`.
 - **Structured logging** — use `log.info()`, `log.warn()`, `log.error()` from `logger.js`. First arg is a snake_case event name, second is a data object.
-- **Express static** serves `public/`, but the raw `index.html` template must never reach clients: `index: false` disables directory-index resolution and an explicit `/index.html` route redirects to the catch-all, which serves the hydrated version with injected metadata.
+- **Express static** serves `public/`, but the raw `index.html` template must never reach clients: `index: false` disables directory-index resolution and a normalizing guard (decode + `path.posix.normalize`, matching serve-static's own resolution) redirects any `/index.html` request — including encoded or dotted variants — to the catch-all, which serves the hydrated version with injected metadata.
 - **URL slugs** — book names lowercased with spaces replaced by hyphens (e.g., `1-kings`, `song-of-solomon`).
 
 ## Testing changes
@@ -95,7 +95,7 @@ These are load-bearing constraints. Don't break them:
 12. Tap a verse to expand its note
 13. Check the server console for structured log output and any warnings
 
-For PR review, run v2 evals locally with Railway-provided variables. Do not set `RENDER_PIPELINE=section-v2` on Railway production just to evaluate a draft PR. The eval commands write Markdown and JSON artifacts under `eval-reports/` or `EVAL_REPORTS_DIR`; prefer `/tmp` for exploratory edge/prod-sim runs and commit only reviewed artifacts. Review grouped metadata summaries, rubric, and manual section notes before taking the PR out of draft. Scenario metadata is currently eval/reporting-only and must not be added to the model payload until a later prompt-steering pass. When production v2 is approved, flip it with `RENDER_PIPELINE=section-v2` and `RENDERS_DIR=/data/renders-v2` (`RENDER_SECTION_TIMEOUT_MS` already defaults to 90000); rollback is unsetting the pipeline and restoring `/data/renders`.
+For PR review, run v2 evals locally with Railway-provided variables. Do not set `RENDER_PIPELINE=section-v2` on Railway production just to evaluate a draft PR. The eval commands write Markdown and JSON artifacts under `eval-reports/` (gitignored) or `EVAL_REPORTS_DIR`; prefer `/tmp` for exploratory edge/prod-sim runs and attach reviewed reports to the PR. Review grouped metadata summaries, rubric, and manual section notes before taking the PR out of draft. Scenario metadata is currently eval/reporting-only and must not be added to the model payload until a later prompt-steering pass. When production v2 is approved, flip it with `RENDER_PIPELINE=section-v2` and `RENDERS_DIR=/data/renders-v2` (`RENDER_SECTION_TIMEOUT_MS` already defaults to 90000); rollback is unsetting the pipeline and restoring `/data/renders`.
 
 ---
 
