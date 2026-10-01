@@ -122,7 +122,7 @@ test('requestStructured reads a stream framed the way xAI documents it', async (
   const parsed = await call([...events, 'data: [DONE]\n\n'], { usage, onText: so => texts.push(so) });
   assert.deepEqual(parsed, JSON.parse(text));
   assert.deepEqual(texts, [text.slice(0, 30), text]);
-  assert.deepEqual(usage, { inputTokens: 216, cachedTokens: 192, outputTokens: 923, reasoningTokens: 323 });
+  assert.deepEqual(usage, { inputTokens: 216, cachedTokens: 192, outputTokens: 923, reasoningTokens: 323, unreportedCalls: 0 });
 });
 
 test('only the first output text part is the text, and response.done also ends a response', async () => {
@@ -168,9 +168,11 @@ test('an error inside the stream is retried only if it may not recur', async () 
     err => err.message === 'xAI response failed: bad schema' && err.retryable === false && err.status === 400);
   await assert.rejects(call([created, { type: 'error', status: 400, error: { message: 'bad' } }]), err => err.retryable === false);
   await assert.rejects(call([{ type: 'error', status: 429, error: { code: 'rate_limit_exceeded', message: 'later' } }]), err => err.retryable && err.status === 429);
-  for (const code of ['rate_limit_exceeded', 'server_error', 'overloaded_error', 'service_unavailable']) {
-    await assert.rejects(call([{ type: 'error', code, message: 'later' }]), err => err.retryable === true, code);
+  for (const code of ['rate_limit_exceeded', 'server_error', 'overloaded_error', 'service_unavailable', '529', 529]) {
+    await assert.rejects(call([{ type: 'error', code, message: 'later' }]), err => err.retryable === true, String(code));
   }
+  await assert.rejects(call([{ type: 'error', code: null, message: 'The model is overloaded' }]), err => err.retryable === true);
+  await assert.rejects(call([{ type: 'error', status: '503', message: 'down' }]), err => err.retryable === true && err.status === 503);
   for (const code of ['invalid_request_error', 'invalid_api_key', 'insufficient_quota']) {
     await assert.rejects(call([created, { type: 'error', code, message: 'no' }]), err => err.retryable === false, code);
     await assert.rejects(call([{ type: 'response.failed', response: { error: { code, message: 'no' } } }]), err => err.retryable === false, code);
@@ -178,8 +180,11 @@ test('an error inside the stream is retried only if it may not recur', async () 
 });
 
 test('a stream that ends without a final event counts only if its text is whole', async () => {
-  assert.deepEqual(await call([...deltas('{"a":1}'), 'data: [DONE]\n\n']), { a: 1 });
-  assert.deepEqual(await call(deltas('{"a":1}')), { a: 1 });
+  const usage = emptyUsage();
+  assert.deepEqual(await call([...deltas('{"a":1}'), 'data: [DONE]\n\n'], { usage }), { a: 1 });
+  assert.deepEqual(await call(deltas('{"a":1}'), { usage }), { a: 1 });
+  // Accepted, but their usage was never reported, and that shows.
+  assert.equal(usage.unreportedCalls, 2);
   const ended = err => err.message === 'xAI stream ended before the response completed' && err.retryable;
   await assert.rejects(call(deltas('{"a":1')), ended);
   await assert.rejects(call([]), ended);
@@ -193,10 +198,21 @@ test('a reply that comes back whole instead of streaming is read whole', async (
   const json = body => async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
   const body = { output: [reasoning, message('{"a":5}')], usage: { input_tokens: 10, output_tokens: 20 } };
   assert.deepEqual(await call([], { usage, onText: so => texts.push(so), fetchImpl: json(body) }), { a: 5 });
-  assert.deepEqual(usage, { inputTokens: 10, cachedTokens: 0, outputTokens: 20, reasoningTokens: 0 });
+  assert.deepEqual(usage, { inputTokens: 10, cachedTokens: 0, outputTokens: 20, reasoningTokens: 0, unreportedCalls: 0 });
   assert.deepEqual(texts, []);
   await assert.rejects(call([], { fetchImpl: json('<html>') }), /non-JSON body/);
   await assert.rejects(call([], { fetchImpl: json({ output: [reasoning] }) }), /unexpected Responses API shape/);
+  // A failure in the body fails the way it would inside a stream.
+  await assert.rejects(call([], { fetchImpl: json({ status: 'failed', error: { code: 'invalid_request_error', message: 'bad schema' } }) }),
+    err => err.message === 'xAI response failed: bad schema' && err.retryable === false);
+  await assert.rejects(call([], { fetchImpl: json({ status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' }, output: [message('{"a":1}')] }) }),
+    err => err.message === 'xAI response incomplete: max_output_tokens' && err.retryable);
+  await assert.rejects(call([], { fetchImpl: json({ code: 'Client specified an invalid argument', error: 'Argument not supported' }) }),
+    err => err.message === 'xAI response failed: Argument not supported' && err.retryable === false);
+  const problem = async () => new Response(JSON.stringify({ output: [message('{"b":1}')] }), { headers: { 'Content-Type': 'application/problem+json' } });
+  const counted = emptyUsage();
+  assert.deepEqual(await call([], { fetchImpl: problem, usage: counted }), { b: 1 });
+  assert.equal(counted.unreportedCalls, 1);
 });
 
 test('without a final message item, the streamed text is the result', async () => {
@@ -211,7 +227,7 @@ test('token counts add up across calls, including billed calls that failed', asy
   await assert.rejects(call(streamed('not json', billed), { usage }));
   await assert.rejects(call([{ type: 'response.failed', response: { error: { message: 'x' }, usage: billed } }], { usage }));
   await call(streamed('{}'), { usage }); // no usage reported
-  assert.deepEqual(usage, { inputTokens: 2100, cachedTokens: 1800, outputTokens: 900, reasoningTokens: 750 });
+  assert.deepEqual(usage, { inputTokens: 2100, cachedTokens: 1800, outputTokens: 900, reasoningTokens: 750, unreportedCalls: 0 });
 });
 
 test('the timeout also bounds a stream that stalls after it starts', { timeout: 10_000 }, async t => {

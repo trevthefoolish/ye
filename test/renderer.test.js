@@ -115,12 +115,15 @@ test('shows streamed verses at once as provisional text, then stores the validat
       stage([entry(3, 'First')]);
       throw new Error('stream broke');
     },
-    // The retry renders the whole passage again, and all of it is stored.
+    // The retry starts from nothing: the failed attempt's text was dropped.
+    // It renders the whole passage again, and all of it is stored.
     async ({ stage, entry, missing }) => {
+      atRetry = [1, 2, 3].map(text);
       stage([entry(1, 'Second')]);
       return missing.map(verse => entry(verse, 'Second'));
     },
   ]);
+  let atRetry;
   const { log, store, renderer, missing, text } = setup(t, pipeline, 2, 1);
   renderer.request(RUTH_1, missing(), FOREGROUND);
   // Readable while the attempt is still running, but not final.
@@ -131,6 +134,7 @@ test('shows streamed verses at once as provisional text, then stores the validat
 
   const finished = await waitFor(() => log.entries.find(e => e.event === 'chapter_render_finished'));
   assert.equal(pipeline.calls, 2);
+  assert.deepEqual(atRetry, [undefined, undefined, undefined]);
   assert.deepEqual([1, 2, 3, 4, 22].map(text), ['Second 1', 'Second 2', 'Second 3', 'Second 4', 'Second 22']);
   assert.equal(missing().length, 0);
   assert.equal(finished.rendered, 22);

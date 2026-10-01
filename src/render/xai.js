@@ -101,7 +101,9 @@ function outputText(data) {
 }
 
 // Billed token counts, summed across calls (reasoning tokens bill as output).
-const emptyUsage = () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, reasoningTokens: 0 });
+// unreportedCalls counts calls accepted without a usage report, so their
+// tokens are missing from the sums.
+const emptyUsage = () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, reasoningTokens: 0, unreportedCalls: 0 });
 
 function addUsage(total, usage) {
   if (!total || !usage) return;
@@ -113,7 +115,7 @@ function addUsage(total, usage) {
 
 // Error codes that will fail the same way again, and ones that may not.
 const FINAL_CODES = new Set(['invalid_request_error', 'invalid_api_key', 'insufficient_quota']);
-const RETRYABLE_CODES = new Set(['rate_limit_exceeded', 'rate_limit_error', 'server_error', 'api_error', 'overloaded_error', 'service_unavailable']);
+const RETRYABLE_CODES = new Set(['rate_limit_exceeded', 'rate_limit_error', 'server_error', 'api_error', 'overloaded_error', 'service_unavailable', '529']);
 
 // A response.failed or response.incomplete event, or an error event, as a
 // RenderError. A status or a known code says whether it may succeed next
@@ -129,10 +131,10 @@ function streamFailure(event, started) {
     || (typeof error === 'string' ? error : null)
     || event.code;
   const what = event.type === 'response.incomplete' ? 'xAI response incomplete' : 'xAI response failed';
-  const status = event.status ?? error?.status;
-  const code = event.code ?? error?.code;
+  const status = Number(event.status ?? error?.status) || undefined;
+  const code = String(event.code ?? error?.code);
   const retryable = Number.isInteger(status) ? retryableStatus(status)
-    : RETRYABLE_CODES.has(code) ? true
+    : RETRYABLE_CODES.has(code) || /overload/i.test(detail || '') ? true
       : FINAL_CODES.has(code) ? false
         : started;
   return new RenderError(detail ? `${what}: ${detail}` : what, { status, retryable });
@@ -194,13 +196,17 @@ async function readResponse(body, { usage, onText, timeoutMs }) {
   }
   // The stream ended ("data: [DONE]", or the body closed) without saying how
   // the response ended. Its text still counts if it is whole: text cut off
-  // partway never parses as JSON.
-  if (text && isJson(text)) return text;
+  // partway never parses as JSON. Its usage was never reported.
+  if (text && isJson(text)) {
+    if (usage) usage.unreportedCalls++;
+    return text;
+  }
   throw new RenderError('xAI stream ended before the response completed');
 }
 
 // The final text of a plain JSON Responses API body, for a reply that did not
-// stream after all.
+// stream after all. A failed or incomplete response, or a bare error body,
+// fails the way the same thing would inside a stream.
 async function readWhole(res, { usage, timeoutMs }) {
   let data;
   try {
@@ -209,6 +215,9 @@ async function readWhole(res, { usage, timeoutMs }) {
     throw err instanceof SyntaxError ? new RenderError('xAI returned a non-JSON body') : transportError(err, timeoutMs);
   }
   addUsage(usage, data?.usage);
+  if (data?.status === 'failed' || data?.status === 'incomplete') throw streamFailure({ type: `response.${data.status}`, response: data }, true);
+  if (data?.error) throw streamFailure({ ...data, type: 'error' }, false);
+  if (usage && !data?.usage) usage.unreportedCalls++;
   return outputText(data);
 }
 
@@ -231,7 +240,7 @@ async function requestStructured({ apiUrl, apiKey, model, reasoningEffort, syste
     text: { format: { type: 'json_schema', name: schemaName, strict: true, schema } },
   }, { apiKey, signal, timeoutMs, fetchImpl });
   let raw;
-  if ((res.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) {
+  if (/^application\/([\w.+-]+\+)?json\b/i.test(res.headers.get('content-type') || '')) {
     raw = await readWhole(res, { usage, timeoutMs });
   } else {
     if (!res.body) throw new RenderError('xAI returned an empty body');

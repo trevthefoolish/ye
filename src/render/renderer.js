@@ -10,9 +10,9 @@
 // final text. Rendering never runs ahead of requests: only chapters someone
 // asked for (or the client prefetches) are rendered.
 //
-// Units that fail after retries leave their verses missing, dropping any
-// provisional text; the next request for the chapter plans them again. So
-// final text always comes whole from one validated call.
+// A failed attempt drops its provisional text, and units that fail after
+// retries leave their verses missing; the next request for the chapter plans
+// them again. So final text always comes whole from one validated call.
 
 const { createScheduler, FOREGROUND, BACKGROUND } = require('./scheduler');
 const { emptyUsage } = require('./xai');
@@ -64,28 +64,29 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
   // another unit already finalized every ref between planning and now.
   // Streamed verses of the unit's own refs are staged as provisional text,
   // and the validated passage is stored as final text, replacing them. Final
-  // text is never written over. A failed attempt's provisional text stays
-  // readable while the unit retries; it is dropped if the unit fails for good.
+  // text is never written over. A failed attempt's provisional text is
+  // dropped at once, so no reader is shown it beside a retry's.
   async function runUnit(unit, usage) {
     if (unit.refs.every(ref => store.has(ref))) return [];
     const planned = new Set(unit.refs.map(refKey));
     const open = entries => entries.filter(entry => planned.has(refKey(entry)) && !store.has(entry));
-    const entries = open(await unit.render(usage, streamed => store.stage(open(streamed))));
-    store.put(entries);
-    return entries;
+    try {
+      const entries = open(await unit.render(usage, streamed => store.stage(open(streamed))));
+      store.put(entries);
+      return entries;
+    } catch (err) {
+      store.unstage(unit.refs);
+      throw err;
+    }
   }
 
   // A unit already in the scheduler is joined, not resubmitted; only the
-  // submission that created it drops its provisional text and logs its
-  // failure.
+  // submission that created it logs its failure.
   function submitUnits(units, priority, usage) {
     const submitted = scheduler.submit(units.map(unit => ({ key: unit.key, task: () => runUnit(unit, usage), meta: unit })), priority);
     return submitted.map(({ status, promise }, i) => {
       if (status === 'started') {
-        promise.catch(err => {
-          store.unstage(units[i].refs);
-          log.warn(`${pipeline.unit}_render_failed`, { ...units[i].logFields, reason: err.message, ...err.timing });
-        });
+        promise.catch(err => log.warn(`${pipeline.unit}_render_failed`, { ...units[i].logFields, reason: err.message, ...err.timing }));
       }
       return promise;
     });

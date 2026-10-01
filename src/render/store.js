@@ -120,16 +120,18 @@ class RenderStore {
     return this.#current(bookIndex, chapter, verse) !== null;
   }
 
-  // Current-version verses for a chapter, final or provisional (null where
-  // there is neither); `missing` lists the 1-based numbers of verses not final.
+  // Current-version verses for a chapter: final ones as { rendering, note },
+  // provisional ones with provisional: true, null where there is neither.
+  // `missing` lists the 1-based numbers of verses not final.
   chapter({ bookIndex, chapter }) {
     const count = verseCount(bookIndex, chapter);
     const verses = new Array(count);
     const missing = [];
     for (let verse = 1; verse <= count; verse++) {
       const entry = this.#current(bookIndex, chapter, verse);
-      const shown = entry || this.#staged.get(stagedKey({ bookIndex, chapter, verse }));
-      verses[verse - 1] = shown ? { rendering: shown.rendering, note: shown.note } : null;
+      const staged = !entry && this.#staged.get(stagedKey({ bookIndex, chapter, verse }));
+      if (entry) verses[verse - 1] = { rendering: entry.rendering, note: entry.note };
+      else verses[verse - 1] = staged ? { rendering: staged.rendering, note: staged.note, provisional: true } : null;
       if (!entry) missing.push(verse);
     }
     return { verses, missing };

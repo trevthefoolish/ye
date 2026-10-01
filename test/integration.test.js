@@ -107,6 +107,7 @@ test('server (passage-v1)', async t => {
     });
     const res = await request(app.port, '/2%20john/1');
     assert.equal(res.status, 200);
+    assert.equal(res.headers['cache-control'], 'no-store');
     assert.match(res.body, /<title>2 John 1<\/title>/);
     assert.match(res.body, /<link rel="canonical" href="https:\/\/www\.vapourware\.ai\/2-john\/1">/);
     assert.match(res.body, /<meta name="description" content="Partial verse">/);
@@ -310,19 +311,24 @@ test('verses appear as they stream, before their passage finishes', async t => {
     const data = await getJson(app.port, '/api/chapter/jude/1?render=0');
     return data.verses[1] && data.verses.slice(9).every(Boolean) ? data : null;
   }, { what: 'the first two verses and the other passages' });
-  assert.deepEqual(partial.verses[0], { rendering: 'Rendered Jude 1:1', note: 'Note for Jude 1:1' });
+  assert.deepEqual(partial.verses[0], { rendering: 'Rendered Jude 1:1', note: 'Note for Jude 1:1', provisional: true });
+  assert.deepEqual(partial.verses[9], { rendering: 'Rendered Jude 1:10', note: 'Note for Jude 1:10' });
   assert.deepEqual(partial.verses.slice(2, 9), [null, null, null, null, null, null, null]);
   // Shown, but provisional until the passage is checked: not saved, and the chapter is not complete.
   assert.equal(partial.complete, false);
   assert.equal(partial.missingCount, 9);
   assert.ok(!fs.existsSync(bookFile(app, version, 'Jude')) || !readCache(app, version, 'Jude')['0:0']);
-  // The page preloads them too, but its description quotes final text only.
-  const page = (await request(app.port, '/jude/1')).body;
+  // The page preloads them too, uncached, but its description quotes final text only.
+  const pageRes = await request(app.port, '/jude/1');
+  assert.equal(pageRes.headers['cache-control'], 'no-store');
+  const page = pageRes.body;
   assert.match(page, /<meta name="description" content="Rendered Jude 1:10">/);
   assert.equal(JSON.parse(page.match(/<script id="preloaded" type="application\/json">(.*?)<\/script>/)[1]).verses[0].rendering, 'Rendered Jude 1:1');
   release();
   const complete = await waitForComplete(app.port, '/api/chapter/jude/1?render=0');
+  assert.deepEqual(complete.verses[0], { rendering: 'Rendered Jude 1:1', note: 'Note for Jude 1:1' });
   assert.equal(complete.verses[8].rendering, 'Rendered Jude 1:9');
+  assert.equal((await request(app.port, '/jude/1')).headers['cache-control'], undefined);
   assert.equal(mock.calls, 3);
 });
 

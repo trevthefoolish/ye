@@ -87,6 +87,9 @@ function pageRoutes({ shell, store, origin }) {
     // Canonicalize from the book name so "/1%20kings/1" still yields "/1-kings/1".
     const canonical = origin + chapterPath(ref.bookIndex, ref.chapter);
     const { verses, missing } = store.chapter(ref);
+    // Like the API: a chapter still rendering (perhaps with provisional verses)
+    // must not be kept by the CDN or the browser.
+    if (missing.length > 0) res.setHeader('Cache-Control', 'no-store');
     const first = verses.find(Boolean);
     // Inline whatever is already rendered so the first paint needs no fetch.
     // The description quotes final text only, never a verse still streaming.
