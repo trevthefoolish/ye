@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { getJson, request, startMockXai, startServer, tempDir, waitFor, waitForComplete } = require('./helpers');
+const { getJson, request, sleep, startMockXai, startServer, tempDir, waitFor, waitForComplete } = require('./helpers');
 
 const BOOKS = require('../data/bible.json').books;
 const bookFile = (app, version, book) => path.join(app.versionDir(version), `${BOOKS.indexOf(book)}.json`);
@@ -107,6 +107,7 @@ test('server (passage-v1)', async t => {
     });
     const res = await request(app.port, '/2%20john/1');
     assert.equal(res.status, 200);
+    assert.equal(res.headers['cache-control'], 'no-store');
     assert.match(res.body, /<title>2 John 1<\/title>/);
     assert.match(res.body, /<link rel="canonical" href="https:\/\/www\.vapourware\.ai\/2-john\/1">/);
     assert.match(res.body, /<meta name="description" content="Partial verse">/);
@@ -173,6 +174,7 @@ test('server (passage-v1)', async t => {
     assert.equal(payload.model, 'grok-4.7');
     assert.deepEqual(payload.reasoning, { effort: 'low' });
     assert.equal(payload.store, false);
+    assert.equal(payload.stream, true);
     assert.equal(payload.messages, undefined);
     assert.equal(payload.input[0].role, 'system');
     assert.equal(payload.input[0].content, fs.readFileSync(path.join(__dirname, '..', 'prompts', 'passage-v1.md'), 'utf8').trim());
@@ -274,6 +276,84 @@ test('foreground chapters render before background prefetches', async t => {
   await waitForComplete(app.port, '/api/chapter/2-john/1?render=0');
   // 2 John's first passage was already running; its second waited for 3 John.
   assert.deepEqual(userRefs(mock), ['2 John 1:1-7', '3 John 1:1-7', '3 John 1:8-14', '2 John 1:8-13']);
+});
+
+test('background prefetches start beside foreground chapters but leave the reserve free', async t => {
+  const mock = await startMockXai(t, { delayMs: 1000 });
+  // Eight slots keep four for foreground; background runs while fewer than four are busy.
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '8' });
+  await getJson(app.port, '/api/chapter/3-john/1');
+  await getJson(app.port, '/api/chapter/2-john/1?priority=background');
+  await getJson(app.port, '/api/chapter/jude/1?priority=background');
+  // 3 John's two passages, then 2 John's two beside them; Jude's would take the reserve.
+  await waitFor(() => mock.calls === 4, { what: 'four calls in flight' });
+  await sleep(150);
+  assert.equal(mock.calls, 4);
+  assert.deepEqual(userRefs(mock).slice(2), ['2 John 1:1-7', '2 John 1:8-13']);
+  // A chapter the reader opens now still starts at once, in the reserve.
+  await getJson(app.port, '/api/chapter/psalms/117');
+  await waitFor(() => mock.calls === 5, { what: 'the foreground call' });
+  assert.equal(userRefs(mock)[4], 'Psalms 117:1-2');
+  assert.equal(mock.maxActive, 5);
+  for (const p of ['3-john/1', '2-john/1', 'jude/1', 'psalms/117']) await waitForComplete(app.port, `/api/chapter/${p}?render=0`);
+  assert.equal(mock.calls, 8);
+});
+
+test('verses appear as they stream, before their passage finishes', async t => {
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  const mock = await startMockXai(t, { beforeVerse: (payload, n) => (userContent(payload) === 'Jude 1:1-9' && n === 3 ? held : null) });
+  const app = await startServer(t, { XAI_API_URL: mock.url });
+  const { version } = await getJson(app.port, '/api/version');
+  await getJson(app.port, '/api/chapter/jude/1');
+  // Three verses have streamed; the first two are shown, and the third waits for the fourth.
+  const partial = await waitFor(async () => {
+    const data = await getJson(app.port, '/api/chapter/jude/1?render=0');
+    return data.verses[1] && data.verses.slice(9).every(Boolean) ? data : null;
+  }, { what: 'the first two verses and the other passages' });
+  assert.deepEqual(partial.verses[0], { rendering: 'Rendered Jude 1:1', note: 'Note for Jude 1:1', provisional: true });
+  assert.deepEqual(partial.verses[9], { rendering: 'Rendered Jude 1:10', note: 'Note for Jude 1:10' });
+  assert.deepEqual(partial.verses.slice(2, 9), [null, null, null, null, null, null, null]);
+  // Shown, but provisional until the passage is checked: not saved, and the chapter is not complete.
+  assert.equal(partial.complete, false);
+  assert.equal(partial.missingCount, 9);
+  assert.ok(!fs.existsSync(bookFile(app, version, 'Jude')) || !readCache(app, version, 'Jude')['0:0']);
+  // The page preloads them too, uncached, but its description quotes final text only.
+  const pageRes = await request(app.port, '/jude/1');
+  assert.equal(pageRes.headers['cache-control'], 'no-store');
+  const page = pageRes.body;
+  assert.match(page, /<meta name="description" content="Rendered Jude 1:10">/);
+  assert.equal(JSON.parse(page.match(/<script id="preloaded" type="application\/json">(.*?)<\/script>/)[1]).verses[0].rendering, 'Rendered Jude 1:1');
+  release();
+  const complete = await waitForComplete(app.port, '/api/chapter/jude/1?render=0');
+  assert.deepEqual(complete.verses[0], { rendering: 'Rendered Jude 1:1', note: 'Note for Jude 1:1' });
+  assert.equal(complete.verses[8].rendering, 'Rendered Jude 1:9');
+  assert.equal((await request(app.port, '/jude/1')).headers['cache-control'], undefined);
+  assert.equal(mock.calls, 3);
+});
+
+test('a passage that fails partway is replaced whole by its retry', async t => {
+  let attempts = 0;
+  const mock = await startMockXai(t, {
+    respond: payload => {
+      if (userContent(payload) !== 'Jude 1:1-9') return null;
+      return attempts++ === 0 ? { failAfter: 3 } : { prefix: 'Retried' };
+    },
+  });
+  const app = await startServer(t, { XAI_API_URL: mock.url });
+  await getJson(app.port, '/api/chapter/jude/1');
+  const complete = await waitForComplete(app.port, '/api/chapter/jude/1?render=0');
+  // Verses 1-2 streamed before the failure, as provisional text; the retry's
+  // validated passage replaced them, so the stored passage is one call's.
+  assert.deepEqual(complete.verses.slice(0, 9).map(v => v.rendering), Array.from({ length: 9 }, (_, i) => `Retried Jude 1:${i + 1}`));
+  assert.deepEqual(userRefs(mock).filter(ref => ref === 'Jude 1:1-9').length, 2);
+  const retry = await app.waitForLog('passage_render_retry');
+  assert.equal(retry.reason, 'xAI response failed: mock failure');
+  const finished = await app.waitForLog('chapter_render_finished');
+  assert.equal(finished.rendered, 25);
+  assert.equal(finished.failed, 0);
+  // Both attempts were billed.
+  assert.equal(finished.inputTokens, 4 * 700);
 });
 
 test('upstream client errors are not retried; server errors are', async t => {

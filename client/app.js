@@ -136,6 +136,9 @@
 
   const whenIdle = fn => (window.requestIdleCallback ? requestIdleCallback(fn) : setTimeout(fn, 200));
 
+  // Whether two verses (or nulls) read the same.
+  const sameText = (a, b) => (!a && !b) || (!!a && !!b && a.rendering === b.rendering && a.note === b.note);
+
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -145,17 +148,18 @@
 
   // ---------------------------------------------------------------------------
   // Chapter data. The server answers immediately with whatever is rendered
-  // (null for verses still rendering) and renders the rest in the background;
-  // chapters on screen are polled until complete. Foreground requests are
-  // rendered before background (prefetch) ones.
+  // (null for verses still rendering) and renders the rest in the background,
+  // sharing each verse as the model finishes it; chapters on screen are polled
+  // until complete. Foreground requests go ahead of background (prefetch) ones.
 
   const POLL = {
     timeoutMs: 35_000,
     defaultDelayMs: 2_000,
     maxErrors: 5,
     maxErrorDelayMs: 30_000,
-    // Only polls that bring no new verses count, so a slow but progressing
-    // render is never abandoned; a wedged server eventually is.
+    // Only polls that bring more verses than ever before reset the count, so
+    // a slow but progressing render is never abandoned, while a wedged server,
+    // or a passage that keeps failing after its first verses stream, is.
     maxIdlePolls: 90,
   };
 
@@ -163,16 +167,21 @@
     const cache = new Map();     // p -> { verses, complete }
     const inflight = new Map();  // "p:priority" -> Promise
     const watchers = new Map();  // p -> Set of { priority, onData, onError }
-    const polls = new Map();     // p -> { timer, errors, idle, rendered }
+    const polls = new Map();     // p -> { timer, errors, idle, best }
 
     const renderedCount = data => data.verses.reduce((n, v) => n + (v ? 1 : 0), 0);
+    const finalCount = data => data.verses.reduce((n, v) => n + (v && !v.provisional ? 1 : 0), 0);
+    const unchanged = (prev, next) => prev.complete === next.complete
+      && next.verses.every((v, i) => sameText(v, prev.verses[i]) && !v?.provisional === !prev.verses[i]?.provisional);
 
-    // Keeps the most complete copy and tells watchers when it improves.
+    // Keeps the server's latest copy and tells watchers when it changes. Final
+    // verses never change, so a copy with fewer of them is a late reply and is
+    // ignored; provisional ones (still streaming) may be replaced or dropped.
     function remember(p, data) {
       if (!data?.verses?.length) return;
       const next = { verses: data.verses, complete: data.complete !== false };
       const prev = cache.get(p);
-      if (prev && (prev.complete || (!next.complete && renderedCount(next) <= renderedCount(prev)))) return;
+      if (prev && (prev.complete || (!next.complete && finalCount(next) < finalCount(prev)) || unchanged(prev, next))) return;
       cache.set(p, next);
       for (const w of watchers.get(p) || []) w.onData(next);
     }
@@ -210,7 +219,7 @@
 
     function poll(p, delayMs) {
       let state = polls.get(p);
-      if (!state) polls.set(p, state = { timer: 0, errors: 0, idle: 0, rendered: -1 });
+      if (!state) polls.set(p, state = { timer: 0, errors: 0, idle: 0, best: -1 });
       clearTimeout(state.timer);
       state.timer = setTimeout(() => tick(p, state), delayMs);
     }
@@ -226,8 +235,8 @@
         const data = await request(p, priorityOf(p));
         state.errors = 0;
         const rendered = renderedCount(data);
-        state.idle = rendered > state.rendered ? 0 : state.idle + 1;
-        state.rendered = rendered;
+        state.idle = rendered > state.best ? 0 : state.idle + 1;
+        state.best = Math.max(state.best, rendered);
         if (data.complete === false && state.idle < POLL.maxIdlePolls) poll(p, data.retryAfterMs || POLL.defaultDelayMs);
         else stopPolling(p);
       } catch (err) {
@@ -269,6 +278,8 @@
   // ---------------------------------------------------------------------------
   // Panels. Each of the three track panels shows one chapter: skeleton lines
   // until verses arrive, then verses in place of each skeleton as they render.
+  // A provisional verse (streamed, not yet checked) follows the server until
+  // it is final; a final verse never changes.
 
   const SKELETON_WIDTHS = [100, 85, 92, 78, 95, 60];
   const SCROLL_MEMORY_MAX = 50;
@@ -301,6 +312,7 @@
       this.p = null;
       this.priority = BACKGROUND;
       this.slots = null;   // one element per verse once the verse count is known
+      this.shown = null;   // the verse (or null) each slot shows
       this.watcher = null;
     }
 
@@ -316,6 +328,7 @@
       this.leave();
       this.p = p;
       this.slots = null;
+      this.shown = null;
       this.scroll = el('div', 'chapter-scroll');
       this.node.replaceChildren(this.scroll);
       if (p === null) return;
@@ -365,20 +378,29 @@
       scroll.addEventListener('transitionend', () => { scroll.style.transition = ''; }, { once: true });
     }
 
-    // Builds the verse list once, then swaps in verses as they render, so
-    // open notes and the scroll position are never disturbed.
+    // Builds the verse list once, then swaps in verses as they render. A slot
+    // showing a final verse is never touched, so open notes and the scroll
+    // position are not disturbed. A provisional one is replaced if the
+    // server's copy differs (its note stays open), or turns back into a
+    // skeleton if the server dropped it.
     fill(data) {
+      const slotFor = (verse, i) => (verse ? verseBlock(verse) : skeletonLine(i));
       if (!this.slots) {
-        this.slots = data.verses.map((verse, i) => (verse ? verseBlock(verse) : skeletonLine(i)));
+        this.slots = data.verses.map(slotFor);
+        this.shown = [...data.verses];
         this.scroll.replaceChildren(...this.slots, ...chapterFooter());
         return;
       }
       data.verses.forEach((verse, i) => {
         const slot = this.slots[i];
-        if (verse && slot?.classList.contains('skeleton-line')) {
-          this.slots[i] = verseBlock(verse);
-          slot.replaceWith(this.slots[i]);
-        }
+        const shown = this.shown[i];
+        if (!slot || (shown && !shown.provisional)) return;
+        this.shown[i] = verse;
+        if (sameText(shown, verse)) return;
+        const next = slotFor(verse, i);
+        if (verse && slot.classList.contains('expanded')) next.classList.add('expanded');
+        this.slots[i] = next;
+        slot.replaceWith(next);
       });
     }
 

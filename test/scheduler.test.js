@@ -66,9 +66,29 @@ test('touching an older batch (a reader polling it again) puts it back in front'
   assert.deepEqual(r.started, ['a1', 'a2', 'a3', 'b1', 'b2']);
 });
 
-test('background work waits until no foreground work is left, including retries', async () => {
+test('background work uses free slots but leaves the reserve to foreground', async () => {
+  const r = recorder();
+  const scheduler = createScheduler({ concurrency: 4, reserve: 1 });
+  const f1 = scheduler.submit(jobs(r, ['f1'], 40), FOREGROUND);
+  const bg = scheduler.submit(jobs(r, ['b1', 'b2', 'b3'], 40), BACKGROUND);
+  // Foreground work in flight no longer holds prefetches back, but b3 would
+  // take the reserved slot.
+  assert.deepEqual(r.started, ['f1', 'b1', 'b2']);
+  assert.deepEqual(scheduler.stats(), { running: 3, queued: 1, units: 4 });
+  // A chapter the reader opens now starts at once, in the reserve.
+  const f2 = scheduler.submit(jobs(r, ['f2'], 5), FOREGROUND);
+  assert.deepEqual(r.started, ['f1', 'b1', 'b2', 'f2']);
+  await sleep(20);
+  // f2 has finished, but three units still run, so b3 keeps waiting.
+  assert.deepEqual(r.started, ['f1', 'b1', 'b2', 'f2']);
+  await settle([...f1, ...bg, ...f2]);
+  assert.deepEqual(r.started, ['f1', 'b1', 'b2', 'f2', 'b3']);
+  assert.equal(r.maxActive, 4);
+});
+
+test('a background unit runs while foreground work backs off; queued foreground still goes first', async () => {
   const started = [];
-  const scheduler = createScheduler({ concurrency: 2, retries: 1, retryBaseMs: 30 });
+  const scheduler = createScheduler({ concurrency: 2, reserve: 1, retries: 1, retryBaseMs: 30 });
   let failures = 1;
   const fg = scheduler.submit([{
     key: 'fg',
@@ -78,11 +98,36 @@ test('background work waits until no foreground work is left, including retries'
       if (failures-- > 0) throw new Error('transient');
     },
   }], FOREGROUND);
-  const bg = scheduler.submit([{ key: 'bg', task: async () => { started.push('bg'); } }], BACKGROUND);
+  const bg = scheduler.submit([
+    { key: 'bg', task: async () => { started.push('bg'); await sleep(60); } },
+    { key: 'bg-late', task: async () => { started.push('bg-late'); } },
+  ], BACKGROUND);
   await settle([...fg, ...bg]);
-  // A slot is free the whole time, and during fg's 30 ms backoff nothing is
-  // running at all, but bg still waits for fg to finish.
-  assert.deepEqual(started, ['fg', 'fg', 'bg']);
+  // bg starts as soon as fg's first attempt frees the only unreserved slot,
+  // without waiting out fg's backoff; fg's retry runs in the reserve beside
+  // it; bg-late waits for the unreserved slot.
+  assert.deepEqual(started, ['fg', 'bg', 'fg', 'bg-late']);
+});
+
+test('queued foreground work starts before newer background work', async () => {
+  const r = recorder();
+  // One slot, so no reserve: only priority keeps the prefetch behind.
+  const scheduler = createScheduler({ concurrency: 1 });
+  const fg = scheduler.submit(jobs(r, ['f1', 'f2', 'f3'], 5), FOREGROUND);
+  const bg = scheduler.submit(jobs(r, ['b1', 'b2'], 5), BACKGROUND);
+  await settle([...fg, ...bg]);
+  assert.deepEqual(r.started, ['f1', 'f2', 'f3', 'b1', 'b2']);
+});
+
+test('the reserve defaults to half the slots, rounded down', async () => {
+  for (const [concurrency, backgroundSlots] of [[1, 1], [2, 1], [3, 2], [32, 16]]) {
+    const r = recorder();
+    const scheduler = createScheduler({ concurrency });
+    const names = Array.from({ length: concurrency + 1 }, (_, i) => `b${i}`);
+    const bg = scheduler.submit(jobs(r, names, 5), BACKGROUND);
+    assert.equal(r.started.length, backgroundSlots, String(concurrency));
+    await settle(bg);
+  }
 });
 
 test('touching a background unit with foreground priority promotes it', async () => {

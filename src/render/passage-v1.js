@@ -3,9 +3,11 @@
 
 // The render pipeline: one Responses API call per passage of a chapter (at
 // most PASSAGE_MAX_VERSES verses), so the model sees each verse in context and
-// writes a passage's notes together. The prompt describes the reader and the
-// job and leaves the rest to the model; house style the app needs regardless
-// (no em dashes, "vapour") is applied in code by cleanText.
+// writes a passage's notes together. The call streams, and each verse is
+// handed over as soon as it has been written, ahead of the rest of its
+// passage. The prompt describes the reader and the job and leaves the rest to
+// the model; house style the app needs regardless (no em dashes, "vapour") is
+// applied in code by cleanText.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -58,17 +60,19 @@ function passages(count, max = PASSAGE_MAX_VERSES) {
 
 const passageRef = (book, chapter, start, end) => `${book} ${chapter}:${start}-${end}`;
 
+const inPassage = (entry, start, end) => Number.isInteger(entry?.verse) && entry.verse >= start && entry.verse <= end;
+const isText = value => typeof value === 'string' && value.trim() !== '';
+const wellFormed = entry => isText(entry.rendering) && isText(entry.note);
+
 // One entry per verse from start to end, in order. Verses outside the passage
 // are ignored; a missing, repeated, or empty verse fails the whole passage.
 function validatePassage(parsed, start, end) {
   if (!parsed || !Array.isArray(parsed.verses)) throw new RenderError('malformed passage rendering');
   const byVerse = new Map();
   for (const entry of parsed.verses) {
-    if (!Number.isInteger(entry?.verse) || entry.verse < start || entry.verse > end) continue;
+    if (!inPassage(entry, start, end)) continue;
     if (byVerse.has(entry.verse)) throw new RenderError(`verse ${entry.verse} rendered twice`);
-    if (typeof entry.rendering !== 'string' || !entry.rendering.trim() || typeof entry.note !== 'string' || !entry.note.trim()) {
-      throw new RenderError(`malformed verse ${entry.verse}`);
-    }
+    if (!wellFormed(entry)) throw new RenderError(`malformed verse ${entry.verse}`);
     byVerse.set(entry.verse, entry);
   }
   const result = [];
@@ -77,6 +81,47 @@ function validatePassage(parsed, start, end) {
     result.push(byVerse.get(verse));
   }
   return result;
+}
+
+// Reads a JSON object as it streams in and picks out each object in an array
+// directly inside it, such as each verse in {"verses":[{...},{...}]}, as soon
+// as that object's closing brace arrives. Call it with the text so far, each
+// call extending the last; it returns the objects completed since the
+// previous call. An object that does not parse here is skipped, and nothing
+// after the top-level object closes is read.
+function itemScanner() {
+  const open = [];
+  let pos = 0;
+  let inString = false;
+  let escaped = false;
+  let itemStart = -1;
+  let closed = false;
+  return text => {
+    const items = [];
+    for (; pos < text.length && !closed; pos++) {
+      const ch = text[pos];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === '\\') escaped = true;
+        else if (ch === '"') inString = false;
+      } else if (ch === '"') {
+        inString = true;
+      } else if (ch === '{' || ch === '[') {
+        if (ch === '{' && open.length === 2 && open[0] === '{' && open[1] === '[') itemStart = pos;
+        open.push(ch);
+      } else if (ch === '}' || ch === ']') {
+        open.pop();
+        if (itemStart !== -1 && open.length === 2) {
+          try {
+            items.push(JSON.parse(text.slice(itemStart, pos + 1)));
+          } catch { /* left to the whole-text parse */ }
+          itemStart = -1;
+        }
+        closed = open.length === 0;
+      }
+    }
+    return items;
+  };
 }
 
 // Cache key for every verse this pipeline renders.
@@ -92,7 +137,17 @@ function passageRenderVersion({ model, reasoningEffort }) {
 }
 
 function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passageTimeoutMs, fetchImpl }) {
-  async function renderPassage(book, chapter, start, end, usage) {
+  // Resolves every verse of the passage, or throws if the passage as a whole
+  // is not a valid rendering. Before that, onVerse gets each verse once the
+  // next one has streamed in after it, in order from the first and each
+  // well-formed, so a verse that was split in two or merged with the next is
+  // never handed over. The first gap, repeat, reordering, or malformed verse
+  // stops the handing over, and the whole-text check decides the rest,
+  // including the last verse.
+  async function renderPassage(book, chapter, start, end, usage, onVerse) {
+    const scan = itemScanner();
+    let pending = null;
+    let stopped = false;
     const parsed = await requestStructured({
       apiUrl, apiKey, model, reasoningEffort, fetchImpl, usage,
       systemPrompt: SYSTEM_PROMPT,
@@ -100,6 +155,17 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
       schemaName: 'passage_rendering',
       schema: SCHEMA,
       timeoutMs: passageTimeoutMs,
+      onText: text => {
+        for (const entry of scan(text)) {
+          if (stopped || !inPassage(entry, start, end)) continue;
+          if (entry.verse !== (pending ? pending.verse + 1 : start) || !wellFormed(entry)) {
+            stopped = true;
+            continue;
+          }
+          if (pending) onVerse(pending);
+          pending = entry;
+        }
+      },
     });
     return validatePassage(parsed, start, end);
   }
@@ -112,8 +178,13 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
     // One unit per passage with a missing verse. The whole passage is
     // rendered for context, but only its missing verses are stored, so text a
     // reader already has never changes under them.
+    //
+    // render(usage, onVerses) hands missing verses to onVerses() as they
+    // stream in, a preview the caller may show before the passage is checked,
+    // then resolves all of them once the passage is complete and valid.
     plan({ bookIndex, book, chapter }, missing) {
       const wanted = new Set(missing);
+      const toEntry = ({ verse, rendering, note }) => ({ bookIndex, chapter, verse, rendering: cleanText(rendering), note: cleanText(note) });
       return passages(verseCount(bookIndex, chapter)).flatMap(([start, end]) => {
         const verses = missing.filter(verse => verse >= start && verse <= end);
         if (verses.length === 0) return [];
@@ -121,17 +192,11 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
           key: `passage:${bookIndex}:${chapter}:${start}-${end}`,
           refs: verses.map(verse => ({ bookIndex, chapter, verse })),
           logFields: { book, ch: chapter, verses: `${start}-${end}` },
-          async render(usage) {
-            const entries = await renderPassage(book, chapter, start, end, usage);
-            return entries
-              .filter(entry => wanted.has(entry.verse))
-              .map(entry => ({
-                bookIndex,
-                chapter,
-                verse: entry.verse,
-                rendering: cleanText(entry.rendering),
-                note: cleanText(entry.note),
-              }));
+          async render(usage, onVerses = () => {}) {
+            const entries = await renderPassage(book, chapter, start, end, usage, entry => {
+              if (wanted.has(entry.verse)) onVerses([toEntry(entry)]);
+            });
+            return entries.filter(entry => wanted.has(entry.verse)).map(toEntry);
           },
         }];
       });
@@ -139,4 +204,4 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
   };
 }
 
-module.exports = { PASSAGE_MAX_VERSES, createPassagePipeline, passageRenderVersion, passages, validatePassage };
+module.exports = { PASSAGE_MAX_VERSES, createPassagePipeline, itemScanner, passageRenderVersion, passages, validatePassage };

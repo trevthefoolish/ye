@@ -4,16 +4,20 @@
 // Chapter-level rendering on top of a pipeline, the store, and the scheduler.
 //
 // A chapter request with missing verses asks the pipeline for work units
-// (passages), submits them to the shared scheduler, and writes each
-// unit's entries to the store as soon as it finishes, so polling clients see
-// verses appear progressively. Rendering never runs ahead of requests: only
-// chapters someone asked for (or the client prefetches) are rendered.
+// (passages) and submits them to the shared scheduler. Each verse goes into
+// the store as provisional text as soon as it streams in, so polling clients
+// see verses appear one by one, and the validated passage then replaces it as
+// final text. Rendering never runs ahead of requests: only chapters someone
+// asked for (or the client prefetches) are rendered.
 //
-// Units that fail after retries leave their verses missing; the next request
-// for the chapter plans them again.
+// A failed attempt drops its provisional text, and units that fail after
+// retries leave their verses missing; the next request for the chapter plans
+// them again. So final text always comes whole from one validated call.
 
 const { createScheduler, FOREGROUND, BACKGROUND } = require('./scheduler');
 const { emptyUsage } = require('./xai');
+
+const refKey = ({ bookIndex, chapter, verse }) => `${bookIndex}:${chapter}:${verse}`;
 
 function summarize(values) {
   const nums = values.filter(n => typeof n === 'number' && Number.isFinite(n));
@@ -56,13 +60,24 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
     }),
   });
 
-  // Runs inside a scheduler slot. Skips the API call if another unit already
-  // filled every ref between planning and now.
+  // Runs inside a scheduler slot, once per attempt. Skips the API call if
+  // another unit already finalized every ref between planning and now.
+  // Streamed verses of the unit's own refs are staged as provisional text,
+  // and the validated passage is stored as final text, replacing them. Final
+  // text is never written over. A failed attempt's provisional text is
+  // dropped at once, so no reader is shown it beside a retry's.
   async function runUnit(unit, usage) {
     if (unit.refs.every(ref => store.has(ref))) return [];
-    const entries = await unit.render(usage);
-    store.put(entries);
-    return entries;
+    const planned = new Set(unit.refs.map(refKey));
+    const open = entries => entries.filter(entry => planned.has(refKey(entry)) && !store.has(entry));
+    try {
+      const entries = open(await unit.render(usage, streamed => store.stage(open(streamed))));
+      store.put(entries);
+      return entries;
+    } catch (err) {
+      store.unstage(unit.refs);
+      throw err;
+    }
   }
 
   // A unit already in the scheduler is joined, not resubmitted; only the

@@ -7,8 +7,11 @@
 // already queued, running, or waiting to retry joins the existing unit instead
 // of starting a second one. Dispatch order:
 //
-//   1. Foreground before background. Background units wait while any
-//      foreground unit is unfinished, including one backing off for a retry.
+//   1. Foreground before background. Background units run only while
+//      `reserve` slots (half of them by default) stay free, so a prefetch
+//      starts at once when slots are idle but never takes the reserved ones.
+//      A running call cannot be taken back, so the reserve is sized for
+//      several readers opening unrendered chapters at once.
 //   2. Within a class, the most recently requested units first. Every chapter
 //      request (including each poll) re-stamps its units, so the chapter a
 //      reader is looking at outranks one they have swiped away from.
@@ -20,11 +23,10 @@
 const FOREGROUND = 'foreground';
 const BACKGROUND = 'background';
 
-function createScheduler({ concurrency, retries = 2, retryBaseMs = 1000, onRetry = () => {} }) {
+function createScheduler({ concurrency, reserve = Math.floor(concurrency / 2), retries = 2, retryBaseMs = 1000, onRetry = () => {} }) {
   const units = new Map();
   const queue = [];
   let running = 0;
-  let foregroundUnits = 0;
   let clock = 0;
   let seq = 0;
 
@@ -36,10 +38,11 @@ function createScheduler({ concurrency, retries = 2, retryBaseMs = 1000, onRetry
 
   function dispatch() {
     while (running < concurrency) {
+      const backgroundFits = running < concurrency - reserve;
       let best = -1;
       for (let i = 0; i < queue.length; i++) {
         const unit = queue[i];
-        if (unit.priority === BACKGROUND && foregroundUnits > 0) continue;
+        if (unit.priority === BACKGROUND && !backgroundFits) continue;
         if (best === -1 || outranks(unit, queue[best])) best = i;
       }
       if (best === -1) return;
@@ -50,7 +53,6 @@ function createScheduler({ concurrency, retries = 2, retryBaseMs = 1000, onRetry
 
   function settle(unit, ok, value) {
     units.delete(unit.key);
-    if (unit.priority === FOREGROUND) foregroundUnits--;
     if (ok) unit.resolve(value);
     else unit.reject(value);
   }
@@ -92,7 +94,6 @@ function createScheduler({ concurrency, retries = 2, retryBaseMs = 1000, onRetry
     unit.touchedAt = touchedAt;
     if (priority === FOREGROUND && unit.priority !== FOREGROUND) {
       unit.priority = FOREGROUND;
-      foregroundUnits++;
       return 'promoted';
     }
     return 'inflight';
@@ -128,7 +129,6 @@ function createScheduler({ concurrency, retries = 2, retryBaseMs = 1000, onRetry
       const unit = { key, task, meta, priority, touchedAt, seq: ++seq, attempts: 0, submittedAt: now, queuedAt: now };
       unit.promise = new Promise((resolve, reject) => { unit.resolve = resolve; unit.reject = reject; });
       units.set(key, unit);
-      if (priority === FOREGROUND) foregroundUnits++;
       queue.push(unit);
       return { status: 'started', promise: unit.promise };
     });
