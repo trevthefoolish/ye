@@ -2,7 +2,6 @@
   "name": "ye",
   "version": "0.0.1",
   "description": "The Bible rendered in modern English",
-  "main": "server.js",
   "engines": {
     "node": "22.x"
   },
@@ -10,7 +9,6 @@
     "start": "node server.js",
     "test": "node --test \"test/**/*.test.js\""
   },
-  "keywords": [],
   "author": "vapourware.ai",
   "license": "UNLICENSED",
   "dependencies": {

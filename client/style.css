@@ -37,18 +37,14 @@
   /* RADIUS — Fibonacci spatial references */
   --radius-subtle: var(--space-hair);    /*  3px — Fib 1 */
   --radius-soft:   var(--space-atom);    /*  6px — Fib 2 */
-  --radius-round:  var(--space-cell);    /*  9px — Fib 3 */
-  --radius-pill:   var(--space-body);    /* 39px — Fib 13 */
-  --radius-circle: 50%;
 
   /* TIMING — Fibonacci × 50ms (half motor-processor cycle)
-     Fib:  2     3     5     8     13    34
-     ms:   100   150   250   400   650   1700 */
+     Fib:  2     3     5     8     34
+     ms:   100   150   250   400   1700 */
   --dur-instant:   0.1s;     /* Fib 2  — tap feedback, below conscious notice */
   --dur-blink:     0.15s;    /* Fib 3  — quick fades, an eye blink */
   --dur-breath:    0.25s;    /* Fib 5  — standard transitions */
   --dur-settle:    0.4s;     /* Fib 8  — expand/collapse */
-  --dur-rest:      0.65s;    /* Fib 13 — deliberate motion */
   --dur-drift:     1.7s;     /* Fib 34 — shimmer/ambient */
   --delay-stagger: 0.1s;     /* Fib 2  — cascade offset */
 
@@ -56,12 +52,11 @@
   --ease-out:     ease-out;
   --ease-breathe: ease-in-out;
 
-  /* OPACITY — eight steps, light to heavy */
+  /* OPACITY — light to heavy */
   --opacity-ghost:   0.04;
   --opacity-whisper: 0.06;
   --opacity-mist:    0.11;
   --opacity-haze:    0.16;
-  --opacity-veil:    0.23;
   --opacity-fog:     0.35;
   --opacity-smoke:   0.54;
   --opacity-glass:   0.85;

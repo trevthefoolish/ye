@@ -134,7 +134,7 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
     return priority === BACKGROUND ? 'started-background' : 'started';
   }
 
-  return { request, stats: scheduler.stats };
+  return { request };
 }
 
 module.exports = { createRenderer, FOREGROUND, BACKGROUND };

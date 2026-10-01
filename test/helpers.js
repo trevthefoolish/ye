@@ -187,4 +187,4 @@ async function waitForComplete(port, pathname) {
   }, { what: `${pathname} to complete`, intervalMs: 100 });
 }
 
-module.exports = { ROOT, getJson, request, sleep, startMockXai, startServer, tempDir, waitFor, waitForComplete };
+module.exports = { getJson, request, sleep, startMockXai, startServer, tempDir, waitFor, waitForComplete };

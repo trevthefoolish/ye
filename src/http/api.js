@@ -5,7 +5,7 @@
 //   Complete chapters: { verses, complete: true, missingCount: 0 }, cacheable
 //   for a day with an ETag. Partial chapters: rendered verses (null where
 //   missing) plus a retry hint; the request also queues the missing verses.
-//   Query: priority=background (or low) for prefetches; render=0 to only read.
+//   Query: priority=background for prefetches; render=0 to only read.
 //
 // GET /api/version — what is rendering, and the cache key it stamps.
 
@@ -14,14 +14,11 @@ const { resolveChapter } = require('../canon');
 const { BACKGROUND, FOREGROUND } = require('../render/scheduler');
 
 const ONE_DAY = 'public, max-age=86400';
-const NO_RENDER = new Set(['0', 'false', 'cache-only']);
 
-// null means "read only". ?render= doubles as a priority hint when ?priority= is absent.
+// null means "read only".
 function renderPriority(query) {
-  const render = String(query.render || '1').toLowerCase();
-  if (NO_RENDER.has(render)) return null;
-  const priority = String(query.priority || render).toLowerCase();
-  return priority === BACKGROUND || priority === 'low' ? BACKGROUND : FOREGROUND;
+  if (query.render === '0') return null;
+  return query.priority === BACKGROUND ? BACKGROUND : FOREGROUND;
 }
 
 function apiRoutes({ store, renderer, pipeline, render, appVersion }) {

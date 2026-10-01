@@ -57,7 +57,7 @@ function openLogs({ dir, debug, stdout = process.stdout }) {
   return { log: createLogger(server.write, { debug }), analytics: analytics.write };
 }
 
-// For unit tests and scripts: keeps entries in memory instead of writing them.
+// For tests: keeps entries in memory instead of writing them.
 function memoryLogger() {
   const entries = [];
   const log = createLogger(entry => entries.push(entry), { debug: true });
