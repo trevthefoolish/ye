@@ -1,35 +1,11 @@
 /* Copyright (c) 2026 vapourware.ai All rights reserved. */
 :root {
-  /* ── SYMMETRY ENGINE v2 ── vapourware.ai ──
-     Fibonacci-grounded design tokens.
-     One scale. One place. Auditable in 30 seconds.
-
-     PERCEPTUAL BASIS
-     ┌─────────────────────────────────────────────────────────┐
-     │ Weber-Fechner Law: perception is logarithmic.           │
-     │ Fibonacci spacing ≈ log curve — each step feels like    │
-     │ an equal perceptual jump.                               │
-     │                                                         │
-     │ Golden Ratio (φ ≈ 1.618): consecutive Fibonacci ratios  │
-     │ converge on φ. Layouts proportioned by φ feel balanced  │
-     │ (Fechner 1876, Livio 2002).                             │
-     │                                                         │
-     │ Gestalt Proximity: Fib gaps 1-2-3 cluster as "related"; │
-     │ gaps 8-13-21 signal "separated". Natural grouping.      │
-     │                                                         │
-     │ Fitts's Law: touch targets at Fib 13 × 3px = 39px      │
-     │ exceed the 44px-minus-padding minimum; φ-scaled sizes   │
-     │ optimize speed-accuracy for finger input.               │
-     │                                                         │
-     │ Card-Moran-Newell (1983): perceptual processor ~100ms,  │
-     │ motor processor ~70ms. Timing base = 50ms.              │
-     │ Fib × 50ms: 100, 150, 250, 400, 650, 1700ms            │
-     │ map to human processing thresholds.                     │
-     │                                                         │
-     │ Miller's Law (7±2): 8 spatial steps, 6 timing steps,    │
-     │ 8 opacity steps — all within cognitive chunk limits.     │
-     └─────────────────────────────────────────────────────────┘
-     ─────────────────────────────────────────────── */
+  /* Fibonacci Symmetry Engine: the design scale.
+     Space is Fib(n) × 3px and time is Fib(n) × 50ms, so each step is about
+     φ (1.618) times the last and reads as an even perceptual jump. Opacity
+     uses a hand-tuned ladder of the same shape. Tokens the script needs
+     (durations, ease-out, smoke) are read from here at startup; swipe
+     physics live in client/app.js. */
 
   /* SPATIAL — Fibonacci × 3px
      Fib:  1    2    3    5    8    13   21   34
@@ -76,60 +52,22 @@
   --dur-drift:     1.7s;     /* Fib 34 — shimmer/ambient */
   --delay-stagger: 0.1s;     /* Fib 2  — cascade offset */
 
-  /* Swipe physics timing — tuned by feel, not derived */
-  --slide-dur-min: 0.12s;
-  --slide-dur-max: 0.35s;
-  --spring-dur:    0.4s;
-  --nav-fade-out:  0.15s;
-  --nav-fade-in:   0.2s;
-  --safety-pad:    100;     /* ms, added to transition timeouts */
-
-  /* EASING — organic curves, not derived */
+  /* EASING */
   --ease-out:     ease-out;
   --ease-breathe: ease-in-out;
-  --ease-spring:  cubic-bezier(0.25, 0.46, 0.45, 0.94);
-  --ease-slide:   cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-flick:   cubic-bezier(0.22, 1.15, 0.36, 1);
-  --ease-toss:    cubic-bezier(0.175, 0.885, 0.32, 1.05);
-  --ease-snap:    cubic-bezier(0.25, 1.1, 0.35, 1);
 
-  /* OPACITY — Fib(n)/34, scaled to 0.04–0.85
-     Fib: 1     2     3     5     8     13    21    34
-     Perceptually uniform per Weber-Fechner */
-  --opacity-ghost:   0.04;   /* Fib 1  */
-  --opacity-whisper: 0.06;   /* Fib 2  */
-  --opacity-mist:    0.11;   /* Fib 3  */
-  --opacity-haze:    0.16;   /* Fib 5  */
-  --opacity-veil:    0.23;   /* Fib 8  */
-  --opacity-fog:     0.35;   /* Fib 13 */
-  --opacity-smoke:   0.54;   /* Fib 21 */
-  --opacity-glass:   0.85;   /* Fib 34 */
+  /* OPACITY — eight steps, light to heavy */
+  --opacity-ghost:   0.04;
+  --opacity-whisper: 0.06;
+  --opacity-mist:    0.11;
+  --opacity-haze:    0.16;
+  --opacity-veil:    0.23;
+  --opacity-fog:     0.35;
+  --opacity-smoke:   0.54;
+  --opacity-glass:   0.85;
 
   /* INTERACTION — tap feedback */
-  --scale-tap:     0.85;    /* = Fib 34/34 scaled, matches --opacity-glass */
-
-  /* DEPTH — φ-proximate panel effects during swipe (unitless, for JS) */
-  --depth-in-scale:       0.92;
-  --depth-out-scale:      0.96;
-  --depth-out-dim:        0.85;
-  --depth-shadow-x:       8;
-  --depth-shadow-blur:    13;    /* Fibonacci */
-  --depth-shadow-opacity: 0.11;  /* ≈ Fib 3/34 */
-  --depth-shadow-min:     0.02;
-
-  /* SWIPE PHYSICS — tuned by feel, not derived (unitless, for JS) */
-  --swipe-dir-threshold: 6;
-  --swipe-commit-slow:   0.15;
-  --swipe-commit-range:  0.07;
-  --rubber-band-factor:  3;
-  --edge-glow-max:       0.2;
-  --edge-glow-divisor:   200;
-  --vel-slow:      0.1;
-  --vel-fast:      0.4;
-  --vel-flick:     0.6;
-  --vel-toss:      0.2;
-  --vel-dur-base:  0.3;
-  --vel-dur-scale: 2;
+  --scale-tap:     0.85;
 
   /* Z-INDEX — ordinal stacking */
   --z-header: 5;

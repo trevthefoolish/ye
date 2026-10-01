@@ -1,295 +1,182 @@
 #!/usr/bin/env node
 // Copyright (c) 2026 vapourware.ai All rights reserved.
-const fs = require('fs');
-const path = require('path');
+'use strict';
 
-const ROOT = path.resolve(__dirname, '..');
-const BIBLE = require('../data/bible.json');
-const { parsePositiveInt, slugify } = require('../utils');
-const OUT_PATH = path.join(ROOT, 'data', 'sections.json');
+// Regenerates data/sections.json (the section-v2 pericope map) from
+// OpenBible's crowd-sourced section counts.
+//
+// For each book, a dynamic program picks the cover that maximizes total
+// score: OpenBible sections score votes² × 100,000 + length, so consensus
+// dominates, and every verse can also be covered by a small generated
+// fallback section (score 1), so coverage is always total.
+//
+//   node scripts/generate-sections.js [outPath]
+//   OPENBIBLE_SECTIONS_URL, OPENBIBLE_MAX_SECTION_VERSES (default 48)
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { BOOKS, VERSE_COUNTS, getVerseIndex } = require('../src/canon');
+const { parsePositiveInt, slugify } = require('../src/text');
+
+const OUT_PATH = process.argv[2] || path.join(__dirname, '..', 'data', 'sections.json');
 const OPENBIBLE_URL = process.env.OPENBIBLE_SECTIONS_URL || 'https://a.openbible.info/data/bible-section-counts.txt';
 const OPENBIBLE_MAX_VERSES = parsePositiveInt(process.env.OPENBIBLE_MAX_SECTION_VERSES, 48);
+const FALLBACK_MAX_VERSES = { Psalms: 24, Proverbs: 8, default: 16 };
 
-const OSIS_TO_BOOK = {
-  Gen: 'Genesis',
-  Exod: 'Exodus',
-  Lev: 'Leviticus',
-  Num: 'Numbers',
-  Deut: 'Deuteronomy',
-  Josh: 'Joshua',
-  Judg: 'Judges',
-  Ruth: 'Ruth',
-  '1Sam': '1 Samuel',
-  '2Sam': '2 Samuel',
-  '1Kgs': '1 Kings',
-  '2Kgs': '2 Kings',
-  '1Chr': '1 Chronicles',
-  '2Chr': '2 Chronicles',
-  Ezra: 'Ezra',
-  Neh: 'Nehemiah',
-  Esth: 'Esther',
-  Job: 'Job',
-  Ps: 'Psalms',
-  Prov: 'Proverbs',
-  Eccl: 'Ecclesiastes',
-  Song: 'Song of Solomon',
-  Isa: 'Isaiah',
-  Jer: 'Jeremiah',
-  Lam: 'Lamentations',
-  Ezek: 'Ezekiel',
-  Dan: 'Daniel',
-  Hos: 'Hosea',
-  Joel: 'Joel',
-  Amos: 'Amos',
-  Obad: 'Obadiah',
-  Jonah: 'Jonah',
-  Mic: 'Micah',
-  Nah: 'Nahum',
-  Hab: 'Habakkuk',
-  Zeph: 'Zephaniah',
-  Hag: 'Haggai',
-  Zech: 'Zechariah',
-  Mal: 'Malachi',
-  Matt: 'Matthew',
-  Mark: 'Mark',
-  Luke: 'Luke',
-  John: 'John',
-  Acts: 'Acts',
-  Rom: 'Romans',
-  '1Cor': '1 Corinthians',
-  '2Cor': '2 Corinthians',
-  Gal: 'Galatians',
-  Eph: 'Ephesians',
-  Phil: 'Philippians',
-  Col: 'Colossians',
-  '1Thess': '1 Thessalonians',
-  '2Thess': '2 Thessalonians',
-  '1Tim': '1 Timothy',
-  '2Tim': '2 Timothy',
-  Titus: 'Titus',
-  Phlm: 'Philemon',
-  Heb: 'Hebrews',
-  Jas: 'James',
-  '1Pet': '1 Peter',
-  '2Pet': '2 Peter',
-  '1John': '1 John',
-  '2John': '2 John',
-  '3John': '3 John',
-  Jude: 'Jude',
-  Rev: 'Revelation',
-};
+const OSIS_BOOKS = [
+  'Gen', 'Exod', 'Lev', 'Num', 'Deut', 'Josh', 'Judg', 'Ruth', '1Sam', '2Sam', '1Kgs', '2Kgs', '1Chr', '2Chr',
+  'Ezra', 'Neh', 'Esth', 'Job', 'Ps', 'Prov', 'Eccl', 'Song', 'Isa', 'Jer', 'Lam', 'Ezek', 'Dan', 'Hos', 'Joel',
+  'Amos', 'Obad', 'Jonah', 'Mic', 'Nah', 'Hab', 'Zeph', 'Hag', 'Zech', 'Mal', 'Matt', 'Mark', 'Luke', 'John',
+  'Acts', 'Rom', '1Cor', '2Cor', 'Gal', 'Eph', 'Phil', 'Col', '1Thess', '2Thess', '1Tim', '2Tim', 'Titus', 'Phlm',
+  'Heb', 'Jas', '1Pet', '2Pet', '1John', '2John', '3John', 'Jude', 'Rev',
+];
+const BOOK_BY_OSIS = new Map(OSIS_BOOKS.map((osis, i) => [osis, BOOKS[i]]));
 
-const BOOK_TO_OSIS = Object.fromEntries(Object.entries(OSIS_TO_BOOK).map(([osis, book]) => [book, osis]));
-const BOOKS = BIBLE.books;
-const VERSES = BIBLE.verses;
-const ORD_BY_REF = new Map();
-const REF_BY_ORD = [];
-const BOOK_BOUNDS = [];
+const { refs: REFS, locations: LOCATIONS, ordinals: ORDINALS } = getVerseIndex();
 
-let ordinal = 0;
-for (const [bookIndex, book] of BOOKS.entries()) {
-  const start = ordinal;
-  for (let chapter = 1; chapter <= VERSES[bookIndex].length; chapter++) {
-    for (let verse = 1; verse <= VERSES[bookIndex][chapter - 1]; verse++) {
-      const ref = refForEntry(book, chapter, verse);
-      ORD_BY_REF.set(ref, ordinal);
-      REF_BY_ORD[ordinal] = { book, chapter, verse, ref };
-      ordinal++;
-    }
-  }
-  BOOK_BOUNDS.push({ book, start, end: ordinal });
-}
+// [start, end) ordinal ranges per book.
+const BOOK_BOUNDS = (() => {
+  let start = 0;
+  return BOOKS.map((book, i) => {
+    const end = start + VERSE_COUNTS[i].reduce((a, b) => a + b, 0);
+    const bound = { book, start, end };
+    start = end;
+    return bound;
+  });
+})();
 
-function fallbackWindowSize(book) {
-  if (book === 'Psalms') return 24;
-  if (book === 'Proverbs') return 8;
-  return 16;
-}
+const fallbackMaxVerses = book => FALLBACK_MAX_VERSES[book] || FALLBACK_MAX_VERSES.default;
 
-function refForEntry(book, chapter, verse) {
-  return `${book} ${chapter}:${verse}`;
-}
-
-function parseOsisRef(ref) {
-  const m = /^(.+)\.(\d+)\.(\d+)$/.exec(ref);
-  if (!m) return null;
-  const book = OSIS_TO_BOOK[m[1]];
+function parseOsisRef(osis) {
+  const m = /^(.+)\.(\d+)\.(\d+)$/.exec(osis);
+  const book = m && BOOK_BY_OSIS.get(m[1]);
   if (!book) return null;
-  const canonical = refForEntry(book, Number(m[2]), Number(m[3]));
-  const ord = ORD_BY_REF.get(canonical);
-  if (ord === undefined) return null;
-  return { book, chapter: Number(m[2]), verse: Number(m[3]), ref: canonical, ord };
+  const ref = `${book} ${Number(m[2])}:${Number(m[3])}`;
+  const ord = ORDINALS.get(ref);
+  return ord === undefined ? null : { book, ref, ord };
 }
 
-function refsForOrdRange(from, to) {
-  const refs = [];
-  for (let ord = from; ord < to; ord++) refs.push(REF_BY_ORD[ord].ref);
-  return refs;
-}
-
-function fallbackCandidatesFor(book, from, bookEnd) {
-  const size = fallbackWindowSize(book);
-  const candidates = [];
-  for (let len = 1; len <= size && from + len <= bookEnd; len++) {
-    candidates.push({
-      source: 'generated-fallback',
-      from,
-      to: from + len,
-      votes: 0,
-      score: 1,
-    });
-  }
-  return candidates;
-}
-
+// Tab-separated rows: startOsis, endOsis, (unused), votes.
 function parseOpenBibleRows(text) {
   const rows = [];
   for (const line of text.split(/\r?\n/)) {
     if (!line || line.startsWith('#')) continue;
-    const [startOsis, endOsis, , countValue] = line.split('\t');
+    const [startOsis, endOsis, , votesValue] = line.split('\t');
     const start = parseOsisRef(startOsis);
     const end = parseOsisRef(endOsis);
     if (!start || !end || start.book !== end.book) continue;
-    const len = end.ord - start.ord + 1;
-    if (len < 1 || len > OPENBIBLE_MAX_VERSES) continue;
-    const votes = Number.parseInt(countValue || '0', 10) || 0;
-    const score = (votes * votes * 100_000) + len;
-    rows.push({
-      source: 'openbible-consensus',
-      from: start.ord,
-      to: end.ord + 1,
-      startOsis,
-      endOsis,
-      votes,
-      score,
-    });
+    const length = end.ord - start.ord + 1;
+    if (length < 1 || length > OPENBIBLE_MAX_VERSES) continue;
+    const votes = Number.parseInt(votesValue || '0', 10) || 0;
+    rows.push({ source: 'openbible-consensus', from: start.ord, to: end.ord + 1, startOsis, endOsis, votes, score: votes * votes * 100_000 + length });
   }
   return rows;
 }
 
-function chooseBookSections(bookBound, openBibleRows) {
-  const candidatesByStart = new Map();
-  for (const row of openBibleRows) {
-    if (row.from < bookBound.start || row.to > bookBound.end) continue;
-    if (!candidatesByStart.has(row.from)) candidatesByStart.set(row.from, []);
-    candidatesByStart.get(row.from).push(row);
+function chooseBookSections(bound, rows) {
+  const candidates = new Map();
+  for (let ord = bound.start; ord < bound.end; ord++) candidates.set(ord, []);
+  for (const row of rows) {
+    if (row.from >= bound.start && row.to <= bound.end) candidates.get(row.from).push(row);
   }
-  for (let ord = bookBound.start; ord < bookBound.end; ord++) {
-    const candidates = candidatesByStart.get(ord) || [];
-    candidates.push(...fallbackCandidatesFor(bookBound.book, ord, bookBound.end));
-    candidatesByStart.set(ord, candidates);
+  for (let ord = bound.start; ord < bound.end; ord++) {
+    for (let length = 1; length <= fallbackMaxVerses(bound.book) && ord + length <= bound.end; length++) {
+      candidates.get(ord).push({ source: 'generated-fallback', from: ord, to: ord + length, votes: 0, score: 1 });
+    }
   }
 
-  const dp = new Map([[bookBound.end, { score: 0, count: 0, path: [] }]]);
-  for (let ord = bookBound.end - 1; ord >= bookBound.start; ord--) {
-    let best = null;
-    for (const candidate of candidatesByStart.get(ord) || []) {
-      const tail = dp.get(candidate.to);
+  // best[ord]: the highest-scoring cover of [ord, end). Ties prefer fewer
+  // sections, then a longer first section.
+  const best = new Map([[bound.end, { score: 0, count: 0, path: [] }]]);
+  for (let ord = bound.end - 1; ord >= bound.start; ord--) {
+    let pick = null;
+    for (const candidate of candidates.get(ord)) {
+      const tail = best.get(candidate.to);
       if (!tail) continue;
-      const next = {
-        score: candidate.score + tail.score,
-        count: 1 + tail.count,
-        path: [candidate, ...tail.path],
-      };
-      if (!best
-        || next.score > best.score
-        || (next.score === best.score && next.count < best.count)
-        || (next.score === best.score && next.count === best.count && candidate.to > best.path[0].to)) {
-        best = next;
+      const next = { score: candidate.score + tail.score, count: tail.count + 1, path: [candidate, ...tail.path] };
+      if (!pick
+        || next.score > pick.score
+        || (next.score === pick.score && next.count < pick.count)
+        || (next.score === pick.score && next.count === pick.count && candidate.to > pick.path[0].to)) {
+        pick = next;
       }
     }
-    if (best) dp.set(ord, best);
+    if (pick) best.set(ord, pick);
   }
-  const solution = dp.get(bookBound.start);
-  if (!solution) throw new Error(`could not generate section coverage for ${bookBound.book}`);
+  const solution = best.get(bound.start);
+  if (!solution) throw new Error(`could not generate section coverage for ${bound.book}`);
   return solution.path;
 }
 
-function sectionFromCandidate(candidate) {
-  const start = REF_BY_ORD[candidate.from];
-  const end = REF_BY_ORD[candidate.to - 1];
-  const references = refsForOrdRange(candidate.from, candidate.to);
-  const sectionRef = `${start.ref}-${end.ref}`;
-  const idPrefix = candidate.source === 'openbible-consensus' ? 'ob' : 'fallback';
-  const id = candidate.source === 'openbible-consensus'
-    ? `${idPrefix}-${slugify(candidate.startOsis)}-${slugify(candidate.endOsis)}`
-    : `${idPrefix}-${slugify(start.book)}-${start.chapter}-${start.verse}-${end.chapter}-${end.verse}`;
+function toSection(candidate) {
+  const start = LOCATIONS.get(REFS[candidate.from]);
+  const end = LOCATIONS.get(REFS[candidate.to - 1]);
+  const openBible = candidate.source === 'openbible-consensus';
   return {
-    id,
+    id: openBible
+      ? `ob-${slugify(candidate.startOsis)}-${slugify(candidate.endOsis)}`
+      : `fallback-${slugify(start.book)}-${start.chapter}-${start.verse}-${end.chapter}-${end.verse}`,
     source: candidate.source,
     book: start.book,
     startRef: start.ref,
     endRef: end.ref,
-    label: sectionRef,
+    label: `${start.ref}-${end.ref}`,
     votes: candidate.votes,
-    references,
+    references: REFS.slice(candidate.from, candidate.to),
   };
 }
 
-function validateGeneratedSections(sections) {
-  const seen = new Set();
-  const covered = new Array(REF_BY_ORD.length).fill(false);
+function validate(sections) {
+  const ids = new Set();
+  const covered = new Array(REFS.length).fill(false);
   for (const section of sections) {
-    if (seen.has(section.id)) throw new Error(`duplicate section id: ${section.id}`);
-    seen.add(section.id);
+    if (ids.has(section.id)) throw new Error(`duplicate section id: ${section.id}`);
+    ids.add(section.id);
     for (const ref of section.references) {
-      const ord = ORD_BY_REF.get(ref);
+      const ord = ORDINALS.get(ref);
       if (ord === undefined) throw new Error(`unknown section ref: ${ref}`);
       if (covered[ord]) throw new Error(`overlapping section ref: ${ref}`);
       covered[ord] = true;
     }
-    if (section.source === 'generated-fallback') {
-      const first = REF_BY_ORD[ORD_BY_REF.get(section.references[0])];
-      if (section.references.length > fallbackWindowSize(first.book)) {
-        throw new Error(`oversized fallback section: ${section.id}`);
-      }
+    if (section.source === 'generated-fallback' && section.references.length > fallbackMaxVerses(section.book)) {
+      throw new Error(`oversized fallback section: ${section.id}`);
     }
   }
-  const missing = [];
-  for (let i = 0; i < covered.length; i++) {
-    if (!covered[i]) missing.push(REF_BY_ORD[i].ref);
-  }
+  const missing = REFS.filter((_, ord) => !covered[ord]);
   if (missing.length) throw new Error(`missing section coverage: ${missing.slice(0, 10).join(', ')}`);
 }
 
-async function main() {
-  const response = await fetch(OPENBIBLE_URL);
-  if (!response.ok) throw new Error(`failed to fetch OpenBible sections: ${response.status}`);
-  const text = await response.text();
-  const openBibleRows = parseOpenBibleRows(text);
-  const sections = [];
-  for (const bookBound of BOOK_BOUNDS) {
-    sections.push(...chooseBookSections(bookBound, openBibleRows).map(sectionFromCandidate));
-  }
-  validateGeneratedSections(sections);
-
-  const sourceCounts = sections.reduce((counts, section) => {
-    counts[section.source] = (counts[section.source] || 0) + 1;
-    return counts;
-  }, {});
-  const output = {
+function buildSectionMap(text, generatedAt = new Date()) {
+  const rows = parseOpenBibleRows(text);
+  const sections = BOOK_BOUNDS.flatMap(bound => chooseBookSections(bound, rows).map(toSection));
+  validate(sections);
+  const sourceCounts = {};
+  for (const section of sections) sourceCounts[section.source] = (sourceCounts[section.source] || 0) + 1;
+  return {
     version: 'sections-openbible-v1',
-    generatedAt: new Date().toISOString(),
+    generatedAt: generatedAt.toISOString(),
     source: {
       name: 'OpenBible Bible section counts',
       url: OPENBIBLE_URL,
       maxOpenBibleSectionVerses: OPENBIBLE_MAX_VERSES,
-      fallbackMaxVerses: {
-        Psalms: 24,
-        Proverbs: 8,
-        default: 16,
-      },
+      fallbackMaxVerses: FALLBACK_MAX_VERSES,
     },
     stats: {
       books: BOOKS.length,
-      chapters: VERSES.reduce((total, chapters) => total + chapters.length, 0),
-      verses: REF_BY_ORD.length,
+      chapters: VERSE_COUNTS.reduce((total, chapters) => total + chapters.length, 0),
+      verses: REFS.length,
       sections: sections.length,
       sourceCounts,
       maxSectionVerses: Math.max(...sections.map(section => section.references.length)),
     },
     sections,
   };
+}
+
+async function main() {
+  const response = await fetch(OPENBIBLE_URL);
+  if (!response.ok) throw new Error(`failed to fetch OpenBible sections: ${response.status}`);
+  const output = buildSectionMap(await response.text());
   fs.writeFileSync(OUT_PATH, `${JSON.stringify(output, null, 2)}\n`);
   console.log(JSON.stringify(output.stats, null, 2));
 }
@@ -300,3 +187,5 @@ if (require.main === module) {
     process.exit(1);
   });
 }
+
+module.exports = { buildSectionMap, parseOpenBibleRows };
