@@ -162,3 +162,18 @@ test('prepare() never treats a version directory given as the root as legacy', t
   assert.ok(fs.existsSync(path.join(root, '7.json')));
   assert.ok(log.entries.some(e => e.event === 'render_cache_root_misconfigured'));
 });
+
+test('prepare() removes retired cache directories, unless one is in use', t => {
+  const volume = tempDir(t);
+  const retired = path.join(volume, 'renders-v2');
+  writeJson(path.join(retired, '7.json'), { '0:0': stored('Old section-v2 render', 'oldoldoldold') });
+  const log = memoryLogger();
+  const store = new RenderStore({ dir: path.join(volume, 'renders'), version: VERSION, log });
+  assert.deepEqual(store.prepare(null, { retiredDirs: [retired, path.join(volume, 'missing')] }).retiredRemoved, [retired]);
+  assert.ok(!fs.existsSync(retired));
+
+  writeJson(path.join(retired, VERSION, '7.json'), { '0:0': stored('In use') });
+  const inUse = new RenderStore({ dir: retired, version: VERSION, log });
+  assert.deepEqual(inUse.prepare(null, { retiredDirs: [retired] }).retiredRemoved, []);
+  assert.ok(fs.existsSync(path.join(retired, VERSION, '7.json')));
+});

@@ -21,6 +21,10 @@ const setting = (value, fallback) => (typeof value === 'string' && value.trim())
 function loadConfig(env = process.env) {
   // Section rendering is opt-in; anything else means the production default.
   const pipeline = setting(env.RENDER_PIPELINE) === PIPELINE_SECTION ? PIPELINE_SECTION : PIPELINE_VERSE;
+  // Railway sets this when a volume is attached; renders and logs live there
+  // unless RENDERS_DIR / LOG_DIR say otherwise.
+  const volume = setting(env.RAILWAY_VOLUME_MOUNT_PATH);
+  const persistent = (name, fallback) => (setting(env[name]) ? path.resolve(env[name].trim()) : volume ? path.join(volume, fallback) : null);
 
   return Object.freeze({
     root: ROOT,
@@ -28,7 +32,7 @@ function loadConfig(env = process.env) {
     production: env.NODE_ENV === 'production',
     origin: 'https://www.vapourware.ai',
     logs: Object.freeze({
-      dir: env.LOG_DIR ? path.resolve(env.LOG_DIR) : path.join(ROOT, 'logs'),
+      dir: persistent('LOG_DIR', 'logs') || path.join(ROOT, 'logs'),
       debug: env.LOG_LEVEL === 'debug' || env.NODE_ENV !== 'production',
       // Optional: hardens the daily anonymous analytics id against brute-forcing the IP space.
       analyticsSalt: env.ANALYTICS_SALT || '',
@@ -51,9 +55,12 @@ function loadConfig(env = process.env) {
       retryAfterMs: 2_000,
     }),
     cache: Object.freeze({
-      // Cache root; each render version gets its own subdirectory. Production
-      // points this at the volume; locally it is a gitignored directory.
-      dir: setting(env.RENDERS_DIR) ? path.resolve(env.RENDERS_DIR.trim()) : path.join(ROOT, '.cache', 'renders'),
+      // Cache root; each render version gets its own subdirectory. On Railway
+      // it is on the volume; locally it is a gitignored directory.
+      dir: persistent('RENDERS_DIR', 'renders') || path.join(ROOT, '.cache', 'renders'),
+      // Where section-v2 renders lived before Grok 4.7 (the old docs had
+      // RENDERS_DIR=/data/renders-v2). Removed at startup unless in use.
+      retiredDirs: volume ? [path.join(volume, 'renders-v2')] : [],
       // The committed renders/ (reviewed copies of production's cache) seeds
       // the cache at startup. The server only reads it.
       seedDir: path.join(ROOT, 'renders'),

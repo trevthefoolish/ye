@@ -69,16 +69,16 @@ npm test        # unit and end-to-end tests (no network; xAI is mocked)
 |---|---|---|
 | `XAI_API_KEY` | (required) | xAI credentials |
 | `PORT` | `3000` | Listen port (`0` picks a free one) |
-| `NODE_ENV` | | `production` enables HSTS, secure cookies, and quieter logs |
+| `NODE_ENV` | `production` in the Docker image | `production` enables HSTS, secure cookies, and quieter logs |
 | `RENDER_PIPELINE` | `verse-v1` | `section-v2` opts into the section renderer |
 | `RENDER_MODEL` | `grok-4.7` | Model for both pipelines |
 | `RENDER_REASONING_EFFORT` | `low` | Grok 4.7 accepts `low`, `medium`, `high`, `xhigh`; reasoning can't be turned off, and its tokens bill as output |
 | `RENDER_CONCURRENCY` | `8` | Max concurrent upstream render calls |
 | `RENDER_SECTION_TIMEOUT_MS` | `90000` | Per-call timeout for `section-v2` (`verse-v1` uses 30 s) |
 | `XAI_API_URL` | `https://api.x.ai/v1/responses` | Override the xAI endpoint (tests point it at a mock) |
-| `RENDERS_DIR` | `./.cache/renders` (gitignored) | Render cache root; each render version gets its own subdirectory |
+| `RENDERS_DIR` | `<volume>/renders` on Railway, else `./.cache/renders` (gitignored) | Render cache root; each render version gets its own subdirectory |
 | `SEED_RENDER_CACHE` | on | `0` skips merging the committed `renders/<version>/` into the cache at startup |
-| `LOG_DIR` | `./logs` | JSONL log directory |
+| `LOG_DIR` | `<volume>/logs` on Railway, else `./logs` | JSONL log directory |
 | `LOG_LEVEL` | | `debug` keeps debug lines in production |
 | `ANALYTICS_SALT` | | Hardens the daily anonymous analytics id |
 
@@ -107,18 +107,14 @@ The committed `renders/<version>/` is a reviewed copy of production's cache for 
 
 ## Deploy
 
-Configured for [Railway](https://railway.app) via `railway.json`. Health check at `/health`. Production variables:
+Configured for [Railway](https://railway.app) via `railway.json`, built from the `Dockerfile`. Health check at `/health`. The service needs:
 
-```
-XAI_API_KEY=...
-NODE_ENV=production
-RENDERS_DIR=/data/renders
-LOG_DIR=/data/logs
-```
+- **One variable:** `XAI_API_KEY`.
+- **A volume** (any mount path, e.g. `/data`). Railway exposes it as `RAILWAY_VOLUME_MOUNT_PATH`, and the server keeps the render cache in `<volume>/renders` and logs in `<volume>/logs`, so both survive deploys.
 
-Mount a Railway volume at `/data` so the render cache and logs survive deploys. On `SIGTERM` the server stops accepting connections and lets pending cache writes land before exiting.
+Everything else has a production default (the image sets `NODE_ENV=production`; the pipeline is `verse-v1` on `grok-4.7`). Set the variables in the configuration table only to change those defaults. On `SIGTERM` the server stops accepting connections and lets pending cache writes land before exiting.
 
-Leave `RENDER_MODEL` and `RENDER_REASONING_EFFORT` unset in production so the defaults apply (earlier instructions suggested pinning `grok-4.3`/`none`; remove those). After a deploy, `/api/version` should report `grok-4.7`, effort `low`, and the version pinned in `test/render-version.test.js`.
+Upgrading from before Grok 4.7: delete every service variable except `XAI_API_KEY` (older setups had `NODE_ENV`, `LOG_DIR`, `RENDERS_DIR`, `RENDER_PIPELINE`, `RENDER_SECTION_TIMEOUT_MS`, and sometimes `RENDER_MODEL`/`RENDER_REASONING_EFFORT`). On first start the server removes the old flat cache files in `<volume>/renders` and the old section renderer's `<volume>/renders-v2`. `/api/version` should then report `verse-v1`, `grok-4.7`, effort `low`, and the version pinned in `test/render-version.test.js`.
 
 ## Renderer v2 evals
 

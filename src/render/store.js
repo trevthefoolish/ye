@@ -8,9 +8,10 @@
 // The render version hashes everything that shapes the model's output, so a
 // change of model, effort, prompt, or schema starts in a fresh, empty
 // directory, and changing back finds the previous one untouched. A config
-// change never deletes anything. The one exception is the flat layout
-// ({dir}/{bookIndex}.json) that predates per-version directories: only code
-// from before Grok 4.7 wrote it, and prepare() removes it at startup.
+// change never deletes anything. The exceptions are leftovers from before
+// Grok 4.7, which prepare() removes at startup: the flat layout
+// ({dir}/{bookIndex}.json) that predates per-version directories, and any
+// retired cache directory the caller names.
 //
 // Reads come from memory after the first touch of a book. Writes update memory
 // immediately and persist with tmp+rename, coalesced so a burst of finished
@@ -228,15 +229,26 @@ class RenderStore {
   }
 
   // Startup pass, before any reads:
-  //   1. removes the pre-4.7 flat layout from the cache root (one time: nothing
-  //      writes it any more),
+  //   1. removes the pre-4.7 flat layout from the cache root, and the retired
+  //      cache directories in `retiredDirs` (one time: nothing writes either
+  //      any more),
   //   2. removes temp files an interrupted write left in this version's directory,
   //   3. folds in this version's entries from the committed seed
   //      ({seedDir}/{version}/), when given,
   //   4. reports other versions' directories, which are left alone.
   // A failure on one file is logged and skipped; it never stops the pass.
-  prepare(seedDir) {
-    const totals = { legacyRemoved: 0, seededFiles: 0, added: 0, replaced: 0, skippedStale: 0, skippedMalformed: 0 };
+  prepare(seedDir, { retiredDirs = [] } = {}) {
+    const totals = { legacyRemoved: 0, retiredRemoved: [], seededFiles: 0, added: 0, replaced: 0, skippedStale: 0, skippedMalformed: 0 };
+    for (const retired of retiredDirs) {
+      const dir = path.resolve(retired);
+      if (dir === path.resolve(this.root) || !fs.existsSync(dir)) continue;
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+        totals.retiredRemoved.push(dir);
+      } catch (err) {
+        this.log.warn('render_cache_cleanup_failed', { file: dir, err: err.message });
+      }
+    }
     const remove = (dir, entry) => {
       try {
         fs.rmSync(path.join(dir, entry.name));

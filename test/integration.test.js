@@ -271,6 +271,33 @@ test('startup removes the pre-4.7 cache layout once and leaves other render vers
   assert.equal((await getJson(app.port, '/api/chapter/ruth/2?render=0')).verses[0], null);
 });
 
+test('on Railway, only XAI_API_KEY is needed: the volume gets renders and logs, pre-4.7 caches go', async t => {
+  const { tempDir } = require('./helpers');
+  const volume = tempDir(t);
+  const old = { '0:0': { rendering: 'From an older model', note: 'Old', v: '7fc357e1a8e6', t: 1 } };
+  fs.mkdirSync(path.join(volume, 'renders'));
+  fs.writeFileSync(path.join(volume, 'renders', '7.json'), JSON.stringify(old));
+  fs.mkdirSync(path.join(volume, 'renders-v2'));
+  fs.writeFileSync(path.join(volume, 'renders-v2', '7.json'), JSON.stringify(old));
+  fs.mkdirSync(path.join(volume, 'logs'));
+
+  const mock = await startMockXai(t);
+  const app = await startServer(t, { XAI_API_URL: mock.url, RAILWAY_VOLUME_MOUNT_PATH: volume, RENDERS_DIR: '', LOG_DIR: '' });
+  const info = await getJson(app.port, '/api/version');
+  assert.equal(info.renderPipeline, 'verse-v1');
+  assert.equal(info.model, 'grok-4.7');
+  const prepared = await app.waitForLog('render_cache_prepared');
+  assert.equal(prepared.legacyRemoved, 1);
+  assert.deepEqual(prepared.retiredRemoved, [path.join(volume, 'renders-v2')]);
+  assert.deepEqual(fs.readdirSync(volume).sort(), ['logs', 'renders']);
+
+  await getJson(app.port, '/api/chapter/jude/1');
+  await waitForComplete(app.port, '/api/chapter/jude/1');
+  await waitFor(() => fs.existsSync(path.join(volume, 'renders', info.version, '64.json')), { what: 'Jude on the volume' });
+  assert.deepEqual(fs.readdirSync(path.join(volume, 'renders')), [info.version]);
+  assert.ok(fs.readdirSync(path.join(volume, 'logs', 'server')).some(f => f.endsWith('.jsonl')));
+});
+
 test('upstream render concurrency is capped globally', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
   const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '2' });

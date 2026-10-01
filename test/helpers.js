@@ -123,6 +123,7 @@ function startServer(t, env = {}) {
       RENDER_MODEL: '',
       RENDER_REASONING_EFFORT: '',
       SEED_RENDER_CACHE: '0',
+      RAILWAY_VOLUME_MOUNT_PATH: '',
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],

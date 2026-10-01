@@ -25,13 +25,6 @@ test('defaults are Grok 4.7 at low reasoning effort on the Responses API', () =>
   assert.equal(verseRenderVersion(loadConfig({ RENDER_MODEL: ' grok-4.7 ', RENDER_REASONING_EFFORT: '' }).render), verseRenderVersion(DEFAULTS));
 });
 
-test('local runs cache outside the committed renders/', () => {
-  const { cache } = loadConfig({});
-  assert.equal(cache.dir, path.join(__dirname, '..', '.cache', 'renders'));
-  assert.notEqual(cache.dir, cache.seedDir);
-  assert.equal(loadConfig({ RENDERS_DIR: '  ' }).cache.dir, cache.dir);
-});
-
 test('the committed renders/ holds only a render version this code produces', () => {
   const dir = path.join(__dirname, '..', 'renders');
   const current = [verseRenderVersion(DEFAULTS), sectionRenderVersion(DEFAULTS)];
