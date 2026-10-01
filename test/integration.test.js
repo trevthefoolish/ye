@@ -235,13 +235,22 @@ test('startup removes the pre-4.7 cache layout once and leaves other render vers
   const current = verseRenderVersion(loadConfig({}).render);
   const other = '0123456789ab';
   const volume = tempDir(t);
-  const old = { '0:0': { rendering: 'From an older model', note: 'Old', v: '7fc357e1a8e6', t: 1 } };
+  // Ruth 2:1 ("1:0") exists in the legacy file, in another version's
+  // directory, and with a wrong stamp in the current one; Ruth 1:2 ("0:1") is current.
+  const old = {
+    '0:0': { rendering: 'From an older model', note: 'Old', v: '7fc357e1a8e6', t: 1 },
+    '1:0': { rendering: 'Legacy Ruth 2', note: 'Old', v: '7fc357e1a8e6', t: 1 },
+  };
   fs.writeFileSync(path.join(volume, '7.json'), JSON.stringify(old));
   fs.writeFileSync(path.join(volume, '8.json'), JSON.stringify(old));
   fs.mkdirSync(path.join(volume, other));
+  fs.writeFileSync(path.join(volume, other, '7.json'), JSON.stringify({ '1:0': { rendering: 'Other-config Ruth 2', note: 'n', v: other, t: 1 } }));
   fs.writeFileSync(path.join(volume, other, '8.json'), JSON.stringify({ '0:0': { rendering: 'Another config', note: 'n', v: other, t: 1 } }));
   fs.mkdirSync(path.join(volume, current));
-  fs.writeFileSync(path.join(volume, current, '7.json'), JSON.stringify({ '0:1': { rendering: 'Current verse', note: 'n', v: current, t: 1 } }));
+  fs.writeFileSync(path.join(volume, current, '7.json'), JSON.stringify({
+    '0:1': { rendering: 'Current verse', note: 'n', v: current, t: 1 },
+    '1:0': { rendering: 'Mis-stamped Ruth 2', note: 'n', v: other, t: 1 },
+  }));
 
   const mock = await startMockXai(t);
   const app = await startServer(t, { XAI_API_URL: mock.url, RENDERS_DIR: volume });
@@ -254,11 +263,12 @@ test('startup removes the pre-4.7 cache layout once and leaves other render vers
   const ruth = await getJson(app.port, '/api/chapter/ruth/1?render=0');
   assert.equal(ruth.verses[0], null);
   assert.equal(ruth.verses[1].rendering, 'Current verse');
-  // Ruth 2 exists only in the removed legacy file and another version's
-  // directory: its page must not borrow either's text.
+  // Ruth 2 has no current-version text, so its page must not borrow any.
   const page = (await request(app.port, '/ruth/2')).body;
   assert.match(page, /<meta name="description" content="Ruth 2, rendered in modern English with scholarly notes\.">/);
   assert.ok(!page.includes('id="preloaded"'));
+  for (const text of ['Legacy Ruth 2', 'Other-config Ruth 2', 'Mis-stamped Ruth 2']) assert.ok(!page.includes(text), text);
+  assert.equal((await getJson(app.port, '/api/chapter/ruth/2?render=0')).verses[0], null);
 });
 
 test('upstream render concurrency is capped globally', async t => {

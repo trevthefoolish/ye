@@ -247,8 +247,14 @@ class RenderStore {
       }
     };
 
-    for (const entry of listDir(this.root)) {
-      if (entry.isFile() && LEGACY_FILE.test(entry.name) && remove(this.root, entry)) totals.legacyRemoved++;
+    // A root that is itself a version directory means RENDERS_DIR was pointed
+    // one level too deep: its book files are renders, not legacy, so leave them.
+    if (VERSION_DIR.test(path.basename(this.root))) {
+      this.log.error('render_cache_root_misconfigured', { dir: this.root, hint: 'RENDERS_DIR should be the cache root, not a version directory' });
+    } else {
+      for (const entry of listDir(this.root)) {
+        if (entry.isFile() && LEGACY_FILE.test(entry.name) && remove(this.root, entry)) totals.legacyRemoved++;
+      }
     }
     for (const entry of listDir(this.dir)) {
       if (entry.isFile() && entry.name.endsWith('.tmp')) remove(this.dir, entry);

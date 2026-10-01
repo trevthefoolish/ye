@@ -21,6 +21,17 @@ const { version } = render.pipeline === PIPELINE_SECTION
 process.stdout.write(version);
 ')"
 
+# The committed seed must match what production serves; otherwise stop before
+# touching renders/.
+PRODUCTION_URL="${PRODUCTION_URL:-https://www.vapourware.ai}"
+LIVE_VERSION="$(curl -fsS -H 'Cache-Control: no-cache' "${PRODUCTION_URL}/api/version?ts=$(date +%s)" \
+  | node -pe 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')"
+if [ "$LIVE_VERSION" != "$VERSION" ]; then
+  echo "Production serves render version ${LIVE_VERSION}, but this checkout produces ${VERSION}." >&2
+  echo "Deploy this checkout (or match its RENDER_* settings) before syncing." >&2
+  exit 1
+fi
+
 echo "Exporting Railway renders from ${REMOTE_ROOT}/${VERSION}..."
 railway ssh sh -lc "test -d '${REMOTE_ROOT}/${VERSION}' && tar -C '${REMOTE_ROOT}/${VERSION}' -cf - ." | tar -C "$TMP_DIR" -xf -
 

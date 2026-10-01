@@ -151,3 +151,14 @@ test('prepare() seeds this version from the committed renders and skips a bad se
   assert.ok(log.entries.some(e => e.event === 'render_cache_seed_failed' && e.book === 0));
   assert.equal(store.prepare(seedRoot).seededFiles, 0);
 });
+
+test('prepare() never treats a version directory given as the root as legacy', t => {
+  const parent = tempDir(t);
+  const root = path.join(parent, VERSION);
+  writeJson(path.join(root, '7.json'), { '0:0': stored('A real render') });
+  const log = memoryLogger();
+  const result = new RenderStore({ dir: root, version: VERSION, log }).prepare(null);
+  assert.equal(result.legacyRemoved, 0);
+  assert.ok(fs.existsSync(path.join(root, '7.json')));
+  assert.ok(log.entries.some(e => e.event === 'render_cache_root_misconfigured'));
+});
