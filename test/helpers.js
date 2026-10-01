@@ -23,9 +23,18 @@ async function waitFor(fn, { timeoutMs = 6000, intervalMs = 50, what = 'conditio
   }
 }
 
+// node:test runs after-hooks in registration order and skips the rest once
+// one throws, so cleanup here must never throw: a failed delete would
+// otherwise skip killing a spawned server and leave the run hanging.
+function removeQuietly(dir) {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+  } catch { /* a leftover temp dir is harmless */ }
+}
+
 function tempDir(t, prefix = 'ye-test-') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeQuietly(dir));
   return dir;
 }
 
@@ -107,7 +116,8 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
 // that it is listening.
 // app.versionDir(version) is where that render version's book files live.
 function startServer(t, env = {}) {
-  const dir = tempDir(t);
+  // Not tempDir(): this one is removed only after the server has exited.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ye-test-'));
   const rendersDir = path.join(dir, 'renders');
   let output = '';
   const child = spawn(process.execPath, ['server.js'], {
@@ -129,7 +139,11 @@ function startServer(t, env = {}) {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const exited = new Promise(resolve => child.on('exit', (code, signal) => resolve({ code, signal })));
-  t.after(() => { if (child.exitCode === null) child.kill('SIGKILL'); });
+  t.after(async () => {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+    await exited;
+    removeQuietly(dir);
+  });
 
   const logs = event => output.split('\n').filter(Boolean).map(line => {
     try { return JSON.parse(line); } catch { return null; }
