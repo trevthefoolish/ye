@@ -118,6 +118,15 @@ test('server (passage-v1)', async t => {
     assert.equal(ld.name, '2 John 1');
   });
 
+  await t.test('pages without current-version text never borrow another version\'s', async () => {
+    writeCache(app, version, 'Obadiah', { '0:0': { rendering: 'Mis-stamped verse', note: 'n', v: 'stale-version', t: 1 } });
+    writeCache(app, '5155da19beec', 'Obadiah', { '0:0': { rendering: 'Old-version verse', note: 'n', v: '5155da19beec', t: 1 } });
+    const res = await request(app.port, '/obadiah/1');
+    assert.match(res.body, /<meta name="description" content="Obadiah 1, rendered in modern English with scholarly notes\.">/);
+    assert.ok(!res.body.includes('id="preloaded"'));
+    for (const text of ['Mis-stamped verse', 'Old-version verse']) assert.ok(!res.body.includes(text), text);
+  });
+
   await t.test('model text cannot break out of the page', async () => {
     const hostile = '</script><script>alert(1)</script> "quoted" $& $\' <!--';
     writeCache(app, version, 'Philemon', {
