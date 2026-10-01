@@ -1,51 +1,65 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 vapourware.ai All rights reserved.
+#
+# Mirrors production's render cache for the current render version (the one
+# this checkout produces with the same RENDER_* variables) into
+# renders/<version>/, so it can be reviewed and committed. Other versions'
+# directories in renders/ are removed: the committed seed holds one version.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
-REMOTE_MOUNT="${REMOTE_MOUNT:-/data/renders}"
+REMOTE_ROOT="${REMOTE_ROOT:-/data/renders}"
+VERSION="$(cd "$ROOT" && node -e '
+const { loadConfig, PIPELINE_SECTION } = require("./src/config");
+const render = loadConfig().render;
+const { version } = render.pipeline === PIPELINE_SECTION
+  ? require("./src/render/section-v2").createSectionPipeline(render)
+  : require("./src/render/verse-v1").createVersePipeline({ ...render, log: console });
+process.stdout.write(version);
+')"
 
-echo "Exporting Railway renders from ${REMOTE_MOUNT}..."
-railway ssh sh -lc "test -d '${REMOTE_MOUNT}' && tar -C '${REMOTE_MOUNT}' -cf - ." | tar -C "$TMP_DIR" -xf -
+# The committed seed must match what production serves; otherwise stop before
+# touching renders/.
+PRODUCTION_URL="${PRODUCTION_URL:-https://www.vapourware.ai}"
+LIVE_VERSION="$(curl -fsS -H 'Cache-Control: no-cache' "${PRODUCTION_URL}/api/version?ts=$(date +%s)" \
+  | node -pe 'JSON.parse(require("fs").readFileSync(0, "utf8")).version')"
+if [ "$LIVE_VERSION" != "$VERSION" ]; then
+  echo "Production serves render version ${LIVE_VERSION}, but this checkout produces ${VERSION}." >&2
+  echo "Deploy this checkout (or match its RENDER_* settings) before syncing." >&2
+  exit 1
+fi
 
-node - "$ROOT/renders" "$TMP_DIR" <<'NODE'
+echo "Exporting Railway renders from ${REMOTE_ROOT}/${VERSION}..."
+railway ssh sh -lc "test -d '${REMOTE_ROOT}/${VERSION}' && tar -C '${REMOTE_ROOT}/${VERSION}' -cf - ." | tar -C "$TMP_DIR" -xf -
+
+node - "$ROOT/renders" "$TMP_DIR" "$VERSION" <<'NODE'
 const fs = require('fs');
 const path = require('path');
 
-const localDir = process.argv[2];
-const remoteDir = process.argv[3];
-fs.mkdirSync(localDir, { recursive: true });
-
-let changedFiles = 0;
-for (const file of fs.readdirSync(remoteDir)) {
-  if (!file.endsWith('.json')) continue;
-  const remotePath = path.join(remoteDir, file);
-  const localPath = path.join(localDir, file);
-  const remote = JSON.parse(fs.readFileSync(remotePath, 'utf8'));
-  let local = {};
-  try { local = JSON.parse(fs.readFileSync(localPath, 'utf8')); } catch {}
-
-  let changed = false;
-  for (const [key, value] of Object.entries(remote)) {
-    const existing = local[key];
-    if (!existing
-      || existing.v !== value.v
-      || existing.rendering !== value.rendering
-      || existing.note !== value.note
-      || existing.noteKind !== value.noteKind
-      || existing.christConnection !== value.christConnection) {
-      local[key] = value;
-      changed = true;
-    }
-  }
-  if (changed) {
-    fs.writeFileSync(localPath, JSON.stringify(local, null, 2));
-    changedFiles++;
-  }
+const [seedRoot, exported, version] = process.argv.slice(2);
+const isBook = file => /^\d+\.json$/.test(file);
+const books = fs.readdirSync(exported).filter(isBook);
+if (books.length === 0) {
+  console.error(`Production has no renders for ${version}; leaving renders/ untouched.`);
+  process.exit(1);
 }
-console.log(`Updated ${changedFiles} render file(s).`);
+
+const target = path.join(seedRoot, version);
+fs.mkdirSync(target, { recursive: true });
+for (const file of books) {
+  const data = JSON.parse(fs.readFileSync(path.join(exported, file), 'utf8'));
+  fs.writeFileSync(path.join(target, file), JSON.stringify(data, null, 2));
+}
+for (const file of fs.readdirSync(target)) {
+  if (isBook(file) && !books.includes(file)) fs.rmSync(path.join(target, file));
+}
+for (const entry of fs.readdirSync(seedRoot, { withFileTypes: true })) {
+  if (entry.isDirectory() && entry.name !== version) fs.rmSync(path.join(seedRoot, entry.name), { recursive: true });
+}
+console.log(`Mirrored ${books.length} book file(s) for render version ${version}.`);
 NODE
 
 git -C "$ROOT" status --short renders

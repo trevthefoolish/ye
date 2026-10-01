@@ -1,0 +1,82 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { memoryLogger } = require('../src/log');
+const { postJson, requestStructured } = require('../src/render/xai');
+const { createVersePipeline } = require('../src/render/verse-v1');
+
+const reply = (status, body) => async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
+const post = fetchImpl => postJson('http://xai.test', {}, { apiKey: 'k', timeoutMs: 1000, fetchImpl });
+// A Responses API body the way grok-4.7 returns it: reasoning first, then the message.
+const responsesBody = text => ({
+  output: [
+    { type: 'reasoning', summary: [], encrypted_content: 'opaque' },
+    { type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] },
+  ],
+});
+
+test('postJson classifies failures as retryable or not', async () => {
+  // xAI's error body: { code, error: "<text>" }.
+  await assert.rejects(post(reply(400, { code: 'Client specified an invalid argument', error: 'Argument not supported: reasoning.effort' })),
+    err => err.message === 'xAI HTTP 400: Argument not supported: reasoning.effort' && err.retryable === false && err.status === 400);
+  await assert.rejects(post(reply(400, { error: { message: 'bad model' } })), err => err.message === 'xAI HTTP 400: bad model');
+  await assert.rejects(post(reply(403, { code: 'Forbidden' })), err => err.message === 'xAI HTTP 403: Forbidden');
+  await assert.rejects(post(reply(404, 'not json')), err => err.message === 'xAI HTTP 404' && err.retryable === false);
+  for (const status of [408, 409, 429, 500, 503]) {
+    await assert.rejects(post(reply(status, {})), err => err.retryable === true, String(status));
+  }
+  await assert.rejects(post(async () => { throw new TypeError('socket hang up'); }), err => err.retryable && /request failed: socket hang up/.test(err.message));
+  await assert.rejects(post(async () => { throw Object.assign(new Error('t'), { name: 'TimeoutError' }); }), /timed out after 1000ms/);
+  await assert.rejects(post(reply(200, '<html>')), /non-JSON/);
+  assert.deepEqual(await post(reply(200, { ok: 1 })), { ok: 1 });
+});
+
+test('requestStructured sends a strict-schema Responses request and parses the message text', async () => {
+  let sent;
+  const parsed = await requestStructured({
+    apiUrl: 'http://xai.test', apiKey: 'k', model: 'grok-4.7', reasoningEffort: 'low', timeoutMs: 1000,
+    systemPrompt: 'system', user: 'Ruth 1:1', schemaName: 'verse_rendering', schema: { type: 'object' },
+    fetchImpl: async (url, init) => { sent = { url, init }; return new Response(JSON.stringify(responsesBody('{"ok":true}'))); },
+  });
+  assert.deepEqual(parsed, { ok: true });
+  assert.equal(sent.url, 'http://xai.test');
+  assert.equal(sent.init.headers.Authorization, 'Bearer k');
+  assert.deepEqual(JSON.parse(sent.init.body), {
+    model: 'grok-4.7',
+    reasoning: { effort: 'low' },
+    store: false,
+    input: [{ role: 'system', content: 'system' }, { role: 'user', content: 'Ruth 1:1' }],
+    text: { format: { type: 'json_schema', name: 'verse_rendering', strict: true, schema: { type: 'object' } } },
+  });
+
+  const call = body => requestStructured({ apiUrl: 'x', apiKey: 'k', timeoutMs: 1000, fetchImpl: async () => new Response(JSON.stringify(body)) });
+  await assert.rejects(call({ output: [{ type: 'reasoning' }] }), /unexpected Responses API shape/);
+  await assert.rejects(call(responsesBody('not json')), /malformed JSON/);
+});
+
+test('verse-v1 sends the reference, cleans the text, and flags long notes', async () => {
+  const log = memoryLogger();
+  let sent;
+  const content = JSON.stringify({ rendering: 'Vapor of vapors\u2014all is vapor.', note: 'A note that runs longer than its verse does.' });
+  const pipeline = createVersePipeline({
+    apiUrl: 'http://xai.test', apiKey: 'k', model: 'grok-4.7', reasoningEffort: 'low', verseTimeoutMs: 1000, log,
+    fetchImpl: async (url, init) => { sent = JSON.parse(init.body); return new Response(JSON.stringify(responsesBody(content))); },
+  });
+  const [unit] = pipeline.plan({ bookIndex: 20, book: 'Ecclesiastes', chapter: 1 }, [2]);
+  assert.equal(unit.key, 'verse:20:1:2');
+  const [entry] = await unit.render();
+  assert.deepEqual(entry, { bookIndex: 20, chapter: 1, verse: 2, rendering: 'Vapour of vapours, all is vapour.', note: 'A note that runs longer than its verse does.' });
+  assert.equal(sent.input[1].content, 'Ecclesiastes 1:2');
+  assert.equal(sent.text.format.name, 'verse_rendering');
+  assert.ok(log.entries.some(e => e.event === 'note_too_long' && e.verse === 2));
+});
+
+test('verse-v1 rejects malformed structured output', async () => {
+  const pipeline = createVersePipeline({
+    apiUrl: 'http://xai.test', apiKey: 'k', model: 'grok-4.7', reasoningEffort: 'low', verseTimeoutMs: 1000, log: memoryLogger(),
+    fetchImpl: async () => new Response(JSON.stringify(responsesBody('{"rendering": 1}'))),
+  });
+  const [unit] = pipeline.plan({ bookIndex: 0, book: 'Genesis', chapter: 1 }, [1]);
+  await assert.rejects(unit.render(), /malformed verse rendering/);
+});

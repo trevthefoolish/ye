@@ -1,144 +1,92 @@
 #!/usr/bin/env node
 // Copyright (c) 2026 vapourware.ai All rights reserved.
-const fs = require('fs');
-const path = require('path');
-const {
-  EVAL_SCENARIOS_VERSION,
-  SECTIONS_FINGERPRINT,
-  V2_PROMPT_VERSION,
-  V2_SCHEMA_VERSION,
-  SECTIONS_VERSION,
-  evalSections,
-  renderSectionOnce,
-  sectionRef,
-} = require('../rendererV2');
-const { cleanText, slugify } = require('../utils');
+'use strict';
 
-const API_URL = process.env.XAI_API_URL || 'https://api.x.ai/v1/responses';
-const API_KEY = process.env.XAI_API_KEY;
-const MODEL = process.env.RENDER_MODEL || 'grok-4.5';
-const REASONING_EFFORT = process.env.RENDER_REASONING_EFFORT || 'low';
+// Renders an eval set through the section pipeline and writes Markdown + JSON
+// reports. Never touches the render cache.
+//
+//   EVAL_SET=smoke|edge|prod-sim   which scenarios (default smoke)
+//   EVAL_GATE=1                    exit non-zero on hard structural failures
+//   EVAL_REPORTS_DIR=...           where reports go (default eval-reports/)
+//   XAI_API_KEY, XAI_API_URL, RENDER_MODEL, RENDER_REASONING_EFFORT,
+//   RENDER_SECTION_TIMEOUT_MS      as for the server
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { loadConfig, PIPELINE_SECTION } = require('../src/config');
+const { EVAL_SCENARIOS_VERSION, evalSections } = require('../src/render/section-eval');
+const { PROMPT_VERSION, SCHEMA_VERSION, renderSection, sectionMap, sectionRef } = require('../src/render/section-v2');
+const { cleanText, slugify } = require('../src/text');
+
+const RENDER = loadConfig({ ...process.env, RENDER_PIPELINE: PIPELINE_SECTION }).render;
 const EVAL_SET = process.env.EVAL_SET || 'smoke';
 const EVAL_GATE = process.env.EVAL_GATE === '1' || process.env.EVAL_GATE === 'true';
 const REPORTS_DIR = process.env.EVAL_REPORTS_DIR || path.join(__dirname, '..', 'eval-reports');
 const NOTE_WORD_WARNING_MAX = 32;
 const AVG_NOTE_WORD_WARNING_MIN = 11;
+const EM_DASH = /—/g;
+const AMERICAN_VAPOR = /\bvapors?\b/gi;
 
-function wordCount(s) {
-  return s.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function opening(note) {
-  return note.replace(/["'()]/g, '').split(/\s+/).slice(0, 4).join(' ').replace(/[,:;.]+$/, '');
-}
+const wordCount = s => s.trim().split(/\s+/).filter(Boolean).length;
+const opening = note => note.replace(/["'()]/g, '').split(/\s+/).slice(0, 4).join(' ').replace(/[,:;.]+$/, '');
+const statusFor = ok => (ok ? 'pass' : 'warn');
+const average = nums => (nums.length ? Math.round(nums.reduce((a, b) => a + b, 0) / nums.length) : 0);
+const matches = (s, re) => (s || '').match(re)?.length || 0;
+const entryKey = entry => `${entry.scenarioId || 'unknown'}|${entry.ref}`;
 
 function countBy(items, fn) {
   const counts = new Map();
-  for (const item of items) {
-    const key = fn(item);
-    counts.set(key, (counts.get(key) || 0) + 1);
-  }
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  for (const item of items) counts.set(fn(item), (counts.get(fn(item)) || 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])));
 }
 
-function sum(items, fn) {
-  return items.reduce((total, item) => total + fn(item), 0);
-}
-
-function statusFor(condition) {
-  return condition ? 'pass' : 'warn';
-}
-
-function entryKey(entry) {
-  return `${entry.scenarioId || 'unknown'}|${entry.ref}`;
-}
-
-// Mirrors entryKey for a target ref that hasn't been rendered yet.
-function sectionEntryKey(section, ref) {
-  return `${section.scenarioId || 'unknown'}|${ref}`;
-}
-
-function duplicateValues(items, keyFor) {
+// Keys seen more than once, in first-seen order.
+function duplicates(keys) {
   const counts = new Map();
-  for (const item of items) {
-    const key = keyFor(item);
-    counts.set(key, (counts.get(key) || 0) + 1);
-  }
-  return [...counts.entries()]
-    .filter(([, count]) => count > 1)
-    .map(([key, count]) => ({ key, count }));
+  for (const key of keys) counts.set(key, (counts.get(key) || 0) + 1);
+  return [...counts].filter(([, count]) => count > 1).map(([key, count]) => ({ key, count }));
 }
 
-function incrementCount(target, key) {
-  target[key] = (target[key] || 0) + 1;
-}
-
-function summarizeSectionGroups(sections, noteLengthWarningRefs, echoNoteRefs) {
-  const groupConfigs = [
-    ['genre', section => [section.genre || 'unclassified']],
-    ['sectionKind', section => [section.sectionKind || 'unclassified']],
-    ['riskFlags', section => (Array.isArray(section.riskFlags) && section.riskFlags.length ? section.riskFlags : ['none'])],
-    ['mode', section => [section.mode || 'unknown']],
-    ['sectionSource', section => [section.sectionSource || section.source || 'unknown']],
-  ];
+function summarizeSectionGroups(sections, noteLengthKeys, echoKeys) {
+  const groupings = {
+    genre: s => [s.genre || 'unclassified'],
+    sectionKind: s => [s.sectionKind || 'unclassified'],
+    riskFlags: s => (Array.isArray(s.riskFlags) && s.riskFlags.length ? s.riskFlags : ['none']),
+    mode: s => [s.mode || 'unknown'],
+    sectionSource: s => [s.sectionSource || s.source || 'unknown'],
+  };
   const summaries = {};
-
-  for (const [groupName, valuesFor] of groupConfigs) {
+  for (const [name, valuesFor] of Object.entries(groupings)) {
     const groups = new Map();
     for (const section of sections) {
       for (const value of valuesFor(section)) {
         if (!groups.has(value)) {
-          groups.set(value, {
-            value,
-            sectionCount: 0,
-            verseCount: 0,
-            warningCount: 0,
-            noteLengthWarnings: 0,
-            genericEchoWarnings: 0,
-            christConnections: {},
-            sections: [],
-          });
+          groups.set(value, { value, sectionCount: 0, verseCount: 0, warningCount: 0, noteLengthWarnings: 0, genericEchoWarnings: 0, christConnections: {}, sections: [] });
         }
         const group = groups.get(value);
         group.sectionCount++;
         group.sections.push(section.ref);
         for (const entry of section.entries) {
           group.verseCount++;
-          if (noteLengthWarningRefs.has(entry.key)) {
-            group.noteLengthWarnings++;
-            group.warningCount++;
-          }
-          if (echoNoteRefs.has(entry.key)) {
-            group.genericEchoWarnings++;
-            group.warningCount++;
-          }
-          incrementCount(group.christConnections, entry.christConnection || 'missing');
+          if (noteLengthKeys.has(entry.key)) { group.noteLengthWarnings++; group.warningCount++; }
+          if (echoKeys.has(entry.key)) { group.genericEchoWarnings++; group.warningCount++; }
+          const connection = entry.christConnection || 'missing';
+          group.christConnections[connection] = (group.christConnections[connection] || 0) + 1;
         }
       }
     }
-    summaries[groupName] = [...groups.values()].sort((a, b) => b.warningCount - a.warningCount || b.verseCount - a.verseCount || a.value.localeCompare(b.value));
+    summaries[name] = [...groups.values()].sort((a, b) => b.warningCount - a.warningCount || b.verseCount - a.verseCount || a.value.localeCompare(b.value));
   }
-
   return summaries;
 }
 
-function expectedRenderedKeys(sections) {
-  const expected = new Set();
-  for (const section of sections) {
-    for (const ref of section.targetReferences || section.references || []) {
-      expected.add(sectionEntryKey(section, ref));
-    }
-  }
-  return expected;
-}
-
 function buildReferenceIntegrity(sections, rendered) {
-  const expected = expectedRenderedKeys(sections);
+  const expected = new Set(sections.flatMap(s => (s.targetReferences || s.references || []).map(ref => `${s.scenarioId || 'unknown'}|${ref}`)));
   const actual = new Set(rendered.map(entryKey));
   return {
     expectedCount: expected.size,
     actualCount: actual.size,
-    duplicateRenderedRefs: duplicateValues(rendered, entryKey),
+    duplicateRenderedRefs: duplicates(rendered.map(entryKey)),
     missingRenderedRefs: [...expected].filter(key => !actual.has(key)).sort(),
     unexpectedRenderedRefs: [...actual].filter(key => !expected.has(key)).sort(),
   };
@@ -164,32 +112,18 @@ function reportMetadataMissing(report) {
 }
 
 function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, sections, rendered }) {
-  const generatedAtIso = generatedAt.toISOString();
-  const renderedWithKeys = rendered.map(entry => ({ ...entry, key: entryKey(entry) }));
-  const repeatedOpenings = countBy(renderedWithKeys, e => opening(e.note)).filter(([, count]) => count > 1);
-  const noteKinds = countBy(renderedWithKeys, e => e.noteKind);
-  const christConnections = countBy(renderedWithKeys, e => e.christConnection);
-  const completeEntries = renderedWithKeys.filter(e => e.rendering && e.note && e.noteKind && e.christConnection);
-  const noteWords = renderedWithKeys.map(e => wordCount(e.note));
-  const noteChars = renderedWithKeys.map(e => e.note.length);
-  const avgNoteWords = noteWords.length ? Math.round(noteWords.reduce((a, b) => a + b, 0) / noteWords.length) : 0;
-  const notesOver32Words = renderedWithKeys.filter(e => wordCount(e.note) > NOTE_WORD_WARNING_MAX);
-  const echoNotes = renderedWithKeys.filter(e => /\becho(?:es|ing|ed)?\b/i.test(e.note));
-  const christReviewRefs = renderedWithKeys
+  const entries = rendered.map(entry => ({ ...entry, key: entryKey(entry) }));
+  const complete = entries.filter(e => e.rendering && e.note && e.noteKind && e.christConnection);
+  const noteWords = entries.map(e => wordCount(e.note));
+  const avgNoteWords = average(noteWords);
+  const longNotes = entries.filter(e => wordCount(e.note) > NOTE_WORD_WARNING_MAX);
+  const echoNotes = entries.filter(e => /\becho(?:es|ing|ed)?\b/i.test(e.note));
+  const repeatedOpenings = countBy(entries, e => opening(e.note)).filter(([, count]) => count > 1);
+  const christReviewRefs = entries
     .filter(e => e.christConnection !== 'none')
     .map(e => ({ ref: e.ref, scenarioId: e.scenarioId, christConnection: e.christConnection, note: e.note }));
-  const rawEmDashRefs = renderedWithKeys
-    .filter(e => (e.rawRendering || '').includes('\u2014') || (e.rawNote || '').includes('\u2014'))
-    .map(e => e.ref);
-  const cleanedEmDashRefs = renderedWithKeys
-    .filter(e => e.rendering.includes('\u2014') || e.note.includes('\u2014'))
-    .map(e => e.ref);
-  const rawAmericanVaporRefs = renderedWithKeys
-    .filter(e => /\bvapors?\b/i.test(e.rawRendering || '') || /\bvapors?\b/i.test(e.rawNote || ''))
-    .map(e => e.ref);
-  const cleanedAmericanVaporRefs = renderedWithKeys
-    .filter(e => /\bvapors?\b/i.test(e.rendering) || /\bvapors?\b/i.test(e.note))
-    .map(e => e.ref);
+  const rawHas = re => entries.filter(e => matches(e.rawRendering, re) || matches(e.rawNote, re)).map(e => e.ref);
+  const cleanHas = re => entries.filter(e => matches(e.rendering, re) || matches(e.note, re)).map(e => e.ref);
 
   const groupedSections = sections.map(section => {
     const ref = sectionRef(section);
@@ -209,124 +143,96 @@ function buildEvalReport({ generatedAt = new Date(), evalSet = EVAL_SET, section
       evalSet: section.evalSet || evalSet,
       evalSets: Array.isArray(section.evalSets) ? section.evalSets : [],
       targetReferences: section.targetReferences || section.references || [],
-      manualReview: {
-        status: 'pending',
-        notes: '',
-      },
-      entries: renderedWithKeys.filter(entry => entry.scenarioId === scenarioId && entry.sectionRef === ref),
+      manualReview: { status: 'pending', notes: '' },
+      entries: entries.filter(e => e.scenarioId === scenarioId && e.sectionRef === ref),
     };
   });
-  const noteLengthWarningKeys = new Set(notesOver32Words.map(e => e.key));
-  const echoNoteKeys = new Set(echoNotes.map(e => e.key));
-  const groupSummaries = summarizeSectionGroups(groupedSections, noteLengthWarningKeys, echoNoteKeys);
-  const referenceIntegrity = buildReferenceIntegrity(sections, renderedWithKeys);
-  const sectionSources = countBy(groupedSections, section => section.sectionSource);
+  const referenceIntegrity = buildReferenceIntegrity(sections, entries);
+  const map = sectionMap();
 
   const metrics = {
-    verses: renderedWithKeys.length,
-    schemaComplete: `${completeEntries.length}/${renderedWithKeys.length}`,
-    schemaCompleteCount: completeEntries.length,
+    verses: entries.length,
+    schemaComplete: `${complete.length}/${entries.length}`,
+    schemaCompleteCount: complete.length,
     echoNotes: echoNotes.length,
     avgNoteWords,
-    avgNoteChars: noteChars.length ? Math.round(noteChars.reduce((a, b) => a + b, 0) / noteChars.length) : 0,
+    avgNoteChars: average(entries.map(e => e.note.length)),
     repeatedOpenings: Object.fromEntries(repeatedOpenings),
-    noteKinds: Object.fromEntries(noteKinds),
-    christConnections: Object.fromEntries(christConnections),
-    rawEmDashCount: sum(renderedWithKeys, e => ((e.rawRendering || '').match(/\u2014/g) || []).length + ((e.rawNote || '').match(/\u2014/g) || []).length),
-    cleanedEmDashCount: sum(renderedWithKeys, e => (e.rendering.match(/\u2014/g) || []).length + (e.note.match(/\u2014/g) || []).length),
-    rawAmericanVaporCount: sum(renderedWithKeys, e => ((e.rawRendering || '').match(/\bvapors?\b/gi) || []).length + ((e.rawNote || '').match(/\bvapors?\b/gi) || []).length),
-    cleanedAmericanVaporCount: sum(renderedWithKeys, e => (e.rendering.match(/\bvapors?\b/gi) || []).length + (e.note.match(/\bvapors?\b/gi) || []).length),
+    noteKinds: Object.fromEntries(countBy(entries, e => e.noteKind)),
+    christConnections: Object.fromEntries(countBy(entries, e => e.christConnection)),
+    rawEmDashCount: entries.reduce((n, e) => n + matches(e.rawRendering, EM_DASH) + matches(e.rawNote, EM_DASH), 0),
+    cleanedEmDashCount: entries.reduce((n, e) => n + matches(e.rendering, EM_DASH) + matches(e.note, EM_DASH), 0),
+    rawAmericanVaporCount: entries.reduce((n, e) => n + matches(e.rawRendering, AMERICAN_VAPOR) + matches(e.rawNote, AMERICAN_VAPOR), 0),
+    cleanedAmericanVaporCount: entries.reduce((n, e) => n + matches(e.rendering, AMERICAN_VAPOR) + matches(e.note, AMERICAN_VAPOR), 0),
     sectionCount: groupedSections.length,
-    maxTargetVerses: groupedSections.length ? Math.max(...groupedSections.map(section => section.targetReferences.length)) : 0,
-    sectionSources: Object.fromEntries(sectionSources),
+    maxTargetVerses: groupedSections.length ? Math.max(...groupedSections.map(s => s.targetReferences.length)) : 0,
+    sectionSources: Object.fromEntries(countBy(groupedSections, s => s.sectionSource)),
     referenceIntegrity,
   };
 
   const report = {
     evalName: `renderer-v2-${evalSet}`,
-    generatedAt: generatedAtIso,
+    generatedAt: generatedAt.toISOString(),
     config: {
       evalSet,
-      model: MODEL,
-      reasoningEffort: REASONING_EFFORT,
-      promptVersion: V2_PROMPT_VERSION,
-      schemaVersion: V2_SCHEMA_VERSION,
-      sectionsVersion: SECTIONS_VERSION,
-      sectionsFingerprint: SECTIONS_FINGERPRINT,
+      model: RENDER.model,
+      reasoningEffort: RENDER.reasoningEffort,
+      promptVersion: PROMPT_VERSION,
+      schemaVersion: SCHEMA_VERSION,
+      sectionsVersion: map.version,
+      sectionsFingerprint: map.fingerprint,
       evalScenariosVersion: EVAL_SCENARIOS_VERSION,
-      apiUrl: API_URL,
+      apiUrl: RENDER.apiUrl,
       gate: EVAL_GATE,
     },
     metrics,
-    groupSummaries,
+    groupSummaries: summarizeSectionGroups(groupedSections, new Set(longNotes.map(e => e.key)), new Set(echoNotes.map(e => e.key))),
     rubric: {
       schemaCompleteness: {
-        status: statusFor(completeEntries.length === renderedWithKeys.length),
+        status: statusFor(complete.length === entries.length),
         result: metrics.schemaComplete,
-        refsNeedingReview: renderedWithKeys.filter(e => !(e.rendering && e.note && e.noteKind && e.christConnection)).map(e => e.ref),
+        refsNeedingReview: entries.filter(e => !complete.includes(e)).map(e => e.ref),
       },
       referenceIntegrity: {
-        status: statusFor(
-          referenceIntegrity.duplicateRenderedRefs.length === 0
+        status: statusFor(referenceIntegrity.duplicateRenderedRefs.length === 0
           && referenceIntegrity.missingRenderedRefs.length === 0
-          && referenceIntegrity.unexpectedRenderedRefs.length === 0
-        ),
+          && referenceIntegrity.unexpectedRenderedRefs.length === 0),
         ...referenceIntegrity,
       },
       noteLength: {
-        status: statusFor(notesOver32Words.length === 0 && avgNoteWords >= AVG_NOTE_WORD_WARNING_MIN),
-        notesOver32Words: notesOver32Words.map(e => e.ref),
+        status: statusFor(longNotes.length === 0 && avgNoteWords >= AVG_NOTE_WORD_WARNING_MIN),
+        notesOver32Words: longNotes.map(e => e.ref),
         avgNoteWords,
         minAvgNoteWords: AVG_NOTE_WORD_WARNING_MIN,
         maxNoteWords: NOTE_WORD_WARNING_MAX,
       },
-      repeatedOpenings: {
-        status: statusFor(repeatedOpenings.length === 0),
-        openings: Object.fromEntries(repeatedOpenings),
-      },
-      genericEchoLanguage: {
-        status: statusFor(echoNotes.length === 0),
-        refs: echoNotes.map(e => e.ref),
-      },
+      repeatedOpenings: { status: statusFor(repeatedOpenings.length === 0), openings: Object.fromEntries(repeatedOpenings) },
+      genericEchoLanguage: { status: statusFor(echoNotes.length === 0), refs: echoNotes.map(e => e.ref) },
       forcedChristConnections: {
         status: christReviewRefs.length ? 'review' : 'pass',
         note: 'Manual review required for non-none Christ connections.',
         refs: christReviewRefs,
       },
-      emDashRemoval: {
-        status: statusFor(cleanedEmDashRefs.length === 0),
-        rawRefs: rawEmDashRefs,
-        cleanedRefs: cleanedEmDashRefs,
-      },
-      vapourSpelling: {
-        status: statusFor(cleanedAmericanVaporRefs.length === 0),
-        rawRefs: rawAmericanVaporRefs,
-        cleanedRefs: cleanedAmericanVaporRefs,
-      },
-      reportMetadata: {
-        status: 'pass',
-        missing: [],
-      },
+      emDashRemoval: { status: statusFor(cleanHas(EM_DASH).length === 0), rawRefs: rawHas(EM_DASH), cleanedRefs: cleanHas(EM_DASH) },
+      vapourSpelling: { status: statusFor(cleanHas(AMERICAN_VAPOR).length === 0), rawRefs: rawHas(AMERICAN_VAPOR), cleanedRefs: cleanHas(AMERICAN_VAPOR) },
+      reportMetadata: { status: 'pass', missing: [] },
       manualSectionReview: {
         status: 'pending',
-        sections: groupedSections.map(section => ({
-          ref: section.ref,
-          scenarioId: section.scenarioId,
-          mode: section.mode,
-          sectionSource: section.sectionSource,
-          label: section.label,
-          status: section.manualReview.status,
-          notes: section.manualReview.notes,
+        sections: groupedSections.map(s => ({
+          ref: s.ref, scenarioId: s.scenarioId, mode: s.mode, sectionSource: s.sectionSource, label: s.label,
+          status: s.manualReview.status, notes: s.manualReview.notes,
         })),
       },
     },
     sections: groupedSections,
-    rendered: renderedWithKeys,
+    rendered: entries,
   };
   report.rubric.reportMetadata.missing = reportMetadataMissing(report);
   report.rubric.reportMetadata.status = statusFor(report.rubric.reportMetadata.missing.length === 0);
   return report;
 }
+
+// --- Markdown ---
 
 function markdownList(items) {
   if (!items || items.length === 0) return 'none';
@@ -338,113 +244,92 @@ function markdownList(items) {
   }).join(', ');
 }
 
-function markdownChristConnections(connections) {
-  return Object.keys(connections).length ? JSON.stringify(connections) : 'none';
-}
+const cell = value => String(value).replace(/\|/g, '\\|');
+const jsonOrNone = obj => (Object.keys(obj).length ? JSON.stringify(obj) : 'none');
 
-function appendGroupSummary(lines, title, rows) {
-  lines.push(`## ${title}`, '');
-  lines.push('| Value | Sections | Verses | Warnings | Note length | Generic echo | Christ connections |');
-  lines.push('|---|---:|---:|---:|---:|---:|---|');
-  for (const row of rows) {
-    lines.push(`| ${row.value} | ${row.sectionCount} | ${row.verseCount} | ${row.warningCount} | ${row.noteLengthWarnings} | ${row.genericEchoWarnings} | ${markdownChristConnections(row.christConnections).replace(/\|/g, '\\|')} |`);
-  }
-  lines.push('');
+function groupTable(title, rows) {
+  return [
+    `## ${title}`, '',
+    '| Value | Sections | Verses | Warnings | Note length | Generic echo | Christ connections |',
+    '|---|---:|---:|---:|---:|---:|---|',
+    ...rows.map(r => `| ${r.value} | ${r.sectionCount} | ${r.verseCount} | ${r.warningCount} | ${r.noteLengthWarnings} | ${r.genericEchoWarnings} | ${cell(jsonOrNone(r.christConnections))} |`),
+    '',
+  ];
 }
 
 function buildMarkdownReport(report) {
+  const { config, metrics, rubric } = report;
   const rubricRows = [
-    ['Schema completeness', report.rubric.schemaCompleteness.status, report.rubric.schemaCompleteness.result],
-    ['Reference integrity', report.rubric.referenceIntegrity.status, `duplicates: ${markdownList(report.rubric.referenceIntegrity.duplicateRenderedRefs)}; missing: ${markdownList(report.rubric.referenceIntegrity.missingRenderedRefs)}; unexpected: ${markdownList(report.rubric.referenceIntegrity.unexpectedRenderedRefs)}`],
-    ['Note length', report.rubric.noteLength.status, `>32 words: ${markdownList(report.rubric.noteLength.notesOver32Words)}; avg words: ${report.rubric.noteLength.avgNoteWords}; target avg >= ${report.rubric.noteLength.minAvgNoteWords}`],
-    ['Repeated openings', report.rubric.repeatedOpenings.status, Object.keys(report.rubric.repeatedOpenings.openings).length ? JSON.stringify(report.rubric.repeatedOpenings.openings) : 'none'],
-    ['Generic echo language', report.rubric.genericEchoLanguage.status, markdownList(report.rubric.genericEchoLanguage.refs)],
-    ['Forced Christ connections', report.rubric.forcedChristConnections.status, markdownList(report.rubric.forcedChristConnections.refs)],
-    ['Em dash removal', report.rubric.emDashRemoval.status, `raw: ${markdownList(report.rubric.emDashRemoval.rawRefs)}; cleaned: ${markdownList(report.rubric.emDashRemoval.cleanedRefs)}`],
-    ['Vapour spelling', report.rubric.vapourSpelling.status, `raw: ${markdownList(report.rubric.vapourSpelling.rawRefs)}; cleaned: ${markdownList(report.rubric.vapourSpelling.cleanedRefs)}`],
-    ['Report metadata', report.rubric.reportMetadata.status, markdownList(report.rubric.reportMetadata.missing)],
-    ['Manual section review', report.rubric.manualSectionReview.status, 'Fill in pass/fail and notes for each section before merge.'],
+    ['Schema completeness', rubric.schemaCompleteness.status, rubric.schemaCompleteness.result],
+    ['Reference integrity', rubric.referenceIntegrity.status, `duplicates: ${markdownList(rubric.referenceIntegrity.duplicateRenderedRefs)}; missing: ${markdownList(rubric.referenceIntegrity.missingRenderedRefs)}; unexpected: ${markdownList(rubric.referenceIntegrity.unexpectedRenderedRefs)}`],
+    ['Note length', rubric.noteLength.status, `>32 words: ${markdownList(rubric.noteLength.notesOver32Words)}; avg words: ${rubric.noteLength.avgNoteWords}; target avg >= ${rubric.noteLength.minAvgNoteWords}`],
+    ['Repeated openings', rubric.repeatedOpenings.status, jsonOrNone(rubric.repeatedOpenings.openings)],
+    ['Generic echo language', rubric.genericEchoLanguage.status, markdownList(rubric.genericEchoLanguage.refs)],
+    ['Forced Christ connections', rubric.forcedChristConnections.status, markdownList(rubric.forcedChristConnections.refs)],
+    ['Em dash removal', rubric.emDashRemoval.status, `raw: ${markdownList(rubric.emDashRemoval.rawRefs)}; cleaned: ${markdownList(rubric.emDashRemoval.cleanedRefs)}`],
+    ['Vapour spelling', rubric.vapourSpelling.status, `raw: ${markdownList(rubric.vapourSpelling.rawRefs)}; cleaned: ${markdownList(rubric.vapourSpelling.cleanedRefs)}`],
+    ['Report metadata', rubric.reportMetadata.status, markdownList(rubric.reportMetadata.missing)],
+    ['Manual section review', rubric.manualSectionReview.status, 'Fill in pass/fail and notes for each section before merge.'],
   ];
 
   const lines = [
-    `# Renderer v2 ${report.config.evalSet} eval`,
+    `# Renderer v2 ${config.evalSet} eval`, '',
+    `Generated: ${report.generatedAt}`, '',
+    '## Config', '',
+    `- evalSet: ${config.evalSet}`,
+    `- model: ${config.model}`,
+    `- reasoning: ${config.reasoningEffort}`,
+    `- prompt: ${config.promptVersion}`,
+    `- schema: ${config.schemaVersion}`,
+    `- sections: ${config.sectionsVersion}`,
+    `- sections fingerprint: ${config.sectionsFingerprint}`,
+    `- eval scenarios: ${config.evalScenariosVersion}`,
+    `- gate: ${config.gate ? 'on' : 'off'}`,
     '',
-    `Generated: ${report.generatedAt}`,
+    '## Metrics', '',
+    `- verses: ${metrics.verses}`,
+    `- sections: ${metrics.sectionCount}`,
+    `- maxTargetVerses: ${metrics.maxTargetVerses}`,
+    `- sectionSources: ${JSON.stringify(metrics.sectionSources)}`,
+    `- schemaComplete: ${metrics.schemaComplete}`,
+    `- echoNotes: ${metrics.echoNotes}`,
+    `- avgNoteWords: ${metrics.avgNoteWords}`,
+    `- avgNoteChars: ${metrics.avgNoteChars}`,
+    `- repeatedOpenings: ${jsonOrNone(metrics.repeatedOpenings)}`,
+    `- noteKinds: ${JSON.stringify(metrics.noteKinds)}`,
+    `- christConnections: ${JSON.stringify(metrics.christConnections)}`,
     '',
-    '## Config',
-    '',
-    `- evalSet: ${report.config.evalSet}`,
-    `- model: ${report.config.model}`,
-    `- reasoning: ${report.config.reasoningEffort}`,
-    `- prompt: ${report.config.promptVersion}`,
-    `- schema: ${report.config.schemaVersion}`,
-    `- sections: ${report.config.sectionsVersion}`,
-    `- sections fingerprint: ${report.config.sectionsFingerprint}`,
-    `- eval scenarios: ${report.config.evalScenariosVersion}`,
-    `- gate: ${report.config.gate ? 'on' : 'off'}`,
-    '',
-    '## Metrics',
-    '',
-    `- verses: ${report.metrics.verses}`,
-    `- sections: ${report.metrics.sectionCount}`,
-    `- maxTargetVerses: ${report.metrics.maxTargetVerses}`,
-    `- sectionSources: ${JSON.stringify(report.metrics.sectionSources)}`,
-    `- schemaComplete: ${report.metrics.schemaComplete}`,
-    `- echoNotes: ${report.metrics.echoNotes}`,
-    `- avgNoteWords: ${report.metrics.avgNoteWords}`,
-    `- avgNoteChars: ${report.metrics.avgNoteChars}`,
-    `- repeatedOpenings: ${Object.keys(report.metrics.repeatedOpenings).length ? JSON.stringify(report.metrics.repeatedOpenings) : 'none'}`,
-    `- noteKinds: ${JSON.stringify(report.metrics.noteKinds)}`,
-    `- christConnections: ${JSON.stringify(report.metrics.christConnections)}`,
-    '',
-  ];
-
-  appendGroupSummary(lines, 'Genre Summary', report.groupSummaries.genre);
-  appendGroupSummary(lines, 'Section Kind Summary', report.groupSummaries.sectionKind);
-  appendGroupSummary(lines, 'Risk Flag Summary', report.groupSummaries.riskFlags);
-  appendGroupSummary(lines, 'Mode Summary', report.groupSummaries.mode);
-  appendGroupSummary(lines, 'Section Source Summary', report.groupSummaries.sectionSource);
-
-  lines.push(
-    '## Rubric',
-    '',
+    ...groupTable('Genre Summary', report.groupSummaries.genre),
+    ...groupTable('Section Kind Summary', report.groupSummaries.sectionKind),
+    ...groupTable('Risk Flag Summary', report.groupSummaries.riskFlags),
+    ...groupTable('Mode Summary', report.groupSummaries.mode),
+    ...groupTable('Section Source Summary', report.groupSummaries.sectionSource),
+    '## Rubric', '',
     '| Check | Status | Result |',
     '|---|---|---|',
-    ...rubricRows.map(row => `| ${row[0]} | ${row[1]} | ${String(row[2]).replace(/\|/g, '\\|')} |`),
+    ...rubricRows.map(([check, status, result]) => `| ${check} | ${status} | ${cell(result)} |`),
     '',
-    '## Manual Section Review',
-    '',
+    '## Manual Section Review', '',
     '| Scenario | Section | Mode | Source | Status | Notes |',
     '|---|---|---|---|---|---|',
-    ...report.sections.map(section => `| ${section.scenarioId} | ${section.ref} ${section.label ? `(${section.label})` : ''} | ${section.mode} | ${section.sectionSource} | ${section.manualReview?.status || 'pending'} | ${section.manualReview?.notes || ''} |`),
+    ...report.sections.map(s => `| ${s.scenarioId} | ${s.ref} ${s.label ? `(${s.label})` : ''} | ${s.mode} | ${s.sectionSource} | ${s.manualReview?.status || 'pending'} | ${s.manualReview?.notes || ''} |`),
     '',
-    '## Rendered Verses',
-    '',
-  );
-
-  for (const section of report.sections) {
-    lines.push(`### ${section.ref}${section.label ? `, ${section.label}` : ''}`, '');
-    lines.push(`Scenario: ${section.scenarioId}; mode=${section.mode}; source=${section.sectionSource}; evalSet=${section.evalSet}`);
-    lines.push('');
-    for (const entry of section.entries) {
-      lines.push(`#### ${entry.ref}`);
-      lines.push('');
-      lines.push(`Rendering: ${entry.rendering}`);
-      lines.push('');
-      lines.push(`Note: ${entry.note}`);
-      lines.push('');
-      lines.push(`Meta: noteKind=${entry.noteKind}; christConnection=${entry.christConnection}; scenarioId=${entry.scenarioId}; mode=${entry.mode}; sectionSource=${entry.sectionSource}; noteWords=${wordCount(entry.note)}; noteChars=${entry.note.length}`);
-      lines.push('');
+    '## Rendered Verses', '',
+  ];
+  for (const s of report.sections) {
+    lines.push(`### ${s.ref}${s.label ? `, ${s.label}` : ''}`, '');
+    lines.push(`Scenario: ${s.scenarioId}; mode=${s.mode}; source=${s.sectionSource}; evalSet=${s.evalSet}`, '');
+    for (const e of s.entries) {
+      lines.push(`#### ${e.ref}`, '', `Rendering: ${e.rendering}`, '', `Note: ${e.note}`, '');
+      lines.push(`Meta: noteKind=${e.noteKind}; christConnection=${e.christConnection}; scenarioId=${e.scenarioId}; mode=${e.mode}; sectionSource=${e.sectionSource}; noteWords=${wordCount(e.note)}; noteChars=${e.note.length}`, '');
     }
   }
-
   return `${lines.join('\n')}\n`;
 }
 
 function writeEvalReport(report, reportsDir = REPORTS_DIR) {
   fs.mkdirSync(reportsDir, { recursive: true });
-  const stamp = report.generatedAt.replace(/[:.]/g, '-');
-  const base = `${stamp}-${slugify(report.evalName)}`;
+  const base = `${report.generatedAt.replace(/[:.]/g, '-')}-${slugify(report.evalName)}`;
   const jsonPath = path.join(reportsDir, `${base}.json`);
   const mdPath = path.join(reportsDir, `${base}.md`);
   fs.writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -452,45 +337,38 @@ function writeEvalReport(report, reportsDir = REPORTS_DIR) {
   return { jsonPath, mdPath };
 }
 
+// Release-blocking checks only; subjective review items never fail the gate.
 function gateFailures(report) {
+  const { rubric } = report;
   const failures = [];
-  if (report.rubric.schemaCompleteness.status !== 'pass') failures.push('schema completeness failed');
-  if (report.rubric.referenceIntegrity.status !== 'pass') failures.push('reference integrity failed');
-  if (report.rubric.emDashRemoval.cleanedRefs.length > 0) failures.push('cleaned output contains em dashes');
-  if (report.rubric.vapourSpelling.cleanedRefs.length > 0) failures.push('cleaned output contains vapor');
-  if (report.rubric.reportMetadata.status !== 'pass') failures.push('report metadata incomplete');
+  if (rubric.schemaCompleteness.status !== 'pass') failures.push('schema completeness failed');
+  if (rubric.referenceIntegrity.status !== 'pass') failures.push('reference integrity failed');
+  if (rubric.emDashRemoval.cleanedRefs.length > 0) failures.push('cleaned output contains em dashes');
+  if (rubric.vapourSpelling.cleanedRefs.length > 0) failures.push('cleaned output contains vapor');
+  if (rubric.reportMetadata.status !== 'pass') failures.push('report metadata incomplete');
   return failures;
 }
 
 async function runEval({ fetchImpl } = {}) {
-  if (!API_KEY) {
-    throw new Error('XAI_API_KEY is required for renderer v2 eval.');
-  }
-
+  if (!RENDER.apiKey) throw new Error('XAI_API_KEY is required for renderer v2 eval.');
   const sections = evalSections(EVAL_SET);
-  if (sections.length === 0) {
-    throw new Error(`No renderer v2 eval sections found for EVAL_SET=${EVAL_SET}.`);
-  }
-  const rendered = [];
+  if (sections.length === 0) throw new Error(`No renderer v2 eval sections found for EVAL_SET=${EVAL_SET}.`);
 
+  const rendered = [];
   for (const section of sections) {
-    const ref = sectionRef(section);
-    const entries = await renderSectionOnce({
-      apiUrl: API_URL,
-      apiKey: API_KEY,
-      model: MODEL,
-      reasoningEffort: REASONING_EFFORT,
-      bookName: section.book,
-      chapter: section.chapter,
+    const entries = await renderSection({
+      apiUrl: RENDER.apiUrl,
+      apiKey: RENDER.apiKey,
+      model: RENDER.model,
+      reasoningEffort: RENDER.reasoningEffort,
+      timeoutMs: RENDER.sectionTimeoutMs,
       section,
       fetchImpl,
     });
     for (const entry of entries) {
-      const rawRendering = entry.rendering;
-      const rawNote = entry.note;
       rendered.push({
         ref: entry.ref,
-        sectionRef: ref,
+        sectionRef: sectionRef(section),
         scenarioId: section.scenarioId,
         mode: section.mode,
         sectionSource: section.source,
@@ -498,8 +376,8 @@ async function runEval({ fetchImpl } = {}) {
         genre: section.genre || null,
         sectionKind: section.sectionKind || null,
         riskFlags: Array.isArray(section.riskFlags) ? section.riskFlags : [],
-        rawRendering,
-        rawNote,
+        rawRendering: entry.rendering,
+        rawNote: entry.note,
         rendering: cleanText(entry.rendering),
         note: cleanText(entry.note),
         noteKind: entry.noteKind,
@@ -507,54 +385,49 @@ async function runEval({ fetchImpl } = {}) {
       });
     }
   }
-
   return buildEvalReport({ evalSet: EVAL_SET, sections, rendered });
 }
 
-function printEvalReportSummary(report, reportPaths) {
-  console.log(`Renderer v2 ${report.config.evalSet} eval`);
-  console.log(`model=${report.config.model} reasoning=${report.config.reasoningEffort} prompt=${V2_PROMPT_VERSION} schema=${V2_SCHEMA_VERSION} sections=${SECTIONS_VERSION} sectionFingerprint=${SECTIONS_FINGERPRINT} evalScenarios=${EVAL_SCENARIOS_VERSION}`);
+function printSummary(report, paths) {
+  const { config, metrics } = report;
+  console.log(`Renderer v2 ${config.evalSet} eval`);
+  console.log(`model=${config.model} reasoning=${config.reasoningEffort} prompt=${config.promptVersion} schema=${config.schemaVersion} sections=${config.sectionsVersion} sectionFingerprint=${config.sectionsFingerprint} evalScenarios=${config.evalScenariosVersion}`);
   console.log('');
-
-  for (const entry of report.rendered) {
-    console.log(`${entry.ref}`);
-    console.log(`  rendering: ${entry.rendering}`);
-    console.log(`  note: ${entry.note}`);
-    console.log(`  meta: scenarioId=${entry.scenarioId} mode=${entry.mode} sectionSource=${entry.sectionSource} noteKind=${entry.noteKind} christConnection=${entry.christConnection} noteWords=${wordCount(entry.note)} noteChars=${entry.note.length}`);
+  for (const e of report.rendered) {
+    console.log(e.ref);
+    console.log(`  rendering: ${e.rendering}`);
+    console.log(`  note: ${e.note}`);
+    console.log(`  meta: scenarioId=${e.scenarioId} mode=${e.mode} sectionSource=${e.sectionSource} noteKind=${e.noteKind} christConnection=${e.christConnection} noteWords=${wordCount(e.note)} noteChars=${e.note.length}`);
     console.log('');
   }
-
   console.log('Metrics');
-  console.log(`  verses: ${report.metrics.verses}`);
-  console.log(`  sections: ${report.metrics.sectionCount}`);
-  console.log(`  maxTargetVerses: ${report.metrics.maxTargetVerses}`);
-  console.log(`  sectionSources: ${JSON.stringify(report.metrics.sectionSources)}`);
-  console.log(`  schemaComplete: ${report.metrics.schemaComplete}`);
-  console.log(`  echoNotes: ${report.metrics.echoNotes}`);
-  console.log(`  avgNoteWords: ${report.metrics.avgNoteWords}`);
-  console.log(`  avgNoteChars: ${report.metrics.avgNoteChars}`);
-  console.log(`  repeatedOpenings: ${Object.keys(report.metrics.repeatedOpenings).length ? JSON.stringify(report.metrics.repeatedOpenings) : 'none'}`);
-  console.log(`  noteKinds: ${JSON.stringify(report.metrics.noteKinds)}`);
-  console.log(`  christConnections: ${JSON.stringify(report.metrics.christConnections)}`);
+  console.log(`  verses: ${metrics.verses}`);
+  console.log(`  sections: ${metrics.sectionCount}`);
+  console.log(`  maxTargetVerses: ${metrics.maxTargetVerses}`);
+  console.log(`  sectionSources: ${JSON.stringify(metrics.sectionSources)}`);
+  console.log(`  schemaComplete: ${metrics.schemaComplete}`);
+  console.log(`  echoNotes: ${metrics.echoNotes}`);
+  console.log(`  avgNoteWords: ${metrics.avgNoteWords}`);
+  console.log(`  avgNoteChars: ${metrics.avgNoteChars}`);
+  console.log(`  repeatedOpenings: ${jsonOrNone(metrics.repeatedOpenings)}`);
+  console.log(`  noteKinds: ${JSON.stringify(metrics.noteKinds)}`);
+  console.log(`  christConnections: ${JSON.stringify(metrics.christConnections)}`);
   console.log(`  referenceIntegrity: ${report.rubric.referenceIntegrity.status}`);
   console.log('');
-  console.log(`Report: ${path.relative(process.cwd(), reportPaths.mdPath)}`);
-  console.log(`JSON: ${path.relative(process.cwd(), reportPaths.jsonPath)}`);
+  console.log(`Report: ${path.relative(process.cwd(), paths.mdPath)}`);
+  console.log(`JSON: ${path.relative(process.cwd(), paths.jsonPath)}`);
 }
 
 async function main() {
   const report = await runEval();
-  const reportPaths = writeEvalReport(report);
-  printEvalReportSummary(report, reportPaths);
-
-  if (EVAL_GATE) {
-    const failures = gateFailures(report);
-    if (failures.length > 0) {
-      console.error(`Renderer v2 gate failed: ${failures.join('; ')}`);
-      process.exit(1);
-    }
-    console.log('Renderer v2 gate passed');
+  printSummary(report, writeEvalReport(report));
+  if (!EVAL_GATE) return;
+  const failures = gateFailures(report);
+  if (failures.length > 0) {
+    console.error(`Renderer v2 gate failed: ${failures.join('; ')}`);
+    process.exit(1);
   }
+  console.log('Renderer v2 gate passed');
 }
 
 if (require.main === module) {
@@ -564,9 +437,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = {
-  buildEvalReport,
-  buildMarkdownReport,
-  gateFailures,
-  writeEvalReport,
-};
+module.exports = { buildEvalReport, buildMarkdownReport, gateFailures, writeEvalReport };
