@@ -41,9 +41,6 @@ test('server (passage-v1)', async t => {
       model: 'grok-4.7',
       reasoningEffort: 'low',
       renderPipeline: 'passage-v1',
-      promptVersion: 'passage-v1',
-      schemaVersion: 'passage-v1',
-      sectionVersion: null,
       appVersion: '0.0.1',
     });
   });
@@ -237,9 +234,9 @@ test('server (passage-v1)', async t => {
 
 test('startup removes the pre-4.7 cache layout once and leaves other render versions alone', async t => {
   const { tempDir } = require('./helpers');
-  const { createPipeline } = require('../src/render/pipelines');
+  const { createPassagePipeline } = require('../src/render/passage-v1');
   const { loadConfig } = require('../src/config');
-  const current = createPipeline(loadConfig({}).render).version;
+  const current = createPassagePipeline(loadConfig({}).render).version;
   const other = '0123456789ab';
   const volume = tempDir(t);
   // Ruth 2:1 ("1:0") exists in the legacy file, in another version's
@@ -314,33 +311,15 @@ test('upstream render concurrency is capped globally', async t => {
   assert.equal(mock.maxActive, 2);
 });
 
-test('verse-v1: foreground chapters render before background prefetches', async t => {
-  const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'verse-v1', RENDER_CONCURRENCY: '1' });
-  assert.equal((await getJson(app.port, '/api/version')).version, '5155da19beec');
-
+test('foreground chapters render before background prefetches', async t => {
+  const mock = await startMockXai(t, { delayMs: 100 });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1' });
   assert.equal((await getJson(app.port, '/api/chapter/2-john/1?priority=background')).renderPriority, 'background');
   assert.equal((await getJson(app.port, '/api/chapter/3-john/1')).renderPriority, 'foreground');
-  await waitForComplete(app.port, '/api/chapter/3-john/1');
-
-  const refs = userRefs(mock);
-  const thirdJohn = require('../data/bible.json').verses[BOOKS.indexOf('3 John')][0];
-  // 2 John 1:1 was already running; everything else waited for 3 John.
-  assert.deepEqual(refs.slice(0, 1 + thirdJohn), ['2 John 1:1', ...Array.from({ length: thirdJohn }, (_, i) => `3 John 1:${i + 1}`)]);
-});
-
-test('verse-v1: the chapter requested most recently renders first', async t => {
-  const mock = await startMockXai(t, { delayMs: 20 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'verse-v1', RENDER_CONCURRENCY: '1' });
-  await getJson(app.port, '/api/chapter/ruth/1');
-  await getJson(app.port, '/api/chapter/jude/1');
-  await waitForComplete(app.port, '/api/chapter/jude/1');
-  const refs = userRefs(mock);
-  const lastJude = refs.lastIndexOf('Jude 1:25');
-  assert.ok(refs.slice(0, lastJude).filter(r => r.startsWith('Ruth')).length <= 1, refs.slice(0, lastJude + 1).join(', '));
-  // Within a chapter, verses go top to bottom.
-  const jude = refs.filter(r => r.startsWith('Jude'));
-  assert.deepEqual(jude, Array.from({ length: 25 }, (_, i) => `Jude 1:${i + 1}`));
+  // A plain poll would promote 2 John to foreground; render=0 only reads.
+  await waitForComplete(app.port, '/api/chapter/2-john/1?render=0');
+  // 2 John's first passage was already running; its second waited for 3 John.
+  assert.deepEqual(userRefs(mock), ['2 John 1:1-7', '3 John 1:1-7', '3 John 1:8-14', '2 John 1:8-13']);
 });
 
 test('upstream client errors are not retried; server errors are', async t => {

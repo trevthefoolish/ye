@@ -2,9 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { memoryLogger } = require('../src/log');
 const { emptyUsage, postJson, requestStructured } = require('../src/render/xai');
-const { createVersePipeline } = require('../src/render/verse-v1');
 
 const reply = (status, body) => async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
 const post = fetchImpl => postJson('http://xai.test', {}, { apiKey: 'k', timeoutMs: 1000, fetchImpl });
@@ -61,30 +59,4 @@ test('requestStructured sends a strict-schema Responses request and parses the m
   await assert.rejects(call({ ...responsesBody('not json'), usage: billed }, usage));
   await call(responsesBody('{}'), usage); // no usage reported
   assert.deepEqual(usage, { inputTokens: 1400, cachedTokens: 1200, outputTokens: 600, reasoningTokens: 500 });
-});
-
-test('verse-v1 sends the reference, cleans the text, and flags long notes', async () => {
-  const log = memoryLogger();
-  let sent;
-  const content = JSON.stringify({ rendering: 'Vapor of vapors\u2014all is vapor.', note: 'A note that runs longer than its verse does.' });
-  const pipeline = createVersePipeline({
-    apiUrl: 'http://xai.test', apiKey: 'k', model: 'grok-4.7', reasoningEffort: 'low', verseTimeoutMs: 1000, log,
-    fetchImpl: async (url, init) => { sent = JSON.parse(init.body); return new Response(JSON.stringify(responsesBody(content))); },
-  });
-  const [unit] = pipeline.plan({ bookIndex: 20, book: 'Ecclesiastes', chapter: 1 }, [2]);
-  assert.equal(unit.key, 'verse:20:1:2');
-  const [entry] = await unit.render();
-  assert.deepEqual(entry, { bookIndex: 20, chapter: 1, verse: 2, rendering: 'Vapour of vapours, all is vapour.', note: 'A note that runs longer than its verse does.' });
-  assert.equal(sent.input[1].content, 'Ecclesiastes 1:2');
-  assert.equal(sent.text.format.name, 'verse_rendering');
-  assert.ok(log.entries.some(e => e.event === 'note_too_long' && e.verse === 2));
-});
-
-test('verse-v1 rejects malformed structured output', async () => {
-  const pipeline = createVersePipeline({
-    apiUrl: 'http://xai.test', apiKey: 'k', model: 'grok-4.7', reasoningEffort: 'low', verseTimeoutMs: 1000, log: memoryLogger(),
-    fetchImpl: async () => new Response(JSON.stringify(responsesBody('{"rendering": 1}'))),
-  });
-  const [unit] = pipeline.plan({ bookIndex: 0, book: 'Genesis', chapter: 1 }, [1]);
-  await assert.rejects(unit.render(), /malformed verse rendering/);
 });

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 vapourware.ai All rights reserved.
 'use strict';
 
-// Production pipeline: one Responses API call per passage of a chapter (at
+// The render pipeline: one Responses API call per passage of a chapter (at
 // most PASSAGE_MAX_VERSES verses), so the model sees each verse in context and
 // writes a passage's notes together. The prompt describes the reader and the
 // job and leaves the rest to the model; house style the app needs regardless
@@ -10,10 +10,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { verseCount } = require('../canon');
-const { PIPELINE_PASSAGE } = require('../config');
 const { cleanText, renderVersion } = require('../text');
 const { RenderError, requestStructured } = require('./xai');
 
+// Part of the render version: renaming it moves the cache.
+const NAME = 'passage-v1';
 const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, '..', '..', 'prompts', 'passage-v1.md'), 'utf8').trim();
 
 const PASSAGE_MAX_VERSES = 10;
@@ -81,7 +82,7 @@ function validatePassage(parsed, start, end) {
 // Cache key for every verse this pipeline renders.
 function passageRenderVersion({ model, reasoningEffort }) {
   return renderVersion({
-    pipeline: PIPELINE_PASSAGE,
+    pipeline: NAME,
     model,
     reasoningEffort,
     systemPrompt: SYSTEM_PROMPT,
@@ -104,9 +105,8 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
   }
 
   return {
-    name: PIPELINE_PASSAGE,
+    name: NAME,
     version: passageRenderVersion({ model, reasoningEffort }),
-    info: { promptVersion: PIPELINE_PASSAGE, schemaVersion: PIPELINE_PASSAGE, sectionVersion: null },
     unit: 'passage',
 
     // One unit per passage with a missing verse. The whole passage is

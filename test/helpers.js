@@ -55,7 +55,7 @@ function request(port, pathname, { method = 'GET', headers = {}, body } = {}) {
 
 const getJson = async (port, pathname) => JSON.parse((await request(port, pathname)).body);
 
-// "Jude 1:1-9" -> every verse of the passage, with the same text verse-v1 gets.
+// "Jude 1:1-9" -> every verse of the passage, with deterministic text.
 function passageReply(passage) {
   const [, book, chapter, start, end] = passage.match(/^(.+) (\d+):(\d+)-(\d+)$/);
   const verses = [];
@@ -66,9 +66,8 @@ function passageReply(passage) {
   return { verses };
 }
 
-// Answers Responses API requests for every pipeline with deterministic text:
-// a passage (passage-v1) or a plain reference (verse-v1). Like grok-4.7, it
-// puts a reasoning item before the message. `respond(payload)` may return { status, body } to override the reply.
+// Answers Responses API passage requests with deterministic text. Like
+// grok-4.7, it puts a reasoning item before the message. `respond(payload)` may return { status, body } to override the reply.
 function startMockXai(t, { delayMs = 0, respond } = {}) {
   const payloads = [];
   let active = 0;
@@ -93,9 +92,7 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
         res.statusCode = override.status || 200;
         return res.end(JSON.stringify(override.body));
       }
-      const user = payload.input.find(m => m.role === 'user').content;
-      const reply = payload.text.format.name === 'passage_rendering' ? passageReply(user)
-        : { rendering: `Rendered ${user}`, note: `Note for ${user}` };
+      const reply = passageReply(payload.input.find(m => m.role === 'user').content);
       res.end(JSON.stringify({
         id: 'resp_test',
         output: [
@@ -145,7 +142,6 @@ function startServer(t, env = {}) {
       XAI_API_KEY: 'test-key',
       RENDERS_DIR: rendersDir,
       LOG_DIR: path.join(dir, 'logs'),
-      RENDER_PIPELINE: '',
       RENDER_MODEL: '',
       RENDER_REASONING_EFFORT: '',
       SEED_RENDER_CACHE: '0',

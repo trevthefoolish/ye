@@ -59,7 +59,6 @@ function apiRoutes({ store, renderer, pipeline, render, appVersion }) {
       model: render.model,
       reasoningEffort: render.reasoningEffort,
       renderPipeline: pipeline.name,
-      ...pipeline.info,
       appVersion,
     });
   });

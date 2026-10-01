@@ -17,10 +17,6 @@ function chapterPath(bookIndex, chapter) {
   return `/${toSlug(BOOKS[bookIndex])}/${chapter}`;
 }
 
-function formatRef(book, chapter, verse) {
-  return `${book} ${chapter}:${verse}`;
-}
-
 function verseCount(bookIndex, chapter) {
   return VERSE_COUNTS[bookIndex]?.[chapter - 1] || 0;
 }
@@ -36,4 +32,4 @@ function resolveChapter(bookParam, chapterParam) {
   return { bookIndex, book: BOOKS[bookIndex], chapter, verseCount: verses };
 }
 
-module.exports = { BOOKS, CHAPTER_COUNTS, VERSE_COUNTS, chapterPath, formatRef, resolveChapter, toSlug, verseCount };
+module.exports = { BOOKS, CHAPTER_COUNTS, VERSE_COUNTS, chapterPath, resolveChapter, toSlug, verseCount };
