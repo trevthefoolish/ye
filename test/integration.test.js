@@ -206,11 +206,11 @@ test('verse-v1 server', async t => {
     assert.ok(app.logs('client_error').some(e => e.msg === 'boom'));
   });
 
-  await t.test('logs a timing summary for each chapter render', async () => {
+  await t.test('logs a timing and token summary for each chapter render', async () => {
     const started = await app.waitForLog('chapter_render_started', e => e.book === 'Jude');
     assert.deepEqual(
       { ch: started.ch, missing: started.missing, priority: started.priority, renderConcurrency: started.renderConcurrency, units: started.units },
-      { ch: 1, missing: 25, priority: 'foreground', renderConcurrency: 8, units: 25 }
+      { ch: 1, missing: 25, priority: 'foreground', renderConcurrency: 32, units: 25 }
     );
     const finished = await app.waitForLog('chapter_render_finished', e => e.book === 'Jude');
     assert.equal(finished.rendered, 25);
@@ -218,6 +218,11 @@ test('verse-v1 server', async t => {
     for (const key of ['durationMs', 'avgVerseMs', 'p95VerseMs', 'maxVerseMs', 'avgQueueMs', 'avgApiMs', 'maxApiMs']) {
       assert.equal(typeof finished[key], 'number', key);
     }
+    // 25 calls' worth of the mock's per-call usage.
+    assert.deepEqual(
+      { inputTokens: finished.inputTokens, cachedTokens: finished.cachedTokens, outputTokens: finished.outputTokens, reasoningTokens: finished.reasoningTokens },
+      { inputTokens: 25 * 700, cachedTokens: 25 * 600, outputTokens: 25 * 300, reasoningTokens: 25 * 250 }
+    );
   });
 
   await t.test('stops cleanly on SIGTERM', async () => {

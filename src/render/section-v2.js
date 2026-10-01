@@ -209,9 +209,9 @@ function validateSectionResult(parsed, section) {
 
 // One Responses API call for a hydrated section. Returns validated entries
 // with the model's raw text (callers apply cleanText).
-async function renderSection({ apiUrl, apiKey, model, reasoningEffort, timeoutMs, section, fetchImpl }) {
+async function renderSection({ apiUrl, apiKey, model, reasoningEffort, timeoutMs, section, fetchImpl, usage }) {
   const parsed = await requestStructured({
-    apiUrl, apiKey, model, reasoningEffort, timeoutMs, fetchImpl,
+    apiUrl, apiKey, model, reasoningEffort, timeoutMs, fetchImpl, usage,
     systemPrompt: SYSTEM_PROMPT,
     user: JSON.stringify(buildUserPayload(section)),
     schemaName: 'section_rendering',
@@ -249,8 +249,8 @@ function createSectionPipeline({ apiUrl, apiKey, model, reasoningEffort, section
         key: `section:${section.id}`,
         refs: section.targetReferences.map(parseRef),
         logFields: { book, ch: chapter, sectionId: section.id, sectionRef: sectionRef(section), targetRefs: section.targetReferences.length },
-        async render() {
-          const entries = await renderSection({ apiUrl, apiKey, model, reasoningEffort, timeoutMs: sectionTimeoutMs, section, fetchImpl });
+        async render(usage) {
+          const entries = await renderSection({ apiUrl, apiKey, model, reasoningEffort, timeoutMs: sectionTimeoutMs, section, fetchImpl, usage });
           return entries.map(entry => {
             const { bookIndex, chapter: c, verse } = parseRef(entry.ref);
             return {

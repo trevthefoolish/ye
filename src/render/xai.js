@@ -60,9 +60,21 @@ function outputText(data) {
   return null;
 }
 
+// Billed token counts, summed across calls (reasoning tokens bill as output).
+const emptyUsage = () => ({ inputTokens: 0, cachedTokens: 0, outputTokens: 0, reasoningTokens: 0 });
+
+function addUsage(total, usage) {
+  if (!total || !usage) return;
+  total.inputTokens += usage.input_tokens || 0;
+  total.cachedTokens += usage.input_tokens_details?.cached_tokens || 0;
+  total.outputTokens += usage.output_tokens || 0;
+  total.reasoningTokens += usage.output_tokens_details?.reasoning_tokens || 0;
+}
+
 // One Responses API call with strict JSON-schema output; resolves the parsed
-// object. Nothing is stored server-side (store: false).
-async function requestStructured({ apiUrl, apiKey, model, reasoningEffort, systemPrompt, user, schemaName, schema, timeoutMs, fetchImpl }) {
+// object and adds the call's token counts to `usage` when given. Nothing is
+// stored server-side (store: false).
+async function requestStructured({ apiUrl, apiKey, model, reasoningEffort, systemPrompt, user, schemaName, schema, timeoutMs, fetchImpl, usage }) {
   const data = await postJson(apiUrl, {
     model,
     reasoning: { effort: reasoningEffort },
@@ -73,6 +85,7 @@ async function requestStructured({ apiUrl, apiKey, model, reasoningEffort, syste
     ],
     text: { format: { type: 'json_schema', name: schemaName, strict: true, schema } },
   }, { apiKey, timeoutMs, fetchImpl });
+  addUsage(usage, data?.usage);
   const raw = outputText(data);
   if (typeof raw !== 'string') throw new RenderError('unexpected Responses API shape');
   try {
@@ -82,4 +95,4 @@ async function requestStructured({ apiUrl, apiKey, model, reasoningEffort, syste
   }
 }
 
-module.exports = { RenderError, postJson, requestStructured };
+module.exports = { RenderError, emptyUsage, postJson, requestStructured };
