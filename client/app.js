@@ -146,7 +146,7 @@
   // ---------------------------------------------------------------------------
   // Chapter data. The server answers immediately with whatever is rendered
   // (null for verses still rendering) and renders the rest in the background,
-  // storing each verse as the model finishes it; chapters on screen are polled
+  // sharing each verse as the model finishes it; chapters on screen are polled
   // until complete. Foreground requests go ahead of background (prefetch) ones.
 
   const POLL = {

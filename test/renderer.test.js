@@ -35,7 +35,7 @@ function fakePipeline({ delayMs = 5, fail = () => false } = {}) {
   };
 }
 
-// One unit for the whole of Ruth 1 whose nth attempt runs attempts[n](put),
+// One unit for the whole of Ruth 1 whose nth attempt runs attempts[n]({ stage, ... }),
 // the way a streaming passage call hands over verses before it settles.
 function streamingPipeline(attempts) {
   let calls = 0;
@@ -50,7 +50,7 @@ function streamingPipeline(attempts) {
         key: `passage:${bookIndex}:${chapter}`,
         refs: missing.map(verse => ({ bookIndex, chapter, verse })),
         logFields: { book, ch: chapter },
-        render: (usage, put) => attempts[calls++]({ put, entry, missing }),
+        render: (usage, stage) => attempts[calls++]({ stage, entry, missing }),
       }];
     },
   };
@@ -105,83 +105,84 @@ test('failed verses stay missing and are retried by the next request', async t =
   await waitFor(() => missing().length === 0);
 });
 
-test('stores verses as they stream in, and a retry never rewrites one', async t => {
+test('shows streamed verses at once as provisional text, then stores the validated passage whole', async t => {
   let release;
   const held = new Promise(resolve => { release = resolve; });
   const pipeline = streamingPipeline([
-    async ({ put, entry }) => {
-      put([entry(1, 'First'), entry(2, 'First')]);
+    async ({ stage, entry }) => {
+      stage([entry(1, 'First'), entry(2, 'First')]);
       await held;
-      put([entry(3, 'First')]);
+      stage([entry(3, 'First')]);
       throw new Error('stream broke');
     },
-    // The retry renders the whole passage again for context.
-    async ({ put, entry, missing }) => {
-      put([entry(1, 'Second'), entry(4, 'Second')]);
+    // The retry renders the whole passage again, and all of it is stored.
+    async ({ stage, entry, missing }) => {
+      stage([entry(1, 'Second')]);
       return missing.map(verse => entry(verse, 'Second'));
     },
   ]);
-  const { log, renderer, missing, text } = setup(t, pipeline, 2, 1);
+  const { log, store, renderer, missing, text } = setup(t, pipeline, 2, 1);
   renderer.request(RUTH_1, missing(), FOREGROUND);
-  // Visible while the attempt is still running.
+  // Readable while the attempt is still running, but not final.
   await waitFor(() => text(2) === 'First 2', { what: 'streamed verses' });
-  assert.equal(missing().length, 20);
+  assert.equal(missing().length, 22);
+  assert.equal(store.has({ bookIndex: 7, chapter: 1, verse: 2 }), false);
   release();
 
   const finished = await waitFor(() => log.entries.find(e => e.event === 'chapter_render_finished'));
   assert.equal(pipeline.calls, 2);
-  assert.deepEqual([1, 2, 3, 4, 5, 22].map(text), ['First 1', 'First 2', 'First 3', 'Second 4', 'Second 5', 'Second 22']);
+  assert.deepEqual([1, 2, 3, 4, 22].map(text), ['Second 1', 'Second 2', 'Second 3', 'Second 4', 'Second 22']);
+  assert.equal(missing().length, 0);
   assert.equal(finished.rendered, 22);
   assert.equal(finished.failed, 0);
-  const retry = log.entries.find(e => e.event === 'passage_render_retry');
-  assert.deepEqual([retry.reason, retry.storedVerses], ['stream broke', [1, 2, 3]]);
+  assert.ok(log.entries.some(e => e.event === 'passage_render_retry' && e.reason === 'stream broke'));
 });
 
-test('a unit that fails partway counts only its unwritten verses as failed', async t => {
+test('a unit that fails for good drops its provisional verses', async t => {
   const pipeline = streamingPipeline([
-    async ({ put, entry }) => {
-      put([entry(1, 'Kept'), entry(2, 'Kept')]);
+    async ({ stage, entry }) => {
+      stage([entry(1, 'Draft'), entry(2, 'Draft')]);
       throw Object.assign(new Error('gave up'), { retryable: false });
     },
   ]);
   const { log, renderer, missing, text } = setup(t, pipeline);
   renderer.request(RUTH_1, missing(), FOREGROUND);
   const finished = await waitFor(() => log.entries.find(e => e.event === 'chapter_render_finished'));
-  assert.equal(finished.rendered, 2);
-  assert.equal(finished.failed, 20);
-  assert.deepEqual(log.entries.find(e => e.event === 'passage_render_failed').storedVerses, [1, 2]);
-  assert.equal(text(1), 'Kept 1');
-  assert.equal(missing().length, 20);
+  assert.equal(finished.rendered, 0);
+  assert.equal(finished.failed, 22);
+  assert.equal(text(1), undefined);
+  assert.equal(missing().length, 22);
 });
 
-test('a retry makes no call when the failed attempt streamed every verse', async t => {
+test('a retry calls the model again even if the failed attempt streamed every verse', async t => {
   const pipeline = streamingPipeline([
-    async ({ put, entry, missing }) => {
-      put(missing.map(verse => entry(verse, 'All')));
+    async ({ stage, entry, missing }) => {
+      stage(missing.map(verse => entry(verse, 'Rejected')));
       throw new Error('verse 3 rendered twice');
     },
-    async () => assert.fail('no second call'),
+    async ({ entry, missing }) => missing.map(verse => entry(verse, 'Valid')),
   ]);
-  const { log, renderer, missing } = setup(t, pipeline, 2, 1);
+  const { log, renderer, missing, text } = setup(t, pipeline, 2, 1);
   renderer.request(RUTH_1, missing(), FOREGROUND);
   const finished = await waitFor(() => log.entries.find(e => e.event === 'chapter_render_finished'));
-  assert.equal(pipeline.calls, 1);
+  assert.equal(pipeline.calls, 2);
+  assert.equal(text(3), 'Valid 3');
   assert.equal(finished.rendered, 22);
-  assert.equal(finished.failed, 0);
 });
 
-test('a unit stores only the verses it was planned for', async t => {
-  const pipeline = streamingPipeline([
-    async ({ put, entry, missing }) => {
-      put([{ ...entry(1, 'Stray'), chapter: 2 }]);
-      return [...missing.map(verse => entry(verse, 'R')), { ...entry(2, 'Stray'), chapter: 3 }];
+test('a unit shows and stores only the verses it was planned for, never over final ones', async t => {
+  const { log, store, renderer, missing, text } = setup(t, streamingPipeline([
+    async ({ stage, entry, missing }) => {
+      stage([{ ...entry(1, 'Stray'), chapter: 2 }, entry(1, 'Over final')]);
+      return [...missing.map(verse => entry(verse, 'R')), { ...entry(2, 'Stray'), chapter: 3 }, entry(1, 'Over final')];
     },
-  ]);
-  const { log, store, renderer, missing } = setup(t, pipeline);
+  ]));
+  store.put([{ bookIndex: 7, chapter: 1, verse: 1, rendering: 'Final 1', note: 'n' }]);
   renderer.request(RUTH_1, missing(), FOREGROUND);
   const finished = await waitFor(() => log.entries.find(e => e.event === 'chapter_render_finished'));
-  assert.equal(finished.rendered, 22);
-  assert.equal(store.has({ bookIndex: 7, chapter: 2, verse: 1 }), false);
+  assert.equal(finished.rendered, 21);
+  assert.equal(text(1), 'Final 1');
+  assert.equal(store.chapter({ bookIndex: 7, chapter: 2 }).verses[0], null);
   assert.equal(store.has({ bookIndex: 7, chapter: 3, verse: 2 }), false);
 });
 

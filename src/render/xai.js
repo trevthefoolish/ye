@@ -111,13 +111,17 @@ function addUsage(total, usage) {
   total.reasoningTokens += usage.output_tokens_details?.reasoning_tokens || 0;
 }
 
-// Error codes inside a stream that will fail the same way again.
+// Error codes that will fail the same way again, and ones that may not.
 const FINAL_CODES = new Set(['invalid_request_error', 'invalid_api_key', 'insufficient_quota']);
+const RETRYABLE_CODES = new Set(['rate_limit_exceeded', 'rate_limit_error', 'server_error', 'api_error', 'overloaded_error', 'service_unavailable']);
 
-// A response.failed or response.incomplete event, or an error event (which xAI
-// can send after the HTTP 200, e.g. for invalid arguments), as a RenderError.
-// Retryable unless its status or code says it will fail again.
-function streamFailure(event) {
+// A response.failed or response.incomplete event, or an error event, as a
+// RenderError. A status or a known code says whether it may succeed next
+// time. Failing that, it depends on when it came: an error before the
+// response started is the request being refused, as an HTTP 400 would be
+// (xAI reports invalid arguments this way after a 200), while a failure once
+// the model has started may not recur.
+function streamFailure(event, started) {
   const error = event.response?.error ?? event.error;
   const detail = error?.message
     || event.response?.incomplete_details?.reason
@@ -127,8 +131,21 @@ function streamFailure(event) {
   const what = event.type === 'response.incomplete' ? 'xAI response incomplete' : 'xAI response failed';
   const status = event.status ?? error?.status;
   const code = event.code ?? error?.code;
-  return new RenderError(detail ? `${what}: ${detail}` : what, { status, retryable: retryableStatus(status) && !FINAL_CODES.has(code) });
+  const retryable = Number.isInteger(status) ? retryableStatus(status)
+    : RETRYABLE_CODES.has(code) ? true
+      : FINAL_CODES.has(code) ? false
+        : started;
+  return new RenderError(detail ? `${what}: ${detail}` : what, { status, retryable });
 }
+
+const isJson = text => {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 // Follows a Responses API event stream to the end of the response. Calls
 // onText with the output text so far each time it grows, adds the billed
@@ -138,15 +155,19 @@ function streamFailure(event) {
 async function readResponse(body, { usage, onText, timeoutMs }) {
   let text = '';
   let part = null;
+  let started = false;
   try {
     for await (const data of eventData(body)) {
+      if (data === '[DONE]') break;
       let event;
       try {
         event = JSON.parse(data);
       } catch {
-        continue; // not an event (e.g. the "[DONE]" sentinel)
+        continue; // not an event
       }
-      switch (event?.type) {
+      if (typeof event?.type !== 'string') continue;
+      started ||= event.type.startsWith('response.');
+      switch (event.type) {
         case 'response.output_text.delta': {
           if (typeof event.delta !== 'string' || event.delta === '') break;
           const key = `${event.item_id}:${event.content_index}`;
@@ -163,20 +184,38 @@ async function readResponse(body, { usage, onText, timeoutMs }) {
         case 'response.failed':
         case 'response.incomplete':
           addUsage(usage, event.response?.usage);
-          throw streamFailure(event);
+          throw streamFailure(event, started);
         case 'error':
-          throw streamFailure(event);
+          throw streamFailure(event, started);
       }
     }
   } catch (err) {
     throw transportError(err, timeoutMs);
   }
+  // The stream ended ("data: [DONE]", or the body closed) without saying how
+  // the response ended. Its text still counts if it is whole: text cut off
+  // partway never parses as JSON.
+  if (text && isJson(text)) return text;
   throw new RenderError('xAI stream ended before the response completed');
+}
+
+// The final text of a plain JSON Responses API body, for a reply that did not
+// stream after all.
+async function readWhole(res, { usage, timeoutMs }) {
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    throw err instanceof SyntaxError ? new RenderError('xAI returned a non-JSON body') : transportError(err, timeoutMs);
+  }
+  addUsage(usage, data?.usage);
+  return outputText(data);
 }
 
 // One streamed Responses API call with strict JSON-schema output; resolves the
 // parsed object and adds the call's token counts to `usage` when given.
-// `onText`, if given, sees the output text so far each time more arrives.
+// `onText`, if given, sees the output text so far each time more arrives (a
+// reply that comes back whole, unstreamed, is read whole without it).
 // Nothing is stored server-side (store: false).
 async function requestStructured({ apiUrl, apiKey, model, reasoningEffort, systemPrompt, user, schemaName, schema, timeoutMs, fetchImpl, usage, onText }) {
   const signal = AbortSignal.timeout(timeoutMs);
@@ -191,8 +230,13 @@ async function requestStructured({ apiUrl, apiKey, model, reasoningEffort, syste
     ],
     text: { format: { type: 'json_schema', name: schemaName, strict: true, schema } },
   }, { apiKey, signal, timeoutMs, fetchImpl });
-  if (!res.body) throw new RenderError('xAI returned an empty body');
-  const raw = await readResponse(res.body, { usage, onText, timeoutMs });
+  let raw;
+  if ((res.headers.get('content-type') || '').toLowerCase().startsWith('application/json')) {
+    raw = await readWhole(res, { usage, timeoutMs });
+  } else {
+    if (!res.body) throw new RenderError('xAI returned an empty body');
+    raw = await readResponse(res.body, { usage, onText, timeoutMs });
+  }
   if (typeof raw !== 'string') throw new RenderError('unexpected Responses API shape');
   try {
     return JSON.parse(raw);

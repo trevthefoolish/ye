@@ -69,6 +69,28 @@ test('completeChapter() memoizes the body and invalidates it on write', async t 
   assert.notEqual(store.completeChapter(RUTH).etag, first.etag);
 });
 
+test('provisional verses are readable at once but never final, saved, or put over final text', async t => {
+  const { dir, store } = newStore(t);
+  await store.put([entry(1)]);
+  store.stage([entry(1, { rendering: 'Over final' }), entry(2, { rendering: 'Draft 2' }), entry(3, { rendering: 'Draft 3' })]);
+  const { verses, missing } = store.chapter(RUTH);
+  assert.deepEqual(verses.slice(0, 4).map(v => v?.rendering ?? null), ['R1', 'Draft 2', 'Draft 3', null]);
+  // Provisional verses still count as missing, so they are not final or complete.
+  assert.deepEqual(missing.slice(0, 3), [2, 3, 4]);
+  assert.equal(store.has({ bookIndex: 7, chapter: 1, verse: 2 }), false);
+  store.stage(Array.from({ length: 22 }, (_, i) => entry(i + 1, { rendering: 'Draft' })));
+  assert.equal(store.completeChapter(RUTH), null);
+
+  // A later attempt may restage; put() replaces; unstage() drops.
+  store.stage([entry(2, { rendering: 'Draft 2 again' })]);
+  assert.equal(store.chapter(RUTH).verses[1].rendering, 'Draft 2 again');
+  await store.put([entry(2)]);
+  store.unstage([{ bookIndex: 7, chapter: 1, verse: 3 }]);
+  assert.deepEqual(store.chapter(RUTH).verses.slice(0, 4).map(v => v?.rendering ?? null), ['R1', 'R2', null, 'Draft']);
+  await store.flush();
+  assert.deepEqual(Object.keys(readJson(path.join(dir, '7.json'))).sort(), ['0:0', '0:1']);
+});
+
 test('an unparseable cache file is moved aside instead of being overwritten', t => {
   const { dir, log, store } = newStore(t);
   writeJson(path.join(dir, '7.json'), '{ not json');

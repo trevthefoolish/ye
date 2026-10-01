@@ -13,6 +13,11 @@
 // Reads come from memory after the first touch of a book. Writes update memory
 // immediately and persist with tmp+rename, coalesced so a burst of finished
 // verses costs at most one in-flight write plus one queued write per book.
+//
+// Verses still streaming in are provisional: stage() makes them readable at
+// once, but they are kept in memory only, are not final (has() is false and
+// their chapter is not complete), and are replaced by put() or dropped by
+// unstage(). Only put() writes final text, which nothing replaces.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -21,6 +26,7 @@ const { verseCount } = require('../canon');
 const { sha256 } = require('../text');
 
 const entryKey = (chapter, verse) => `${chapter - 1}:${verse - 1}`;
+const stagedKey = ({ bookIndex, chapter, verse }) => `${bookIndex}:${entryKey(chapter, verse)}`;
 const asObject = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
 const VERSION_DIR = /^[0-9a-f]{12}$/;
 
@@ -59,6 +65,7 @@ class RenderStore {
   #books = new Map();
   #writers = new Map();
   #completeBodies = new Map();
+  #staged = new Map(); // stagedKey -> { rendering, note }
 
   // dir: the cache root (RENDERS_DIR). This store reads and writes only
   // {dir}/{version}/.
@@ -113,17 +120,32 @@ class RenderStore {
     return this.#current(bookIndex, chapter, verse) !== null;
   }
 
-  // Current-version verses for a chapter; `missing` lists 1-based verse numbers.
+  // Current-version verses for a chapter, final or provisional (null where
+  // there is neither); `missing` lists the 1-based numbers of verses not final.
   chapter({ bookIndex, chapter }) {
     const count = verseCount(bookIndex, chapter);
     const verses = new Array(count);
     const missing = [];
     for (let verse = 1; verse <= count; verse++) {
       const entry = this.#current(bookIndex, chapter, verse);
-      verses[verse - 1] = entry ? { rendering: entry.rendering, note: entry.note } : null;
+      const shown = entry || this.#staged.get(stagedKey({ bookIndex, chapter, verse }));
+      verses[verse - 1] = shown ? { rendering: shown.rendering, note: shown.note } : null;
       if (!entry) missing.push(verse);
     }
     return { verses, missing };
+  }
+
+  // entries: [{ bookIndex, chapter, verse, rendering, note }], held as
+  // provisional text in memory. A verse that is already final is left alone.
+  stage(entries) {
+    for (const entry of entries) {
+      if (!this.has(entry)) this.#staged.set(stagedKey(entry), { rendering: entry.rendering, note: entry.note });
+    }
+  }
+
+  // Drops the provisional text of these refs, if any.
+  unstage(refs) {
+    for (const ref of refs) this.#staged.delete(stagedKey(ref));
   }
 
   // Serialized API body plus ETag for a fully rendered chapter, or null.
@@ -140,13 +162,15 @@ class RenderStore {
     return result;
   }
 
-  // entries: [{ bookIndex, chapter, verse, rendering, note }].
-  // Visible to reads immediately; resolves once persisted (never rejects).
+  // entries: [{ bookIndex, chapter, verse, rendering, note }], as final text
+  // that replaces any provisional text for the same verses. Visible to reads
+  // immediately; resolves once persisted (never rejects).
   put(entries) {
     const touched = new Set();
     const t = Date.now();
     for (const { bookIndex, chapter, verse, rendering, note } of entries) {
       this.#book(bookIndex)[entryKey(chapter, verse)] = { rendering, note, v: this.version, t };
+      this.#staged.delete(stagedKey({ bookIndex, chapter, verse }));
       touched.add(bookIndex);
     }
     for (const bookIndex of touched) {

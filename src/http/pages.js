@@ -89,13 +89,15 @@ function pageRoutes({ shell, store, origin }) {
     const { verses, missing } = store.chapter(ref);
     const first = verses.find(Boolean);
     // Inline whatever is already rendered so the first paint needs no fetch.
+    // The description quotes final text only, never a verse still streaming.
+    const firstFinal = verses.find((verse, i) => verse && !missing.includes(i + 1));
     const preloaded = first
       ? `<script id="preloaded" type="application/json">${jsonForScript({ book: ref.book, ch: ref.chapter, verses, complete: missing.length === 0, missingCount: missing.length })}</script>`
       : '';
     res.type('html').send(shell.render({
       title,
       canonical,
-      description: first?.rendering ?? `${title}, rendered in modern English with scholarly notes.`,
+      description: firstFinal?.rendering ?? `${title}, rendered in modern English with scholarly notes.`,
       jsonLd: jsonForScript(jsonLd(origin, ref, canonical)),
       preloaded,
     }));

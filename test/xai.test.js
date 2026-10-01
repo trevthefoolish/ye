@@ -143,29 +143,60 @@ test('requestStructured fails on failed, incomplete, broken, or unusable respons
   await assert.rejects(call([...deltas('{"ver'), failed]), err => err.message === 'xAI response failed: overloaded' && err.retryable === true);
   const incomplete = { type: 'response.incomplete', response: { status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } } };
   await assert.rejects(call([incomplete]), err => err.message === 'xAI response incomplete: max_output_tokens' && err.retryable);
-  await assert.rejects(call([{ type: 'error', code: 'rate_limit_exceeded', message: 'slow down' }]), err => err.message === 'xAI response failed: slow down' && err.retryable);
   await assert.rejects(call([{ type: 'error', code: 'internal', error: 'boom' }]), /xAI response failed: boom/);
-  await assert.rejects(call(deltas('{"a":1}')), err => err.message === 'xAI stream ended before the response completed' && err.retryable);
   await assert.rejects(call([{ type: 'response.completed', response: { output: [reasoning] } }]), /unexpected Responses API shape/);
   await assert.rejects(call(streamed('not json')), /malformed JSON/);
   await assert.rejects(requestStructured({ apiUrl: 'x', apiKey: 'k', timeoutMs: 1000, fetchImpl: async () => new Response(null) }), /empty body/);
-
-  // An error event that arrives after the 200 is classified like an HTTP error.
-  const invalid = { type: 'error', sequence_number: 0, code: null, message: 'Invalid arguments passed to the model.', param: null };
-  await assert.rejects(call([invalid, 'data: [DONE]\n\n']), err => err.message === 'xAI response failed: Invalid arguments passed to the model.' && err.retryable);
-  await assert.rejects(call([{ type: 'error', status: 400, error: { code: 'invalid_argument', message: 'bad schema' } }]),
-    err => err.message === 'xAI response failed: bad schema' && err.retryable === false && err.status === 400);
-  await assert.rejects(call([{ type: 'error', status: 429, error: { code: 'rate_limit_exceeded', message: 'later' } }]), err => err.retryable && err.status === 429);
-  for (const code of ['invalid_request_error', 'invalid_api_key', 'insufficient_quota']) {
-    await assert.rejects(call([{ type: 'error', code, message: 'no' }]), err => err.retryable === false, code);
-    await assert.rejects(call([{ type: 'response.failed', response: { error: { code, message: 'no' } } }]), err => err.retryable === false, code);
-  }
 
   const broken = sseStream();
   const pending = requestStructured({ apiUrl: 'x', apiKey: 'k', timeoutMs: 1000, fetchImpl: async () => broken.response });
   broken.push({ type: 'response.output_text.delta', delta: '{' });
   broken.fail(new TypeError('terminated'));
   await assert.rejects(pending, err => err.message === 'xAI request failed: terminated' && err.retryable);
+});
+
+test('an error inside the stream is retried only if it may not recur', async () => {
+  const created = { type: 'response.created', response: { status: 'in_progress', output: [] } };
+  // Before the response starts, an error is the request being refused, the
+  // way xAI reports invalid arguments after a 200.
+  const invalid = { type: 'error', sequence_number: 0, code: null, message: 'Invalid arguments passed to the model.', param: null };
+  await assert.rejects(call([invalid, 'data: [DONE]\n\n']), err => err.message === 'xAI response failed: Invalid arguments passed to the model.' && err.retryable === false);
+  // Once it has started, a failure may not happen again.
+  await assert.rejects(call([created, ...deltas('{"a"'), { type: 'error', code: null, message: 'stream reset' }]), err => err.retryable === true);
+  // A status or a known code decides either way.
+  await assert.rejects(call([{ type: 'error', status: 400, error: { code: 'invalid_argument', message: 'bad schema' } }]),
+    err => err.message === 'xAI response failed: bad schema' && err.retryable === false && err.status === 400);
+  await assert.rejects(call([created, { type: 'error', status: 400, error: { message: 'bad' } }]), err => err.retryable === false);
+  await assert.rejects(call([{ type: 'error', status: 429, error: { code: 'rate_limit_exceeded', message: 'later' } }]), err => err.retryable && err.status === 429);
+  for (const code of ['rate_limit_exceeded', 'server_error', 'overloaded_error', 'service_unavailable']) {
+    await assert.rejects(call([{ type: 'error', code, message: 'later' }]), err => err.retryable === true, code);
+  }
+  for (const code of ['invalid_request_error', 'invalid_api_key', 'insufficient_quota']) {
+    await assert.rejects(call([created, { type: 'error', code, message: 'no' }]), err => err.retryable === false, code);
+    await assert.rejects(call([{ type: 'response.failed', response: { error: { code, message: 'no' } } }]), err => err.retryable === false, code);
+  }
+});
+
+test('a stream that ends without a final event counts only if its text is whole', async () => {
+  assert.deepEqual(await call([...deltas('{"a":1}'), 'data: [DONE]\n\n']), { a: 1 });
+  assert.deepEqual(await call(deltas('{"a":1}')), { a: 1 });
+  const ended = err => err.message === 'xAI stream ended before the response completed' && err.retryable;
+  await assert.rejects(call(deltas('{"a":1')), ended);
+  await assert.rejects(call([]), ended);
+  // Nothing after [DONE] is read.
+  await assert.rejects(call([...deltas('{"a":'), 'data: [DONE]\n\n', ...deltas('1}')]), ended);
+});
+
+test('a reply that comes back whole instead of streaming is read whole', async () => {
+  const usage = emptyUsage();
+  const texts = [];
+  const json = body => async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+  const body = { output: [reasoning, message('{"a":5}')], usage: { input_tokens: 10, output_tokens: 20 } };
+  assert.deepEqual(await call([], { usage, onText: so => texts.push(so), fetchImpl: json(body) }), { a: 5 });
+  assert.deepEqual(usage, { inputTokens: 10, cachedTokens: 0, outputTokens: 20, reasoningTokens: 0 });
+  assert.deepEqual(texts, []);
+  await assert.rejects(call([], { fetchImpl: json('<html>') }), /non-JSON body/);
+  await assert.rejects(call([], { fetchImpl: json({ output: [reasoning] }) }), /unexpected Responses API shape/);
 });
 
 test('without a final message item, the streamed text is the result', async () => {

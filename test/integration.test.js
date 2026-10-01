@@ -303,22 +303,30 @@ test('verses appear as they stream, before their passage finishes', async t => {
   const held = new Promise(resolve => { release = resolve; });
   const mock = await startMockXai(t, { beforeVerse: (payload, n) => (userContent(payload) === 'Jude 1:1-9' && n === 3 ? held : null) });
   const app = await startServer(t, { XAI_API_URL: mock.url });
+  const { version } = await getJson(app.port, '/api/version');
   await getJson(app.port, '/api/chapter/jude/1');
-  // Three verses have streamed; the first two are stored, and the third waits for the fourth.
+  // Three verses have streamed; the first two are shown, and the third waits for the fourth.
   const partial = await waitFor(async () => {
     const data = await getJson(app.port, '/api/chapter/jude/1?render=0');
     return data.verses[1] && data.verses.slice(9).every(Boolean) ? data : null;
   }, { what: 'the first two verses and the other passages' });
   assert.deepEqual(partial.verses[0], { rendering: 'Rendered Jude 1:1', note: 'Note for Jude 1:1' });
   assert.deepEqual(partial.verses.slice(2, 9), [null, null, null, null, null, null, null]);
-  assert.equal(partial.missingCount, 7);
+  // Shown, but provisional until the passage is checked: not saved, and the chapter is not complete.
+  assert.equal(partial.complete, false);
+  assert.equal(partial.missingCount, 9);
+  assert.ok(!fs.existsSync(bookFile(app, version, 'Jude')) || !readCache(app, version, 'Jude')['0:0']);
+  // The page preloads them too, but its description quotes final text only.
+  const page = (await request(app.port, '/jude/1')).body;
+  assert.match(page, /<meta name="description" content="Rendered Jude 1:10">/);
+  assert.equal(JSON.parse(page.match(/<script id="preloaded" type="application\/json">(.*?)<\/script>/)[1]).verses[0].rendering, 'Rendered Jude 1:1');
   release();
   const complete = await waitForComplete(app.port, '/api/chapter/jude/1?render=0');
   assert.equal(complete.verses[8].rendering, 'Rendered Jude 1:9');
   assert.equal(mock.calls, 3);
 });
 
-test('a passage that fails partway keeps the verses it streamed; its retry fills only the rest', async t => {
+test('a passage that fails partway is replaced whole by its retry', async t => {
   let attempts = 0;
   const mock = await startMockXai(t, {
     respond: payload => {
@@ -329,15 +337,12 @@ test('a passage that fails partway keeps the verses it streamed; its retry fills
   const app = await startServer(t, { XAI_API_URL: mock.url });
   await getJson(app.port, '/api/chapter/jude/1');
   const complete = await waitForComplete(app.port, '/api/chapter/jude/1?render=0');
-  // Three verses streamed before the failure; the third was still waiting for the fourth.
-  assert.deepEqual(complete.verses.slice(0, 9).map(v => v.rendering), [
-    'Rendered Jude 1:1', 'Rendered Jude 1:2',
-    'Retried Jude 1:3', 'Retried Jude 1:4', 'Retried Jude 1:5', 'Retried Jude 1:6', 'Retried Jude 1:7', 'Retried Jude 1:8', 'Retried Jude 1:9',
-  ]);
-  // The retry rendered the whole passage again, for context.
+  // Verses 1-2 streamed before the failure, as provisional text; the retry's
+  // validated passage replaced them, so the stored passage is one call's.
+  assert.deepEqual(complete.verses.slice(0, 9).map(v => v.rendering), Array.from({ length: 9 }, (_, i) => `Retried Jude 1:${i + 1}`));
   assert.deepEqual(userRefs(mock).filter(ref => ref === 'Jude 1:1-9').length, 2);
   const retry = await app.waitForLog('passage_render_retry');
-  assert.deepEqual([retry.reason, retry.storedVerses], ['xAI response failed: mock failure', [1, 2]]);
+  assert.equal(retry.reason, 'xAI response failed: mock failure');
   const finished = await app.waitForLog('chapter_render_finished');
   assert.equal(finished.rendered, 25);
   assert.equal(finished.failed, 0);

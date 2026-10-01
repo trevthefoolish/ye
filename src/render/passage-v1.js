@@ -179,9 +179,9 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
     // rendered for context, but only its missing verses are stored, so text a
     // reader already has never changes under them.
     //
-    // render(usage, put) hands missing verses to put() as they stream in,
-    // then resolves all of them once the passage is complete and valid. The
-    // caller stores what it has not already stored.
+    // render(usage, onVerses) hands missing verses to onVerses() as they
+    // stream in, a preview the caller may show before the passage is checked,
+    // then resolves all of them once the passage is complete and valid.
     plan({ bookIndex, book, chapter }, missing) {
       const wanted = new Set(missing);
       const toEntry = ({ verse, rendering, note }) => ({ bookIndex, chapter, verse, rendering: cleanText(rendering), note: cleanText(note) });
@@ -192,9 +192,9 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
           key: `passage:${bookIndex}:${chapter}:${start}-${end}`,
           refs: verses.map(verse => ({ bookIndex, chapter, verse })),
           logFields: { book, ch: chapter, verses: `${start}-${end}` },
-          async render(usage, put = () => {}) {
+          async render(usage, onVerses = () => {}) {
             const entries = await renderPassage(book, chapter, start, end, usage, entry => {
-              if (wanted.has(entry.verse)) put([toEntry(entry)]);
+              if (wanted.has(entry.verse)) onVerses([toEntry(entry)]);
             });
             return entries.filter(entry => wanted.has(entry.verse)).map(toEntry);
           },

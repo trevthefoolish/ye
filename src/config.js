@@ -46,7 +46,8 @@ function loadConfig(env = process.env) {
       // grok-4.7 reasons even at low effort, and a passage call reasons over up
       // to 10 verses and writes them all. A timeout cuts off (and re-bills) a
       // call that would have succeeded, so leave headroom. It bounds the whole
-      // stream; verses that streamed in before it fired are kept.
+      // stream; verses shown before it fired are provisional, and the retry
+      // replaces them.
       passageTimeoutMs: 120_000,
       retries: 2,
       retryBaseMs: 1_000,
