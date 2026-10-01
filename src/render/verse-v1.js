@@ -1,25 +1,17 @@
 // Copyright (c) 2026 vapourware.ai All rights reserved.
 'use strict';
 
-// Production pipeline: one Chat Completions call per verse, given only the
+// Production pipeline: one Responses API call per verse, given only the
 // reference ("Ruth 1:1"), returning a rendering and a one-sentence note.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { PIPELINE_VERSE } = require('../config');
 const { formatRef } = require('../canon');
-const { cleanText, sha256 } = require('../text');
-const { RenderError, parseStructured, postJson } = require('./xai');
+const { cleanText, renderVersion } = require('../text');
+const { RenderError, requestStructured } = require('./xai');
 
-// The prompt text is part of the cache key; the file's trailing newline is not.
-const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, '..', '..', 'prompts', 'verse-v1.md'), 'utf8').replace(/\n$/, '');
-
-// Cache key for every verse this pipeline renders. Reasoning effort is
-// deliberately not part of it (it never was), so existing caches stay valid
-// across effort changes. Changing this formula re-renders the whole Bible.
-function verseRenderVersion(model) {
-  return sha256(model + '\n' + SYSTEM_PROMPT, 12);
-}
+const SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, '..', '..', 'prompts', 'verse-v1.md'), 'utf8').trim();
 
 const SCHEMA = {
   type: 'object',
@@ -31,25 +23,24 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
+// Cache key for every verse this pipeline renders. Changing any input
+// re-renders the Bible from scratch as people read it.
+function verseRenderVersion({ model, reasoningEffort }) {
+  return renderVersion({ pipeline: PIPELINE_VERSE, model, reasoningEffort, systemPrompt: SYSTEM_PROMPT, schema: SCHEMA });
+}
+
 function createVersePipeline({ apiUrl, apiKey, model, reasoningEffort, verseTimeoutMs, log, fetchImpl }) {
   async function renderVerse(book, chapter, verse) {
     const ref = formatRef(book, chapter, verse);
-    const data = await postJson(apiUrl, {
-      model,
-      reasoning_effort: reasoningEffort,
-      store: false,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: ref },
-      ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: { name: 'verse_rendering', strict: true, schema: SCHEMA },
-      },
-    }, { apiKey, timeoutMs: verseTimeoutMs, fetchImpl });
-
-    const parsed = parseStructured(data?.choices?.[0]?.message?.content, 'chat completion');
-    if (typeof parsed.rendering !== 'string' || typeof parsed.note !== 'string') {
+    const parsed = await requestStructured({
+      apiUrl, apiKey, model, reasoningEffort, fetchImpl,
+      systemPrompt: SYSTEM_PROMPT,
+      user: ref,
+      schemaName: 'verse_rendering',
+      schema: SCHEMA,
+      timeoutMs: verseTimeoutMs,
+    });
+    if (typeof parsed?.rendering !== 'string' || typeof parsed?.note !== 'string') {
       throw new RenderError('malformed verse rendering');
     }
     const rendering = cleanText(parsed.rendering);
@@ -63,7 +54,7 @@ function createVersePipeline({ apiUrl, apiKey, model, reasoningEffort, verseTime
 
   return {
     name: PIPELINE_VERSE,
-    version: verseRenderVersion(model),
+    version: verseRenderVersion({ model, reasoningEffort }),
     info: { promptVersion: 'verse-v1', schemaVersion: 'verse-v1', sectionVersion: null },
     unit: 'verse',
 

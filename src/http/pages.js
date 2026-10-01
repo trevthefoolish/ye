@@ -95,10 +95,7 @@ function pageRoutes({ shell, store, origin }) {
     res.type('html').send(shell.render({
       title,
       canonical,
-      // A stale rendering still beats generic copy for the meta description.
-      description: first?.rendering
-        ?? store.anyRendering({ ...ref, verse: 1 })
-        ?? `${title}, rendered in modern English with scholarly notes.`,
+      description: first?.rendering ?? `${title}, rendered in modern English with scholarly notes.`,
       jsonLd: jsonForScript(jsonLd(origin, ref, canonical)),
       preloaded,
     }));

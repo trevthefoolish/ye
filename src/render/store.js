@@ -3,9 +3,10 @@
 
 // Rendered verses, one JSON file per book: `{dir}/{bookIndex}.json`, keyed by
 // "chapterIndex:verseIndex" (both 0-based). Each entry is stamped with the
-// render version that produced it; entries from any other version are
-// invisible, so changing the model or prompt re-renders on demand without
-// deleting anything.
+// render version that produced it, and the store keeps only the current
+// version: anything else is dropped when a book loads, and an external cache
+// directory is compacted at startup. Changing the model or prompt is
+// therefore a fresh start, re-rendered on demand.
 //
 // Reads come from memory after the first touch of a book. Writes update memory
 // immediately and persist with tmp+rename, coalesced so a burst of finished
@@ -14,7 +15,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { verseCount } = require('../canon');
+const { BOOKS, verseCount } = require('../canon');
 const { sha256 } = require('../text');
 
 const entryKey = (chapter, verse) => `${chapter - 1}:${verse - 1}`;
@@ -36,14 +37,28 @@ function sameEntry(a, b) {
     && a.christConnection === b.christConnection;
 }
 
-// Folds current-version entries from the committed seed into a live cache
-// file. Stale or malformed seed entries are skipped; live-only entries are
-// kept. Pure, so it can be tested without touching disk.
+const isKey = key => /^\d+:\d+$/.test(key);
+const asObject = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+
+// The entries of one book file that belong to `version`; the rest are dropped.
+function currentEntries(data, version) {
+  const kept = {};
+  let dropped = 0;
+  for (const [key, value] of Object.entries(asObject(data))) {
+    if (isKey(key) && isEntry(value) && value.v === version) kept[key] = value;
+    else dropped++;
+  }
+  return { kept, dropped };
+}
+
+// Rebuilds one live cache file for `version`: drops everything else from it,
+// then folds in current-version entries from the committed seed (skipping
+// stale or malformed ones). Pure, so it can be tested without touching disk.
 function mergeSeed(source, dest, version, { destCorrupt = false } = {}) {
-  const cache = { ...(dest && typeof dest === 'object' ? dest : {}) };
-  const stats = { changed: false, added: 0, replaced: 0, skippedStale: 0, skippedMalformed: 0 };
-  for (const [key, value] of Object.entries(source && typeof source === 'object' ? source : {})) {
-    if (!isEntry(value)) { stats.skippedMalformed++; continue; }
+  const { kept: cache, dropped } = currentEntries(dest, version);
+  const stats = { changed: dropped > 0, added: 0, replaced: 0, dropped, skippedStale: 0, skippedMalformed: 0 };
+  for (const [key, value] of Object.entries(asObject(source))) {
+    if (!isKey(key) || !isEntry(value)) { stats.skippedMalformed++; continue; }
     if (value.v !== version) { stats.skippedStale++; continue; }
     if (key in cache && sameEntry(cache[key], value)) continue;
     // A corrupt destination counts as replaced: its entries existed before.
@@ -122,15 +137,14 @@ class RenderStore {
   #book(bookIndex) {
     let data = this.#books.get(bookIndex);
     if (!data) {
-      data = this.#read(bookIndex).data;
+      data = currentEntries(this.#read(bookIndex).data, this.version).kept;
       this.#books.set(bookIndex, data);
     }
     return data;
   }
 
   #current(bookIndex, chapter, verse) {
-    const entry = this.#book(bookIndex)[entryKey(chapter, verse)];
-    return entry && entry.v === this.version ? entry : null;
+    return this.#book(bookIndex)[entryKey(chapter, verse)] || null;
   }
 
   has({ bookIndex, chapter, verse }) {
@@ -162,12 +176,6 @@ class RenderStore {
     const result = { body, etag: `"${sha256(body, 16)}"` };
     this.#completeBodies.set(key, result);
     return result;
-  }
-
-  // Any-version rendering of one verse, for meta descriptions on cold pages.
-  anyRendering({ bookIndex, chapter, verse }) {
-    const entry = this.#book(bookIndex)[entryKey(chapter, verse)];
-    return typeof entry?.rendering === 'string' ? entry.rendering : null;
   }
 
   // entries: [{ bookIndex, chapter, verse, rendering, note, noteKind?, christConnection? }].
@@ -209,26 +217,32 @@ class RenderStore {
     });
   }
 
-  // Merges the committed seed directory into this store's directory. Runs
-  // once at startup, before any reads.
-  seedFrom(seedDir) {
-    const totals = { files: 0, added: 0, replaced: 0, skippedStale: 0, skippedMalformed: 0 };
+  // Startup pass over an external cache directory (never the committed
+  // renders/ itself): removes leftover temp files, drops every entry from
+  // another render version, and folds in current-version entries from
+  // `seedDir` when given. Runs before any reads.
+  prepare(seedDir) {
+    const totals = { files: 0, added: 0, replaced: 0, dropped: 0, skippedStale: 0, skippedMalformed: 0 };
     try {
-      for (const file of fs.readdirSync(seedDir)) {
-        if (!/^\d+\.json$/.test(file)) continue;
-        const bookIndex = Number(file.slice(0, -5));
-        const source = JSON.parse(fs.readFileSync(path.join(seedDir, file), 'utf8'));
+      for (const file of fs.readdirSync(this.dir)) {
+        if (file.endsWith('.tmp')) fs.rmSync(path.join(this.dir, file), { force: true });
+      }
+      for (let bookIndex = 0; bookIndex < BOOKS.length; bookIndex++) {
+        const seedFile = seedDir && path.join(seedDir, `${bookIndex}.json`);
+        const hasSeed = !!seedFile && fs.existsSync(seedFile);
+        if (!hasSeed && !fs.existsSync(this.#file(bookIndex))) continue;
+        const source = hasSeed ? JSON.parse(fs.readFileSync(seedFile, 'utf8')) : {};
         const dest = this.#read(bookIndex);
         const merged = mergeSeed(source, dest.data, this.version, { destCorrupt: dest.corrupt });
-        for (const key of ['added', 'replaced', 'skippedStale', 'skippedMalformed']) totals[key] += merged[key];
+        for (const key of ['added', 'replaced', 'dropped', 'skippedStale', 'skippedMalformed']) totals[key] += merged[key];
         if (merged.changed) {
           writeFileAtomic(this.#file(bookIndex), JSON.stringify(merged.cache, null, 2));
           totals.files++;
         }
       }
-      if (Object.values(totals).some(Boolean)) this.log.info('render_cache_seeded', { ...totals, dir: this.dir });
+      if (Object.values(totals).some(Boolean)) this.log.info('render_cache_prepared', { ...totals, dir: this.dir, version: this.version });
     } catch (err) {
-      this.log.error('render_cache_seed_failed', { err: err.message });
+      this.log.error('render_cache_prepare_failed', { err: err.message });
     }
     return totals;
   }

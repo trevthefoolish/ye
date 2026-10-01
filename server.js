@@ -32,7 +32,9 @@ async function main() {
     : createVersePipeline({ ...config.render, log });
 
   const store = new RenderStore({ dir: config.cache.dir, version: pipeline.version, log });
-  if (config.cache.seed && config.cache.dir !== config.cache.seedDir) store.seedFrom(config.cache.seedDir);
+  // An external cache (the production volume) is compacted to the current
+  // render version and seeded from the committed renders/ before serving.
+  if (config.cache.dir !== config.cache.seedDir) store.prepare(config.cache.seed ? config.cache.seedDir : null);
 
   const { concurrency, retries, retryBaseMs } = config.render;
   const renderer = createRenderer({ pipeline, store, log, concurrency, retries, retryBaseMs });

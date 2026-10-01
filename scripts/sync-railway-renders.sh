@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 vapourware.ai All rights reserved.
+#
+# Mirrors the production render cache (Railway volume) into renders/ so it can
+# be reviewed and committed. Production only holds the current render
+# version, so local book files are replaced, and removed if production has none.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,38 +19,22 @@ node - "$ROOT/renders" "$TMP_DIR" <<'NODE'
 const fs = require('fs');
 const path = require('path');
 
-const localDir = process.argv[2];
-const remoteDir = process.argv[3];
-fs.mkdirSync(localDir, { recursive: true });
-
-let changedFiles = 0;
-for (const file of fs.readdirSync(remoteDir)) {
-  if (!file.endsWith('.json')) continue;
-  const remotePath = path.join(remoteDir, file);
-  const localPath = path.join(localDir, file);
-  const remote = JSON.parse(fs.readFileSync(remotePath, 'utf8'));
-  let local = {};
-  try { local = JSON.parse(fs.readFileSync(localPath, 'utf8')); } catch {}
-
-  let changed = false;
-  for (const [key, value] of Object.entries(remote)) {
-    const existing = local[key];
-    if (!existing
-      || existing.v !== value.v
-      || existing.rendering !== value.rendering
-      || existing.note !== value.note
-      || existing.noteKind !== value.noteKind
-      || existing.christConnection !== value.christConnection) {
-      local[key] = value;
-      changed = true;
-    }
-  }
-  if (changed) {
-    fs.writeFileSync(localPath, JSON.stringify(local, null, 2));
-    changedFiles++;
-  }
+const [localDir, remoteDir] = process.argv.slice(2);
+const isBook = file => /^\d+\.json$/.test(file);
+const remote = fs.readdirSync(remoteDir).filter(isBook);
+if (remote.length === 0) {
+  console.error('Production export has no render files; leaving renders/ untouched.');
+  process.exit(1);
 }
-console.log(`Updated ${changedFiles} render file(s).`);
+
+fs.mkdirSync(localDir, { recursive: true });
+for (const file of remote) {
+  const data = JSON.parse(fs.readFileSync(path.join(remoteDir, file), 'utf8'));
+  fs.writeFileSync(path.join(localDir, file), JSON.stringify(data, null, 2));
+}
+const removed = fs.readdirSync(localDir).filter(file => isBook(file) && !remote.includes(file));
+for (const file of removed) fs.rmSync(path.join(localDir, file));
+console.log(`Mirrored ${remote.length} render file(s); removed ${removed.length}.`);
 NODE
 
 git -C "$ROOT" status --short renders

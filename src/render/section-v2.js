@@ -11,8 +11,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { PIPELINE_SECTION } = require('../config');
 const { BOOKS, compareRefs, formatRef, getVerseIndex, parseRef, refsBetween, verseCount } = require('../canon');
-const { cleanText, sha256 } = require('../text');
-const { RenderError, parseStructured, postJson } = require('./xai');
+const { cleanText, renderVersion, sha256, stableStringify } = require('../text');
+const { RenderError, requestStructured } = require('./xai');
 
 const PROMPT_VERSION = 'margin-note-v3';
 const SCHEMA_VERSION = 'section-render-v1';
@@ -46,15 +46,17 @@ const SCHEMA = {
   additionalProperties: false,
 };
 
-// --- Section map ---
+// The fixed parts of every request's user message.
+const TASK = 'Render reference-only Bible verses for vapourware.ai.';
+const CONSTRAINTS = [
+  'Return exactly one entry for each target reference in targetReferences.',
+  'Use the ref field exactly as provided in targetReferences.',
+  'Every returned verse must have a rendering and a note.',
+  'Keep notes compact, concrete, and useful. Aim for 12 to 26 words unless a very short list verse needs less.',
+  'Do not return entries for other sectionReferences; they are context only.',
+];
 
-function stableStringify(value) {
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
+// --- Section map ---
 
 // Content fingerprint of a section map, ignoring when it was generated.
 function fingerprintSectionMap(data) {
@@ -167,7 +169,7 @@ function sectionsForVerses(book, chapter, verses) {
 // scenario ids) stays out of the payload on purpose.
 function buildUserPayload(section) {
   return {
-    task: 'Render reference-only Bible verses for vapourware.ai.',
+    task: TASK,
     book: section.book,
     chapter: section.chapter,
     section: {
@@ -181,37 +183,8 @@ function buildUserPayload(section) {
     targetReferences: section.targetReferences,
     noteKindOptions: NOTE_KINDS,
     christConnectionOptions: CHRIST_CONNECTIONS,
-    constraints: [
-      'Return exactly one entry for each target reference in targetReferences.',
-      'Use the ref field exactly as provided in targetReferences.',
-      'Every returned verse must have a rendering and a note.',
-      'Keep notes compact, concrete, and useful. Aim for 12 to 26 words unless a very short list verse needs less.',
-      'Do not return entries for other sectionReferences; they are context only.',
-    ],
+    constraints: CONSTRAINTS,
   };
-}
-
-function buildRequest({ model, reasoningEffort, section }) {
-  return {
-    model,
-    reasoning: { effort: reasoningEffort },
-    store: false,
-    input: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: JSON.stringify(buildUserPayload(section)) },
-    ],
-    text: { format: { type: 'json_schema', name: 'section_rendering', strict: true, schema: SCHEMA } },
-  };
-}
-
-function outputText(data) {
-  for (const item of data?.output || []) {
-    if (item?.type !== 'message') continue;
-    for (const content of item.content || []) {
-      if (content?.type === 'output_text' && typeof content.text === 'string') return content.text;
-    }
-  }
-  return null;
 }
 
 // Returns one entry per target reference, in target order. Extra entries for
@@ -237,22 +210,29 @@ function validateSectionResult(parsed, section) {
 // One Responses API call for a hydrated section. Returns validated entries
 // with the model's raw text (callers apply cleanText).
 async function renderSection({ apiUrl, apiKey, model, reasoningEffort, timeoutMs, section, fetchImpl }) {
-  const data = await postJson(apiUrl, buildRequest({ model, reasoningEffort, section }), { apiKey, timeoutMs, fetchImpl });
-  return validateSectionResult(parseStructured(outputText(data), 'Responses API'), section);
+  const parsed = await requestStructured({
+    apiUrl, apiKey, model, reasoningEffort, timeoutMs, fetchImpl,
+    systemPrompt: SYSTEM_PROMPT,
+    user: JSON.stringify(buildUserPayload(section)),
+    schemaName: 'section_rendering',
+    schema: SCHEMA,
+  });
+  return validateSectionResult(parsed, section);
 }
 
-// Cache key: everything that shapes the output, including the section map's content.
+// Cache key for every verse this pipeline renders: everything that shapes the
+// output, including the section map's content.
 function sectionRenderVersion({ model, reasoningEffort, map = sectionMap() }) {
-  return sha256([
-    PIPELINE_SECTION,
+  return renderVersion({
+    pipeline: PIPELINE_SECTION,
     model,
     reasoningEffort,
-    PROMPT_VERSION,
-    SYSTEM_PROMPT,
-    SCHEMA_VERSION,
-    map.version,
-    map.fingerprint,
-  ].join('\n'), 12);
+    systemPrompt: SYSTEM_PROMPT,
+    schema: SCHEMA,
+    task: TASK,
+    constraints: CONSTRAINTS,
+    sections: { version: map.version, fingerprint: map.fingerprint },
+  });
 }
 
 function createSectionPipeline({ apiUrl, apiKey, model, reasoningEffort, sectionTimeoutMs, fetchImpl }) {

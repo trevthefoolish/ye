@@ -45,14 +45,38 @@ async function postJson(url, body, { apiKey, timeoutMs, fetchImpl = fetch }) {
   }
 }
 
-// Structured output arrives as a JSON string inside the API envelope.
-function parseStructured(raw, what) {
-  if (typeof raw !== 'string') throw new RenderError(`unexpected ${what} response shape`);
+// The assistant's text in a Responses API result. Reasoning models also return
+// reasoning items, so the message is not necessarily output[0].
+function outputText(data) {
+  for (const item of data?.output || []) {
+    if (item?.type !== 'message') continue;
+    for (const content of item.content || []) {
+      if (content?.type === 'output_text' && typeof content.text === 'string') return content.text;
+    }
+  }
+  return null;
+}
+
+// One Responses API call with strict JSON-schema output; resolves the parsed
+// object. Nothing is stored server-side (store: false).
+async function requestStructured({ apiUrl, apiKey, model, reasoningEffort, systemPrompt, user, schemaName, schema, timeoutMs, fetchImpl }) {
+  const data = await postJson(apiUrl, {
+    model,
+    reasoning: { effort: reasoningEffort },
+    store: false,
+    input: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: user },
+    ],
+    text: { format: { type: 'json_schema', name: schemaName, strict: true, schema } },
+  }, { apiKey, timeoutMs, fetchImpl });
+  const raw = outputText(data);
+  if (typeof raw !== 'string') throw new RenderError('unexpected Responses API shape');
   try {
     return JSON.parse(raw);
   } catch {
-    throw new RenderError(`malformed JSON from ${what}`);
+    throw new RenderError('malformed JSON from Responses API');
   }
 }
 
-module.exports = { RenderError, parseStructured, postJson };
+module.exports = { RenderError, postJson, requestStructured };

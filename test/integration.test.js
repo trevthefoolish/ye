@@ -11,12 +11,13 @@ const { getJson, request, startMockXai, startServer, waitFor, waitForComplete } 
 const BOOKS = require('../data/bible.json').books;
 const bookFile = (app, book) => path.join(app.rendersDir, `${BOOKS.indexOf(book)}.json`);
 const readCache = (app, book) => JSON.parse(fs.readFileSync(bookFile(app, book), 'utf8'));
-const userRefs = mock => mock.payloads.map(p => p.messages.find(m => m.role === 'user').content);
-const sectionStarts = mock => mock.payloads.map(p => JSON.parse(p.input.find(m => m.role === 'user').content).section.startRef);
+const userContent = payload => payload.input.find(m => m.role === 'user').content;
+const userRefs = mock => mock.payloads.map(userContent);
+const sectionStarts = mock => mock.payloads.map(p => JSON.parse(userContent(p)).section.startRef);
 
 test('verse-v1 server', async t => {
   const mock = await startMockXai(t);
-  const app = await startServer(t, { XAI_API_URL: mock.chatUrl });
+  const app = await startServer(t, { XAI_API_URL: mock.url });
   const { version } = await getJson(app.port, '/api/version');
 
   await t.test('sends security headers, including HSTS in production', async () => {
@@ -33,8 +34,8 @@ test('verse-v1 server', async t => {
   await t.test('reports the render configuration', async () => {
     const info = await getJson(app.port, '/api/version');
     assert.deepEqual(info, {
-      version: 'c9b549050987',
-      model: 'grok-4.5',
+      version: '5155da19beec',
+      model: 'grok-4.7',
       reasoningEffort: 'low',
       renderPipeline: 'verse-v1',
       promptVersion: 'verse-v1',
@@ -158,11 +159,16 @@ test('verse-v1 server', async t => {
     }, { what: 'Jude cache file' });
     assert.equal(cache['0:24'].v, version);
 
-    const payload = mock.payloads.find(p => p.messages[1].content === 'Jude 1:1');
-    assert.equal(payload.model, 'grok-4.5');
-    assert.equal(payload.reasoning_effort, 'low');
+    const payload = mock.payloads.find(p => userContent(p) === 'Jude 1:1');
+    assert.equal(payload.model, 'grok-4.7');
+    assert.deepEqual(payload.reasoning, { effort: 'low' });
     assert.equal(payload.store, false);
-    assert.equal(payload.response_format.json_schema.name, 'verse_rendering');
+    assert.equal(payload.messages, undefined);
+    assert.equal(payload.input[0].role, 'system');
+    assert.deepEqual(
+      { type: payload.text.format.type, name: payload.text.format.name, strict: payload.text.format.strict },
+      { type: 'json_schema', name: 'verse_rendering', strict: true }
+    );
   });
 
   await t.test('complete chapters are cacheable with an ETag', async () => {
@@ -219,9 +225,32 @@ test('verse-v1 server', async t => {
   });
 });
 
+test('startup compacts an existing cache volume to the current render version', async t => {
+  const { tempDir } = require('./helpers');
+  const { verseRenderVersion } = require('../src/render/verse-v1');
+  const { loadConfig } = require('../src/config');
+  const { model, reasoningEffort } = loadConfig({}).render;
+  const current = verseRenderVersion({ model, reasoningEffort });
+  const volume = tempDir(t);
+  fs.writeFileSync(path.join(volume, '7.json'), JSON.stringify({
+    '0:0': { rendering: 'From an older model', note: 'Old', v: 'older-version', t: 1 },
+    '0:1': { rendering: 'Current verse', note: 'Current', v: current, t: 1 },
+  }));
+  const mock = await startMockXai(t);
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDERS_DIR: volume });
+  const prepared = await app.waitForLog('render_cache_prepared');
+  assert.equal(prepared.dropped, 1);
+  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(volume, '7.json'), 'utf8'))), ['0:1']);
+  const ruth = await getJson(app.port, '/api/chapter/ruth/1?render=0');
+  assert.equal(ruth.verses[0], null);
+  assert.equal(ruth.verses[1].rendering, 'Current verse');
+  // A cold page's description never falls back to an older model's text.
+  assert.match((await request(app.port, '/ruth/1')).body, /<meta name="description" content="Current verse">/);
+});
+
 test('upstream render concurrency is capped globally', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.chatUrl, RENDER_CONCURRENCY: '2', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '2', SEED_RENDER_CACHE: '0' });
   const paths = ['2-john', '3-john', 'jude', 'philemon'].map(book => `/api/chapter/${book}/1`);
   for (const data of await Promise.all(paths.map(p => getJson(app.port, p)))) assert.equal(data.complete, false);
   await Promise.all(paths.map(p => waitForComplete(app.port, p)));
@@ -230,7 +259,7 @@ test('upstream render concurrency is capped globally', async t => {
 
 test('verse-v1: foreground chapters render before background prefetches', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.chatUrl, RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
 
   assert.equal((await getJson(app.port, '/api/chapter/2-john/1?priority=background')).renderPriority, 'background');
   assert.equal((await getJson(app.port, '/api/chapter/3-john/1')).renderPriority, 'foreground');
@@ -244,7 +273,7 @@ test('verse-v1: foreground chapters render before background prefetches', async 
 
 test('verse-v1: the chapter requested most recently renders first', async t => {
   const mock = await startMockXai(t, { delayMs: 20 });
-  const app = await startServer(t, { XAI_API_URL: mock.chatUrl, RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
   await getJson(app.port, '/api/chapter/ruth/1');
   await getJson(app.port, '/api/chapter/jude/1');
   await waitForComplete(app.port, '/api/chapter/jude/1');
@@ -258,10 +287,10 @@ test('verse-v1: the chapter requested most recently renders first', async t => {
 
 test('section-v2 renders whole sections through the Responses API', async t => {
   const mock = await startMockXai(t, { delayMs: 5 });
-  const app = await startServer(t, { XAI_API_URL: mock.responsesUrl, RENDER_PIPELINE: 'section-v2', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', SEED_RENDER_CACHE: '0' });
 
   const info = await getJson(app.port, '/api/version');
-  assert.equal(info.version, 'd3fafd000992');
+  assert.equal(info.version, 'e226a3b91a43');
   assert.equal(info.renderPipeline, 'section-v2');
   assert.equal(info.promptVersion, 'margin-note-v3');
   assert.equal(info.schemaVersion, 'section-render-v1');
@@ -273,7 +302,7 @@ test('section-v2 renders whole sections through the Responses API', async t => {
   assert.deepEqual(complete.verses[0], { rendering: 'Rendered Genesis 1:1', note: 'Margin Genesis 1:1' });
 
   const payload = mock.payloads[0];
-  assert.equal(payload.model, 'grok-4.5');
+  assert.equal(payload.model, 'grok-4.7');
   assert.equal(payload.store, false);
   assert.deepEqual(payload.reasoning, { effort: 'low' });
   assert.equal(payload.messages, undefined);
@@ -291,12 +320,12 @@ test('section-v2 renders whole sections through the Responses API', async t => {
   const cache = await waitFor(() => {
     try { const c = readCache(app, 'Genesis'); return c['1:2'] && c; } catch { return null; }
   }, { what: 'Genesis cache file' });
-  assert.deepEqual(cache['1:2'], { ...cache['1:2'], rendering: 'Rendered Genesis 2:3', noteKind: 'literary', christConnection: 'none', v: 'd3fafd000992' });
+  assert.deepEqual(cache['1:2'], { ...cache['1:2'], rendering: 'Rendered Genesis 2:3', noteKind: 'literary', christConnection: 'none', v: 'e226a3b91a43' });
 });
 
 test('section-v2 renders a section shared by two chapters once', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.responsesUrl, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '4', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '4', SEED_RENDER_CACHE: '0' });
   await Promise.all([getJson(app.port, '/api/chapter/genesis/1'), getJson(app.port, '/api/chapter/genesis/2')]);
   await Promise.all([waitForComplete(app.port, '/api/chapter/genesis/1'), waitForComplete(app.port, '/api/chapter/genesis/2')]);
   assert.equal(sectionStarts(mock).filter(ref => ref === 'Genesis 1:1').length, 1);
@@ -304,7 +333,7 @@ test('section-v2 renders a section shared by two chapters once', async t => {
 
 test('section-v2: foreground chapters render before background prefetches', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.responsesUrl, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
   await getJson(app.port, '/api/chapter/2-john/1?priority=background');
   await getJson(app.port, '/api/chapter/3-john/1');
   await waitForComplete(app.port, '/api/chapter/3-john/1');
@@ -318,13 +347,13 @@ test('upstream client errors are not retried; server errors are', async t => {
   let calls = 0;
   const mock = await startMockXai(t, {
     respond: payload => {
-      const ref = payload.messages[1].content;
+      const ref = userContent(payload);
       if (ref === 'Jude 1:1') return { status: 400, body: { error: { message: 'bad model' } } };
       if (ref === 'Jude 1:2' && calls++ === 0) return { status: 503, body: {} };
       return null;
     },
   });
-  const app = await startServer(t, { XAI_API_URL: mock.chatUrl, SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, SEED_RENDER_CACHE: '0' });
   await getJson(app.port, '/api/chapter/jude/1');
   const finished = await waitFor(() => app.logs('chapter_render_finished')[0], { timeoutMs: 8000, what: 'render finish' });
   assert.equal(finished.failed, 1);

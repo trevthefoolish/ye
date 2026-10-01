@@ -101,7 +101,7 @@ test('eval runs use the Responses API and never write the render cache', async t
     const dir = path.join(reportsDir, evalSet);
     await promisify(execFile)(process.execPath, ['scripts/eval-renderer-v2.js'], {
       cwd: ROOT,
-      env: { ...process.env, XAI_API_KEY: 'test-key', XAI_API_URL: mock.responsesUrl, EVAL_SET: evalSet, EVAL_REPORTS_DIR: dir, EVAL_GATE: '1' },
+      env: { ...process.env, XAI_API_KEY: 'test-key', XAI_API_URL: mock.url, EVAL_SET: evalSet, EVAL_REPORTS_DIR: dir, EVAL_GATE: '1' },
     });
     const [jsonFile] = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
     const report = JSON.parse(fs.readFileSync(path.join(dir, jsonFile), 'utf8'));

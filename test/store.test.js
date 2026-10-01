@@ -18,37 +18,34 @@ function newStore(t, version = 'v-current') {
   return { dir, log, store: new RenderStore({ dir, version, log }) };
 }
 
-test('mergeSeed adds current entries and replaces stale or changed ones', () => {
+test('mergeSeed keeps only the current version and folds in current seed entries', () => {
   const merged = mergeSeed({
     '0:0': { rendering: 'Current', note: 'Note', v: 'current', t: 2 },
     '0:1': { rendering: 'New', note: 'Note', v: 'current', t: 2 },
     '0:2': { rendering: 'Corrected', note: 'Note', v: 'current', t: 2 },
+    '0:3': { rendering: 'Stale seed', note: 'Note', v: 'stale', t: 2 },
+    '0:4': { rendering: 'Missing note', v: 'current', t: 2 },
   }, {
     '0:0': { rendering: 'Old', note: 'Old', v: 'stale', t: 1 },
     '0:2': { rendering: 'Original', note: 'Note', v: 'current', t: 1 },
+    '0:5': { rendering: 'Live only', note: 'Keep', v: 'current', t: 1 },
+    '0:6': { rendering: 'Live but stale', note: 'Drop', v: 'stale', t: 1 },
+    junk: { rendering: 'Bad key', note: 'Drop', v: 'current', t: 1 },
   }, 'current');
   assert.equal(merged.changed, true);
-  assert.equal(merged.added, 1);
-  assert.equal(merged.replaced, 2);
+  assert.deepEqual(
+    { added: merged.added, replaced: merged.replaced, dropped: merged.dropped, skippedStale: merged.skippedStale, skippedMalformed: merged.skippedMalformed },
+    { added: 2, replaced: 1, dropped: 3, skippedStale: 1, skippedMalformed: 1 }
+  );
+  assert.deepEqual(Object.keys(merged.cache).sort(), ['0:0', '0:1', '0:2', '0:5']);
   assert.equal(merged.cache['0:0'].rendering, 'Current');
   assert.equal(merged.cache['0:2'].rendering, 'Corrected');
 });
 
-test('mergeSeed skips stale and malformed seed entries and keeps live-only entries', () => {
-  const dest = { '0:1': { rendering: 'Live only', note: 'Keep', v: 'old', t: 1 } };
-  const merged = mergeSeed({
-    '0:0': { rendering: 'Stale', note: 'Stale', v: 'stale', t: 2 },
-    '0:2': { rendering: 'Missing note', v: 'current', t: 2 },
-  }, dest, 'current');
-  assert.equal(merged.changed, false);
-  assert.equal(merged.skippedStale, 1);
-  assert.equal(merged.skippedMalformed, 1);
-  assert.deepEqual(merged.cache, dest);
-});
-
-test('mergeSeed leaves identical entries alone and counts a corrupt destination as replaced', () => {
+test('mergeSeed leaves an already-current file alone and counts a corrupt destination as replaced', () => {
   const same = { '0:0': { rendering: 'Same', note: 'Same', v: 'current', t: 1 } };
   assert.equal(mergeSeed(same, structuredClone(same), 'current').changed, false);
+  assert.equal(mergeSeed({}, structuredClone(same), 'current').changed, false);
   const recovered = mergeSeed(same, {}, 'current', { destCorrupt: true });
   assert.equal(recovered.added, 0);
   assert.equal(recovered.replaced, 1);
@@ -67,7 +64,17 @@ test('chapter() serves only current-version entries and lists missing verses 1-b
   assert.equal(missing.length, 21);
   assert.deepEqual(missing.slice(0, 3), [1, 3, 4]);
   assert.equal(store.has({ bookIndex: 7, chapter: 1, verse: 2 }), true);
-  assert.equal(store.anyRendering({ bookIndex: 7, chapter: 1, verse: 1 }), 'Old');
+  assert.equal(store.has({ bookIndex: 7, chapter: 1, verse: 1 }), false);
+});
+
+test('entries from another version are gone from the file after the next write', async t => {
+  const { dir, store } = newStore(t);
+  fs.writeFileSync(path.join(dir, '7.json'), JSON.stringify({
+    '0:0': { rendering: 'Old', note: 'Old', v: 'v-old', t: 1 },
+    '3:0': { rendering: 'Old', note: 'Old', v: 'v-old', t: 1 },
+  }));
+  await store.put([entry(2)]);
+  assert.deepEqual(Object.keys(readBook(dir, 7)), ['0:1']);
 });
 
 test('put() is visible at once and persists only known fields with 0-based keys', async t => {
@@ -104,17 +111,25 @@ test('an unparseable cache file is moved aside instead of being overwritten', as
   assert.ok(log.entries.some(e => e.event === 'render_cache_corrupt'));
 });
 
-test('seedFrom() merges current-version seed entries into the live directory', async t => {
+test('prepare() compacts the cache to the current version and folds in the seed', async t => {
   const seedDir = tempDir(t);
   fs.writeFileSync(path.join(seedDir, '7.json'), JSON.stringify({
     '0:0': { rendering: 'Seeded', note: 'Seeded', v: 'v-current', t: 1 },
-    '0:1': { rendering: 'Stale', note: 'Stale', v: 'v-old', t: 1 },
+    '0:1': { rendering: 'Stale seed', note: 'Stale', v: 'v-old', t: 1 },
   }));
   fs.writeFileSync(path.join(seedDir, 'notes.txt'), 'ignored');
   const { dir, log, store } = newStore(t);
-  const totals = store.seedFrom(seedDir);
-  assert.deepEqual(totals, { files: 1, added: 1, replaced: 0, skippedStale: 1, skippedMalformed: 0 });
+  fs.writeFileSync(path.join(dir, '0.json'), JSON.stringify({ '0:0': { rendering: 'Old', note: 'Old', v: 'v-old', t: 1 } }));
+  fs.writeFileSync(path.join(dir, '1.json'), JSON.stringify({ '0:0': { rendering: 'Live', note: 'Live', v: 'v-current', t: 1 } }));
+  fs.writeFileSync(path.join(dir, '7.json.123.abc.tmp'), 'partial write');
+
+  const totals = store.prepare(seedDir);
+  assert.deepEqual(totals, { files: 2, added: 1, replaced: 0, dropped: 1, skippedStale: 1, skippedMalformed: 0 });
+  assert.deepEqual(readBook(dir, 0), {});
+  assert.equal(readBook(dir, 1)['0:0'].rendering, 'Live');
   assert.equal(readBook(dir, 7)['0:0'].rendering, 'Seeded');
-  assert.ok(log.entries.some(e => e.event === 'render_cache_seeded'));
-  assert.deepEqual(store.seedFrom(seedDir).files, 0);
+  assert.ok(!fs.readdirSync(dir).some(f => f.endsWith('.tmp')));
+  assert.ok(log.entries.some(e => e.event === 'render_cache_prepared' && e.dropped === 1));
+  assert.equal(store.prepare(seedDir).files, 0);
+  assert.equal(store.prepare(null).files, 0);
 });

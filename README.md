@@ -13,7 +13,7 @@ It's designed for deep, repeated reading. The kind that reveals its meaning over
 
 ## How it works
 
-Each verse is rendered on demand by [Grok](https://x.ai) (Grok 4.5 by default, overridable via `RENDER_MODEL`) through a theological framework built on seven lenses:
+Each verse is rendered on demand by [Grok](https://x.ai) (Grok 4.7 by default, overridable via `RENDER_MODEL`) through a theological framework built on seven lenses:
 
 - **Messianic** — every narrative thread contributes to the story that finds fulfillment in Jesus
 - **Communal** — the Bible addresses communities and peoples, not just isolated individuals
@@ -27,10 +27,10 @@ Notes follow a simple rule: a Christian reader with good taste penciling sharp o
 
 A chapter request returns whatever is already rendered and queues the rest; the reader polls and verses appear as they finish. Nothing renders ahead of demand: only chapters someone opens (and their neighbours, prefetched at lower priority) are sent to the model.
 
-There are two render pipelines:
+There are two render pipelines, both on xAI's Responses API with strict JSON-schema output and `store: false`:
 
-- **`verse-v1`** (production default) — one Chat Completions call per verse, given only the reference.
-- **`section-v2`** (opt-in, `RENDER_PIPELINE=section-v2`) — one Responses API call per pericope section from `data/sections.json`, so notes can see their context. Sections may cross chapters; one call fills every chapter it touches. Still eval-only: see [Renderer v2 evals](#renderer-v2-evals).
+- **`verse-v1`** (production default) — one call per verse, given only the reference.
+- **`section-v2`** (opt-in, `RENDER_PIPELINE=section-v2`) — one call per pericope section from `data/sections.json`, so notes can see their context. Sections may cross chapters; one call fills every chapter it touches. Still eval-only: see [Renderer v2 evals](#renderer-v2-evals).
 
 ## Core values
 
@@ -71,29 +71,27 @@ npm test        # unit and end-to-end tests (no network; xAI is mocked)
 | `PORT` | `3000` | Listen port (`0` picks a free one) |
 | `NODE_ENV` | | `production` enables HSTS, secure cookies, and quieter logs |
 | `RENDER_PIPELINE` | `verse-v1` | `section-v2` opts into the section renderer |
-| `RENDER_MODEL` | `grok-4.5` | Model for both pipelines |
-| `RENDER_REASONING_EFFORT` | `low` | Grok 4.5 accepts `low`, `medium`, `high` |
+| `RENDER_MODEL` | `grok-4.7` | Model for both pipelines |
+| `RENDER_REASONING_EFFORT` | `low` | Grok 4.7 accepts `low`, `medium`, `high`, `xhigh`; reasoning can't be turned off, and its tokens bill as output |
 | `RENDER_CONCURRENCY` | `8` | Max concurrent upstream render calls |
 | `RENDER_SECTION_TIMEOUT_MS` | `90000` | Per-call timeout for `section-v2` (`verse-v1` uses 30 s) |
-| `XAI_API_URL` | per pipeline | Override the xAI endpoint (tests point it at a mock) |
+| `XAI_API_URL` | `https://api.x.ai/v1/responses` | Override the xAI endpoint (tests point it at a mock) |
 | `RENDERS_DIR` | `./renders` | Render cache directory |
-| `SEED_RENDER_CACHE` | on | `0` skips seeding `RENDERS_DIR` from `renders/` at startup |
+| `SEED_RENDER_CACHE` | on | `0` skips merging the committed `renders/` into `RENDERS_DIR` at startup |
 | `LOG_DIR` | `./logs` | JSONL log directory |
 | `LOG_LEVEL` | | `debug` keeps debug lines in production |
 | `ANALYTICS_SALT` | | Hardens the daily anonymous analytics id |
 
 ## The render cache
 
-Renders are stored as one JSON file per book, keyed by `chapterIndex:verseIndex` (0-based), and every entry is stamped with the **render version** that produced it. Only entries matching the running version are served; anything else is treated as missing and re-rendered on demand. Nothing is ever deleted, so rolling back a model or prompt change brings its renders straight back.
+Renders are stored as one JSON file per book, keyed by `chapterIndex:verseIndex` (0-based), and every entry is stamped with the **render version** that produced it: a hash of everything that shapes the output.
 
-The render version is a hash of everything that shapes the output:
+- `verse-v1`: model, reasoning effort, prompt (`prompts/verse-v1.md`), and response schema.
+- `section-v2`: the same, plus the request's fixed task and constraints and the section map's version and content fingerprint.
 
-- `verse-v1`: model + prompt (`prompts/verse-v1.md`). Reasoning effort is *not* included.
-- `section-v2`: model, reasoning effort, prompt (`prompts/margin-note-v3.md`), schema version, and the section map's version and content fingerprint.
+The cache only ever holds the current version. Entries from any other version are dropped when their book is loaded, and at startup an external cache directory (the production volume) is compacted before serving. So changing the model, effort, prompt, or schema is a fresh start: the Bible re-renders on demand as people read it, at one API call per verse (or section). To try a different configuration without losing the current cache, point `RENDERS_DIR` at a separate directory. `test/render-version.test.js` pins the current versions so a refactor can't trigger this by accident; when a change is meant to, update the pin and say so in the PR. `/api/version` reports the running version.
 
-Changing any of those re-renders the whole Bible as people read it, at one API call per verse (or section). `test/render-version.test.js` pins the current versions so that a refactor can't do this by accident. If a change is meant to re-render, update the pin and say so in the PR.
-
-The committed `renders/` directory seeds the cache volume at startup: entries matching the running version are merged in, and live-only entries are kept. Most of it was produced by `grok-4.20-0309-non-reasoning` (`ff54612cf1f0`), so under the Grok 4.5 default it is historical reference until refreshed. `/api/version` reports the running version. To pull production renders back into the repository for review:
+The committed `renders/` directory is a reviewed copy of production's cache. At startup its current-version entries are merged into an external cache directory (unless `SEED_RENDER_CACHE=0`); the server never writes to it. To mirror production's renders into it for review:
 
 ```
 ./scripts/sync-railway-renders.sh
@@ -111,13 +109,6 @@ LOG_DIR=/data/logs
 ```
 
 Mount a Railway volume at `/data` so the render cache and logs survive deploys. On `SIGTERM` the server stops accepting connections and lets pending cache writes land before exiting.
-
-Upgrading the model rotates the render version. To keep serving an existing Grok 4.3 cache instead, pin the previous behaviour:
-
-```
-RENDER_MODEL=grok-4.3
-RENDER_REASONING_EFFORT=none
-```
 
 ## Renderer v2 evals
 
@@ -153,7 +144,7 @@ src/
   text.js                 cleanText (house style), HTML/JSON escaping, small helpers
   log.js                  JSONL logging with retention
   render/
-    store.js              Render cache: version-stamped per-book JSON files, seeding
+    store.js              Render cache: per-book JSON files holding the current version only
     scheduler.js          Bounded upstream pool: dedupe, priority, recency, retries
     renderer.js           Chapter requests -> work units -> cache, with timing logs
     xai.js                xAI HTTP client and error classification
@@ -176,7 +167,7 @@ data/
   bible.json              66 books with per-chapter verse counts
   sections.json           Section map for section-v2
   eval-scenarios.json     Eval-only scenario metadata
-renders/                  Committed seed for the render cache
+renders/                  Reviewed copy of production's render cache (seed)
 scripts/                  check, section generation, v2 eval, Railway render sync
 test/                     node:test suites
 ```

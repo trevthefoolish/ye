@@ -46,9 +46,10 @@ function request(port, pathname, { method = 'GET', headers = {}, body } = {}) {
 
 const getJson = async (port, pathname) => JSON.parse((await request(port, pathname)).body);
 
-// Answers Chat Completions (verse-v1) and Responses (section-v2) requests
-// with deterministic text. `respond(payload)` may return { status, body } to
-// override the reply.
+// Answers Responses API requests for both pipelines with deterministic text:
+// a plain reference (verse-v1) or a JSON section payload (section-v2). Like
+// grok-4.7, it puts a reasoning item before the message. `respond(payload)`
+// may return { status, body } to override the reply.
 function startMockXai(t, { delayMs = 0, respond } = {}) {
   const payloads = [];
   let active = 0;
@@ -69,23 +70,16 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
         res.statusCode = override.status || 200;
         return res.end(JSON.stringify(override.body));
       }
-      if (payload.messages) {
-        const ref = payload.messages.find(m => m.role === 'user').content;
-        return res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ rendering: `Rendered ${ref}`, note: `Note for ${ref}` }) } }] }));
-      }
-      const user = JSON.parse(payload.input.find(m => m.role === 'user').content);
+      const user = payload.input.find(m => m.role === 'user').content;
+      const reply = user.startsWith('{')
+        ? { verses: JSON.parse(user).targetReferences.map(ref => ({ ref, rendering: `Rendered ${ref}`, note: `Margin ${ref}`, noteKind: 'literary', christConnection: 'none' })) }
+        : { rendering: `Rendered ${user}`, note: `Note for ${user}` };
       res.end(JSON.stringify({
         id: 'resp_test',
-        output: [{
-          type: 'message',
-          role: 'assistant',
-          content: [{
-            type: 'output_text',
-            text: JSON.stringify({
-              verses: user.targetReferences.map(ref => ({ ref, rendering: `Rendered ${ref}`, note: `Margin ${ref}`, noteKind: 'literary', christConnection: 'none' })),
-            }),
-          }],
-        }],
+        output: [
+          { type: 'reasoning', id: 'rs_test', summary: [], encrypted_content: 'opaque' },
+          { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(reply) }] },
+        ],
       }));
     });
   });
@@ -94,8 +88,7 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
       t.after(() => server.close());
       const base = `http://127.0.0.1:${server.address().port}`;
       resolve({
-        chatUrl: `${base}/v1/chat/completions`,
-        responsesUrl: `${base}/v1/responses`,
+        url: `${base}/v1/responses`,
         payloads,
         get calls() { return payloads.length; },
         get maxActive() { return maxActive; },
