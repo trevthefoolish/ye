@@ -30,10 +30,10 @@ function verseRenderVersion({ model, reasoningEffort }) {
 }
 
 function createVersePipeline({ apiUrl, apiKey, model, reasoningEffort, verseTimeoutMs, log, fetchImpl }) {
-  async function renderVerse(book, chapter, verse) {
+  async function renderVerse(book, chapter, verse, usage) {
     const ref = formatRef(book, chapter, verse);
     const parsed = await requestStructured({
-      apiUrl, apiKey, model, reasoningEffort, fetchImpl,
+      apiUrl, apiKey, model, reasoningEffort, fetchImpl, usage,
       systemPrompt: SYSTEM_PROMPT,
       user: ref,
       schemaName: 'verse_rendering',
@@ -64,8 +64,8 @@ function createVersePipeline({ apiUrl, apiKey, model, reasoningEffort, verseTime
         key: `verse:${bookIndex}:${chapter}:${verse}`,
         refs: [{ bookIndex, chapter, verse }],
         logFields: { book, ch: chapter, verse },
-        async render() {
-          return [{ bookIndex, chapter, verse, ...await renderVerse(book, chapter, verse) }];
+        async render(usage) {
+          return [{ bookIndex, chapter, verse, ...await renderVerse(book, chapter, verse, usage) }];
         },
       }));
     },

@@ -25,6 +25,13 @@ test('on Railway, renders and logs live on the attached volume with no other set
   assert.equal(config.render.model, 'grok-4.7');
 });
 
+test('render timeouts leave headroom for grok-4.7 reasoning latency', () => {
+  // Production saw ~20 s per verse on average and a quarter of calls past 30 s.
+  const { render } = loadConfig({});
+  assert.equal(render.verseTimeoutMs, 90_000);
+  assert.equal(render.sectionTimeoutMs, 90_000);
+});
+
 test('explicit RENDERS_DIR and LOG_DIR still win over the volume', () => {
   const config = loadConfig({ RAILWAY_VOLUME_MOUNT_PATH: '/data', RENDERS_DIR: '/data/renders-v2', LOG_DIR: '/var/log/ye' });
   assert.equal(config.cache.dir, '/data/renders-v2');

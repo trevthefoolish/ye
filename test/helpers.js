@@ -93,6 +93,13 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
           { type: 'reasoning', id: 'rs_test', summary: [], encrypted_content: 'opaque' },
           { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(reply) }] },
         ],
+        usage: {
+          input_tokens: 700,
+          input_tokens_details: { cached_tokens: 600 },
+          output_tokens: 300,
+          output_tokens_details: { reasoning_tokens: 250 },
+          total_tokens: 1000,
+        },
       }));
     });
   });

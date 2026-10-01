@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { memoryLogger } = require('../src/log');
-const { postJson, requestStructured } = require('../src/render/xai');
+const { emptyUsage, postJson, requestStructured } = require('../src/render/xai');
 const { createVersePipeline } = require('../src/render/verse-v1');
 
 const reply = (status, body) => async () => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status });
@@ -50,9 +50,17 @@ test('requestStructured sends a strict-schema Responses request and parses the m
     text: { format: { type: 'json_schema', name: 'verse_rendering', strict: true, schema: { type: 'object' } } },
   });
 
-  const call = body => requestStructured({ apiUrl: 'x', apiKey: 'k', timeoutMs: 1000, fetchImpl: async () => new Response(JSON.stringify(body)) });
+  const call = (body, usage) => requestStructured({ apiUrl: 'x', apiKey: 'k', timeoutMs: 1000, usage, fetchImpl: async () => new Response(JSON.stringify(body)) });
   await assert.rejects(call({ output: [{ type: 'reasoning' }] }), /unexpected Responses API shape/);
   await assert.rejects(call(responsesBody('not json')), /malformed JSON/);
+
+  // Token counts add up across calls, including a billed call whose output is unusable.
+  const usage = emptyUsage();
+  const billed = { input_tokens: 700, input_tokens_details: { cached_tokens: 600 }, output_tokens: 300, output_tokens_details: { reasoning_tokens: 250 } };
+  await call({ ...responsesBody('{}'), usage: billed }, usage);
+  await assert.rejects(call({ ...responsesBody('not json'), usage: billed }, usage));
+  await call(responsesBody('{}'), usage); // no usage reported
+  assert.deepEqual(usage, { inputTokens: 1400, cachedTokens: 1200, outputTokens: 600, reasoningTokens: 500 });
 });
 
 test('verse-v1 sends the reference, cleans the text, and flags long notes', async () => {

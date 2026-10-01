@@ -13,6 +13,7 @@
 // for the chapter plans them again.
 
 const { createScheduler, FOREGROUND, BACKGROUND } = require('./scheduler');
+const { emptyUsage } = require('./xai');
 
 function summarize(values) {
   const nums = values.filter(n => typeof n === 'number' && Number.isFinite(n));
@@ -57,17 +58,17 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
 
   // Runs inside a scheduler slot. Skips the API call if another unit already
   // filled every ref between planning and now.
-  async function runUnit(unit) {
+  async function runUnit(unit, usage) {
     if (unit.refs.every(ref => store.has(ref))) return [];
-    const entries = await unit.render();
+    const entries = await unit.render(usage);
     store.put(entries);
     return entries;
   }
 
   // Sections can be shared by two chapters' jobs; only the submission that
-  // created a unit logs its failure.
-  function submitUnits(units, priority) {
-    const submitted = scheduler.submit(units.map(unit => ({ key: unit.key, task: () => runUnit(unit), meta: unit })), priority);
+  // created a unit logs its failure and counts its tokens.
+  function submitUnits(units, priority, usage) {
+    const submitted = scheduler.submit(units.map(unit => ({ key: unit.key, task: () => runUnit(unit, usage), meta: unit })), priority);
     return submitted.map(({ status, promise }, i) => {
       if (status === 'started') {
         promise.catch(err => log.warn(`${pipeline.unit}_render_failed`, { ...units[i].logFields, reason: err.message, ...err.timing }));
@@ -89,7 +90,8 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
       renderPipeline: pipeline.name,
       units: units.length,
     });
-    const results = await Promise.allSettled(submitUnits(units, job.priority));
+    const usage = emptyUsage();
+    const results = await Promise.allSettled(submitUnits(units, job.priority, usage));
     let rendered = 0;
     let failed = 0;
     const timings = results.map((result, i) => {
@@ -110,6 +112,7 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
       renderPipeline: pipeline.name,
       units: units.length,
       ...timingSummary(timings, pipeline.unit),
+      ...usage,
     });
   }
 
