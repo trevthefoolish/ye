@@ -47,7 +47,10 @@ function loadConfig(env = process.env) {
       // reasoning tokens bill as output, so it is also the cheapest.
       reasoningEffort: setting(env.RENDER_REASONING_EFFORT, 'low'),
       concurrency: parsePositiveInt(env.RENDER_CONCURRENCY, 8),
-      verseTimeoutMs: 30_000,
+      // grok-4.7 reasons even at low effort: in production a single verse
+      // averaged ~20 s and a quarter of calls ran past 30 s. A timeout cuts off
+      // (and re-bills) a call that would have succeeded, so leave headroom.
+      verseTimeoutMs: 90_000,
       sectionTimeoutMs: parsePositiveInt(env.RENDER_SECTION_TIMEOUT_MS, 90_000),
       retries: 2,
       retryBaseMs: 1_000,

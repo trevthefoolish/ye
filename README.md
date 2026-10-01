@@ -74,7 +74,7 @@ npm test        # unit and end-to-end tests (no network; xAI is mocked)
 | `RENDER_MODEL` | `grok-4.7` | Model for both pipelines |
 | `RENDER_REASONING_EFFORT` | `low` | Grok 4.7 accepts `low`, `medium`, `high`, `xhigh`; reasoning can't be turned off, and its tokens bill as output |
 | `RENDER_CONCURRENCY` | `8` | Max concurrent upstream render calls |
-| `RENDER_SECTION_TIMEOUT_MS` | `90000` | Per-call timeout for `section-v2` (`verse-v1` uses 30 s) |
+| `RENDER_SECTION_TIMEOUT_MS` | `90000` | Per-call timeout for `section-v2` (`verse-v1` uses 90 s) |
 | `XAI_API_URL` | `https://api.x.ai/v1/responses` | Override the xAI endpoint (tests point it at a mock) |
 | `RENDERS_DIR` | `<volume>/renders` on Railway, else `./.cache/renders` (gitignored) | Render cache root; each render version gets its own subdirectory |
 | `SEED_RENDER_CACHE` | on | `0` skips merging the committed `renders/<version>/` into the cache at startup |
