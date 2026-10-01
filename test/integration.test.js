@@ -19,7 +19,7 @@ const userContent = payload => payload.input.find(m => m.role === 'user').conten
 const userRefs = mock => mock.payloads.map(userContent);
 const sectionStarts = mock => mock.payloads.map(p => JSON.parse(userContent(p)).section.startRef);
 
-test('verse-v1 server', async t => {
+test('server (passage-v1)', async t => {
   const mock = await startMockXai(t);
   const app = await startServer(t, { XAI_API_URL: mock.url });
   const { version } = await getJson(app.port, '/api/version');
@@ -38,12 +38,12 @@ test('verse-v1 server', async t => {
   await t.test('reports the render configuration', async () => {
     const info = await getJson(app.port, '/api/version');
     assert.deepEqual(info, {
-      version: '5155da19beec',
+      version: 'cbb178136416',
       model: 'grok-4.7',
       reasoningEffort: 'low',
-      renderPipeline: 'verse-v1',
-      promptVersion: 'verse-v1',
-      schemaVersion: 'verse-v1',
+      renderPipeline: 'passage-v1',
+      promptVersion: 'passage-v1',
+      schemaVersion: 'passage-v1',
       sectionVersion: null,
       appVersion: '0.0.1',
     });
@@ -162,15 +162,18 @@ test('verse-v1 server', async t => {
     }, { what: 'Jude cache file' });
     assert.equal(cache['0:24'].v, version);
 
-    const payload = mock.payloads.find(p => userContent(p) === 'Jude 1:1');
+    // Jude's 25 verses go out as three passages, each a single call.
+    assert.deepEqual(userRefs(mock).filter(ref => ref.startsWith('Jude')).sort(), ['Jude 1:1-9', 'Jude 1:10-17', 'Jude 1:18-25']);
+    const payload = mock.payloads.find(p => userContent(p) === 'Jude 1:1-9');
     assert.equal(payload.model, 'grok-4.7');
     assert.deepEqual(payload.reasoning, { effort: 'low' });
     assert.equal(payload.store, false);
     assert.equal(payload.messages, undefined);
     assert.equal(payload.input[0].role, 'system');
+    assert.equal(payload.input[0].content, fs.readFileSync(path.join(__dirname, '..', 'prompts', 'passage-v1.md'), 'utf8').trim());
     assert.deepEqual(
       { type: payload.text.format.type, name: payload.text.format.name, strict: payload.text.format.strict },
-      { type: 'json_schema', name: 'verse_rendering', strict: true }
+      { type: 'json_schema', name: 'passage_rendering', strict: true }
     );
   });
 
@@ -210,18 +213,18 @@ test('verse-v1 server', async t => {
     const started = await app.waitForLog('chapter_render_started', e => e.book === 'Jude');
     assert.deepEqual(
       { ch: started.ch, missing: started.missing, priority: started.priority, renderConcurrency: started.renderConcurrency, units: started.units },
-      { ch: 1, missing: 25, priority: 'foreground', renderConcurrency: 32, units: 25 }
+      { ch: 1, missing: 25, priority: 'foreground', renderConcurrency: 32, units: 3 }
     );
     const finished = await app.waitForLog('chapter_render_finished', e => e.book === 'Jude');
     assert.equal(finished.rendered, 25);
     assert.equal(finished.failed, 0);
-    for (const key of ['durationMs', 'avgVerseMs', 'p95VerseMs', 'maxVerseMs', 'avgQueueMs', 'avgApiMs', 'maxApiMs']) {
+    for (const key of ['durationMs', 'avgPassageMs', 'p95PassageMs', 'maxPassageMs', 'avgQueueMs', 'avgApiMs', 'maxApiMs']) {
       assert.equal(typeof finished[key], 'number', key);
     }
-    // 25 calls' worth of the mock's per-call usage.
+    // Three calls' worth of the mock's per-call usage.
     assert.deepEqual(
       { inputTokens: finished.inputTokens, cachedTokens: finished.cachedTokens, outputTokens: finished.outputTokens, reasoningTokens: finished.reasoningTokens },
-      { inputTokens: 25 * 700, cachedTokens: 25 * 600, outputTokens: 25 * 300, reasoningTokens: 25 * 250 }
+      { inputTokens: 3 * 700, cachedTokens: 3 * 600, outputTokens: 3 * 300, reasoningTokens: 3 * 250 }
     );
   });
 
@@ -235,9 +238,9 @@ test('verse-v1 server', async t => {
 
 test('startup removes the pre-4.7 cache layout once and leaves other render versions alone', async t => {
   const { tempDir } = require('./helpers');
-  const { verseRenderVersion } = require('../src/render/verse-v1');
+  const { createPipeline } = require('../src/render/pipelines');
   const { loadConfig } = require('../src/config');
-  const current = verseRenderVersion(loadConfig({}).render);
+  const current = createPipeline(loadConfig({}).render).version;
   const other = '0123456789ab';
   const volume = tempDir(t);
   // Ruth 2:1 ("1:0") exists in the legacy file, in another version's
@@ -289,7 +292,7 @@ test('on Railway, only XAI_API_KEY is needed: the volume gets renders and logs, 
   const mock = await startMockXai(t);
   const app = await startServer(t, { XAI_API_URL: mock.url, RAILWAY_VOLUME_MOUNT_PATH: volume, RENDERS_DIR: '', LOG_DIR: '' });
   const info = await getJson(app.port, '/api/version');
-  assert.equal(info.renderPipeline, 'verse-v1');
+  assert.equal(info.renderPipeline, 'passage-v1');
   assert.equal(info.model, 'grok-4.7');
   const prepared = await app.waitForLog('render_cache_prepared');
   assert.equal(prepared.legacyRemoved, 1);
@@ -314,7 +317,8 @@ test('upstream render concurrency is capped globally', async t => {
 
 test('verse-v1: foreground chapters render before background prefetches', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'verse-v1', RENDER_CONCURRENCY: '1' });
+  assert.equal((await getJson(app.port, '/api/version')).version, '5155da19beec');
 
   assert.equal((await getJson(app.port, '/api/chapter/2-john/1?priority=background')).renderPriority, 'background');
   assert.equal((await getJson(app.port, '/api/chapter/3-john/1')).renderPriority, 'foreground');
@@ -328,7 +332,7 @@ test('verse-v1: foreground chapters render before background prefetches', async 
 
 test('verse-v1: the chapter requested most recently renders first', async t => {
   const mock = await startMockXai(t, { delayMs: 20 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'verse-v1', RENDER_CONCURRENCY: '1' });
   await getJson(app.port, '/api/chapter/ruth/1');
   await getJson(app.port, '/api/chapter/jude/1');
   await waitForComplete(app.port, '/api/chapter/jude/1');
@@ -403,19 +407,38 @@ test('upstream client errors are not retried; server errors are', async t => {
   const mock = await startMockXai(t, {
     respond: payload => {
       const ref = userContent(payload);
-      if (ref === 'Jude 1:1') return { status: 400, body: { code: 'Client specified an invalid argument', error: 'bad model' } };
-      if (ref === 'Jude 1:2' && calls++ === 0) return { status: 503, body: {} };
+      if (ref === 'Jude 1:1-9') return { status: 400, body: { code: 'Client specified an invalid argument', error: 'bad model' } };
+      if (ref === 'Jude 1:10-17' && calls++ === 0) return { status: 503, body: {} };
       return null;
     },
   });
   const app = await startServer(t, { XAI_API_URL: mock.url });
   await getJson(app.port, '/api/chapter/jude/1');
   const finished = await waitFor(() => app.logs('chapter_render_finished')[0], { timeoutMs: 8000, what: 'render finish' });
-  assert.equal(finished.failed, 1);
-  const failure = app.logs('verse_render_failed')[0];
-  assert.equal(failure.verse, 1);
+  assert.equal(finished.failed, 9);
+  const failure = app.logs('passage_render_failed')[0];
+  assert.equal(failure.verses, '1-9');
   assert.equal(failure.attempts, 1);
   assert.equal(failure.reason, 'xAI HTTP 400: bad model');
-  assert.ok(app.logs('verse_render_retry').some(e => e.verse === 2 && e.reason === 'xAI HTTP 503'));
-  assert.deepEqual((await getJson(app.port, '/api/chapter/jude/1?render=0')).missingCount, 1);
+  assert.ok(app.logs('passage_render_retry').some(e => e.verses === '10-17' && e.reason === 'xAI HTTP 503'));
+  assert.deepEqual((await getJson(app.port, '/api/chapter/jude/1?render=0')).missingCount, 9);
+});
+
+test('passage-v1 renders only the missing verses of a partly rendered passage, with the whole passage as context', async t => {
+  const mock = await startMockXai(t);
+  const app = await startServer(t, { XAI_API_URL: mock.url });
+  const { version } = await getJson(app.port, '/api/version');
+  // Ruth 1 is 1-8, 9-15, 16-22; only 1:3 is missing from the first passage.
+  const cached = {};
+  for (let verse = 1; verse <= 22; verse++) {
+    if (verse !== 3) cached[`0:${verse - 1}`] = { rendering: `Kept Ruth 1:${verse}`, note: 'Kept', v: version, t: 1 };
+  }
+  writeCache(app, version, 'Ruth', cached);
+  assert.equal((await getJson(app.port, '/api/chapter/ruth/1')).missingCount, 1);
+  const complete = await waitForComplete(app.port, '/api/chapter/ruth/1');
+  assert.deepEqual(userRefs(mock), ['Ruth 1:1-8']);
+  assert.equal(complete.verses[2].rendering, 'Rendered Ruth 1:3');
+  // The neighbours a reader may already have on screen are unchanged.
+  assert.equal(complete.verses[1].rendering, 'Kept Ruth 1:2');
+  assert.equal(complete.verses[3].rendering, 'Kept Ruth 1:4');
 });

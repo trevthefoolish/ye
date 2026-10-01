@@ -55,10 +55,21 @@ function request(port, pathname, { method = 'GET', headers = {}, body } = {}) {
 
 const getJson = async (port, pathname) => JSON.parse((await request(port, pathname)).body);
 
-// Answers Responses API requests for both pipelines with deterministic text:
-// a plain reference (verse-v1) or a JSON section payload (section-v2). Like
-// grok-4.7, it puts a reasoning item before the message. `respond(payload)`
-// may return { status, body } to override the reply.
+// "Jude 1:1-9" -> every verse of the passage, with the same text verse-v1 gets.
+function passageReply(passage) {
+  const [, book, chapter, start, end] = passage.match(/^(.+) (\d+):(\d+)-(\d+)$/);
+  const verses = [];
+  for (let verse = Number(start); verse <= Number(end); verse++) {
+    const ref = `${book} ${chapter}:${verse}`;
+    verses.push({ verse, rendering: `Rendered ${ref}`, note: `Note for ${ref}` });
+  }
+  return { verses };
+}
+
+// Answers Responses API requests for every pipeline with deterministic text:
+// a passage (passage-v1), a plain reference (verse-v1), or a JSON section
+// payload (section-v2). Like grok-4.7, it puts a reasoning item before the
+// message. `respond(payload)` may return { status, body } to override the reply.
 function startMockXai(t, { delayMs = 0, respond } = {}) {
   const payloads = [];
   let active = 0;
@@ -84,9 +95,10 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
         return res.end(JSON.stringify(override.body));
       }
       const user = payload.input.find(m => m.role === 'user').content;
-      const reply = user.startsWith('{')
-        ? { verses: JSON.parse(user).targetReferences.map(ref => ({ ref, rendering: `Rendered ${ref}`, note: `Margin ${ref}`, noteKind: 'literary', christConnection: 'none' })) }
-        : { rendering: `Rendered ${user}`, note: `Note for ${user}` };
+      const reply = payload.text.format.name === 'passage_rendering' ? passageReply(user)
+        : user.startsWith('{')
+          ? { verses: JSON.parse(user).targetReferences.map(ref => ({ ref, rendering: `Rendered ${ref}`, note: `Margin ${ref}`, noteKind: 'literary', christConnection: 'none' })) }
+          : { rendering: `Rendered ${user}`, note: `Note for ${user}` };
       res.end(JSON.stringify({
         id: 'resp_test',
         output: [

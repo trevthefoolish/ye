@@ -13,24 +13,15 @@ It's designed for deep, repeated reading. The kind that reveals its meaning over
 
 ## How it works
 
-Each verse is rendered on demand by [Grok](https://x.ai) (Grok 4.7 by default, overridable via `RENDER_MODEL`) through a theological framework built on seven lenses:
+The Bible is rendered on demand by [Grok](https://x.ai) (Grok 4.7 by default, overridable via `RENDER_MODEL`), a passage at a time. The prompt ([`prompts/passage-v1.md`](prompts/passage-v1.md)) is short on purpose. It tells the model who is reading and how, asks for a rendering and a note for each verse, and gives the app's one opinion: the Bible is one story that leads to Jesus. Note length, angle, style, and when to mention Jesus are left to the model. The only house style imposed is applied in code: no em dashes, and "vapour" with a *u*.
 
-- **Messianic** — every narrative thread contributes to the story that finds fulfillment in Jesus
-- **Communal** — the Bible addresses communities and peoples, not just isolated individuals
-- **Human and Divine** — Scripture holds together human authorship and divine inspiration
-- **Ancient** — honor the original ancient Near Eastern and Greco-Roman contexts
-- **Unified** — trace intertextual connections across books, authors, and testaments
-- **Wisdom** — the Bible trains readers in wisdom and character transformation, not just information
-- **Meditation** — designed for slow re-reading that reveals layers of meaning over time
+A chapter request returns whatever is already rendered and queues the rest; the reader polls and verses appear as each passage finishes. Nothing renders ahead of demand: only chapters someone opens (and their neighbours, prefetched at lower priority) are sent to the model.
 
-Notes follow a simple rule: a Christian reader with good taste penciling sharp observations in the margin. One useful thing per verse. It might be a word, image, pattern, tension, literary move, ancient context, canonical thread, or worthy Christ-shaped connection. Don't moralize. Just illuminate.
+There are three render pipelines, all on xAI's Responses API with strict JSON-schema output and `store: false`:
 
-A chapter request returns whatever is already rendered and queues the rest; the reader polls and verses appear as they finish. Nothing renders ahead of demand: only chapters someone opens (and their neighbours, prefetched at lower priority) are sent to the model.
-
-There are two render pipelines, both on xAI's Responses API with strict JSON-schema output and `store: false`:
-
-- **`verse-v1`** (production default) — one call per verse, given only the reference.
-- **`section-v2`** (opt-in, `RENDER_PIPELINE=section-v2`) — one call per pericope section from `data/sections.json`, so notes can see their context. Sections may cross chapters; one call fills every chapter it touches. Still eval-only: see [Renderer v2 evals](#renderer-v2-evals).
+- **`passage-v1`** (production default) — each chapter is split into near-even passages of at most 10 verses (22 verses: 1-8, 9-15, 16-22), one call per passage, so the model sees every verse in context and writes a passage's notes together. When only some verses of a passage are missing, it renders the whole passage but stores only those.
+- **`verse-v1`** (`RENDER_PIPELINE=verse-v1`) — one call per verse, given only the reference, with the earlier rule-based prompt (`prompts/verse-v1.md`: seven theological lenses, notes shorter than the verse).
+- **`section-v2`** (`RENDER_PIPELINE=section-v2`) — one call per pericope section from `data/sections.json`. Sections may cross chapters; one call fills every chapter it touches. Eval-only: see [Renderer v2 evals](#renderer-v2-evals).
 
 ## Core values
 
@@ -70,11 +61,11 @@ npm test        # unit and end-to-end tests (no network; xAI is mocked)
 | `XAI_API_KEY` | (required) | xAI credentials |
 | `PORT` | `3000` | Listen port (`0` picks a free one) |
 | `NODE_ENV` | `production` in the Docker image | `production` enables HSTS, secure cookies, and quieter logs |
-| `RENDER_PIPELINE` | `verse-v1` | `section-v2` opts into the section renderer |
-| `RENDER_MODEL` | `grok-4.7` | Model for both pipelines |
+| `RENDER_PIPELINE` | `passage-v1` | `verse-v1` or `section-v2` selects an older pipeline |
+| `RENDER_MODEL` | `grok-4.7` | Model for every pipeline |
 | `RENDER_REASONING_EFFORT` | `low` | Grok 4.7 accepts `low`, `medium`, `high`, `xhigh`; reasoning can't be turned off, and its tokens bill as output |
 | `RENDER_CONCURRENCY` | `32` | Max concurrent upstream render calls |
-| `RENDER_SECTION_TIMEOUT_MS` | `90000` | Per-call timeout for `section-v2` (`verse-v1` uses 90 s) |
+| `RENDER_SECTION_TIMEOUT_MS` | `90000` | Per-call timeout for `section-v2` (`passage-v1` uses 120 s, `verse-v1` 90 s) |
 | `XAI_API_URL` | `https://api.x.ai/v1/responses` | Override the xAI endpoint (tests point it at a mock) |
 | `RENDERS_DIR` | `<volume>/renders` on Railway, else `./.cache/renders` (gitignored) | Render cache root; each render version gets its own subdirectory |
 | `SEED_RENDER_CACHE` | on | `0` skips merging the committed `renders/<version>/` into the cache at startup |
@@ -92,10 +83,11 @@ RENDERS_DIR/<render version>/<book index>.json    keys "chapterIndex:verseIndex"
 
 The render version is a short hash of everything that shapes the output:
 
+- `passage-v1`: model, reasoning effort, prompt (`prompts/passage-v1.md`), response schema, and passage size.
 - `verse-v1`: model, reasoning effort, prompt (`prompts/verse-v1.md`), and response schema.
 - `section-v2`: the same, plus the request's fixed task and constraints and the section map's version and content fingerprint.
 
-Changing any of those starts a fresh, empty directory, and the Bible re-renders on demand as people read it, at one API call per verse (or section). Changing back finds the previous directory untouched, so a config change, a typo included, never destroys paid renders. At startup the server logs the other versions it finds (`render_cache_prepared.otherVersions`); delete those directories from the volume once you no longer want them. `test/render-version.test.js` pins the current versions so a refactor can't switch directories by accident; when a change is meant to, update the pin and say so in the PR. `/api/version` reports the running version.
+Changing any of those starts a fresh, empty directory, and the Bible re-renders on demand as people read it, at one API call per passage (3,664 for the whole Bible). Changing back finds the previous directory untouched, so a config change, a typo included, never destroys paid renders. At startup the server logs the other versions it finds (`render_cache_prepared.otherVersions`); delete those directories from the volume once you no longer want them. `test/render-version.test.js` pins the current versions so a refactor can't switch directories by accident; when a change is meant to, update the pin and say so in the PR. `/api/version` reports the running version.
 
 The cache started fresh with Grok 4.7. Code before it kept every version mixed together in `RENDERS_DIR/<book index>.json`; the server deletes those flat files at startup. Only pre-4.7 code ever wrote them, so this happens once.
 
@@ -112,9 +104,9 @@ Configured for [Railway](https://railway.app) via `railway.json`, built from the
 - **One variable:** `XAI_API_KEY`.
 - **A volume** (any mount path, e.g. `/data`). Railway exposes it as `RAILWAY_VOLUME_MOUNT_PATH`, and the server keeps the render cache in `<volume>/renders` and logs in `<volume>/logs`, so both survive deploys.
 
-Everything else has a production default (the image sets `NODE_ENV=production`; the pipeline is `verse-v1` on `grok-4.7`). Set the variables in the configuration table only to change those defaults. On `SIGTERM` the server stops accepting connections and lets pending cache writes land before exiting.
+Everything else has a production default (the image sets `NODE_ENV=production`; the pipeline is `passage-v1` on `grok-4.7`). Set the variables in the configuration table only to change those defaults. On `SIGTERM` the server stops accepting connections and lets pending cache writes land before exiting.
 
-Upgrading from before Grok 4.7: delete every service variable except `XAI_API_KEY` (older setups had `NODE_ENV`, `LOG_DIR`, `RENDERS_DIR`, `RENDER_PIPELINE`, `RENDER_SECTION_TIMEOUT_MS`, and sometimes `RENDER_MODEL`/`RENDER_REASONING_EFFORT`). On first start the server removes the old flat cache files in `<volume>/renders` and the old section renderer's `<volume>/renders-v2`. `/api/version` should then report `verse-v1`, `grok-4.7`, effort `low`, and the version pinned in `test/render-version.test.js`.
+Upgrading from before Grok 4.7: delete every service variable except `XAI_API_KEY` (older setups had `NODE_ENV`, `LOG_DIR`, `RENDERS_DIR`, `RENDER_PIPELINE`, `RENDER_SECTION_TIMEOUT_MS`, and sometimes `RENDER_MODEL`/`RENDER_REASONING_EFFORT`). On first start the server removes the old flat cache files in `<volume>/renders` and the old section renderer's `<volume>/renders-v2`. `/api/version` should then report `passage-v1`, `grok-4.7`, effort `low`, and the version pinned in `test/render-version.test.js`.
 
 ## Renderer v2 evals
 
@@ -131,7 +123,7 @@ The gate fails only on structural problems: incomplete schema, em dashes or "vap
 
 The section map (`data/sections.json`) comes from `npm run sections:generate`, which prefers OpenBible consensus sections and fills any gap with small deterministic fallback sections, so every one of the 31,071 verses belongs to exactly one section.
 
-When v2 is approved, flip it with `RENDER_PIPELINE=section-v2`. Its renders go to their own version directory, so check that `/api/version` reports `section-v2`, then cold-load chapters covering consensus sections, fallback sections, cross-chapter sections, and adjacent-chapter swipes. Roll back by unsetting `RENDER_PIPELINE`; the `verse-v1` directory is still there.
+When v2 is approved, flip it with `RENDER_PIPELINE=section-v2`. Its renders go to their own version directory, so check that `/api/version` reports `section-v2`, then cold-load chapters covering consensus sections, fallback sections, cross-chapter sections, and adjacent-chapter swipes. Roll back by unsetting `RENDER_PIPELINE`; the `passage-v1` directory is still there.
 
 ## Project structure
 
@@ -147,7 +139,9 @@ src/
     scheduler.js          Bounded upstream pool: dedupe, priority, recency, retries
     renderer.js           Chapter requests -> work units -> cache, with timing logs
     xai.js                xAI HTTP client and error classification
-    verse-v1.js           Production pipeline (one call per verse)
+    pipelines.js          Builds the pipeline RENDER_PIPELINE names
+    passage-v1.js         Production pipeline (one call per passage)
+    verse-v1.js           Earlier pipeline (one call per verse)
     section-v2.js         Section pipeline and section map
     section-eval.js       Eval scenarios for section-v2
   http/
