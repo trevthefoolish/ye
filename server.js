@@ -32,9 +32,7 @@ async function main() {
     : createVersePipeline({ ...config.render, log });
 
   const store = new RenderStore({ dir: config.cache.dir, version: pipeline.version, log });
-  // An external cache (the production volume) is compacted to the current
-  // render version and seeded from the committed renders/ before serving.
-  if (config.cache.dir !== config.cache.seedDir) store.prepare(config.cache.seed ? config.cache.seedDir : null);
+  store.prepare(config.cache.seed ? config.cache.seedDir : null);
 
   const { concurrency, retries, retryBaseMs } = config.render;
   const renderer = createRenderer({ pipeline, store, log, concurrency, retries, retryBaseMs });
@@ -55,7 +53,14 @@ async function main() {
       process.exit(1);
     }
     // The assigned port, not the requested one, so PORT=0 works in tests.
-    log.info('server_started', { port: server.address().port, version: APP_VERSION, renderVersion: pipeline.version, renderPipeline: pipeline.name });
+    log.info('server_started', {
+      port: server.address().port,
+      version: APP_VERSION,
+      renderPipeline: pipeline.name,
+      renderModel: config.render.model,
+      reasoningEffort: config.render.reasoningEffort,
+      renderVersion: pipeline.version,
+    });
   });
 
   // Railway sends SIGTERM on redeploy: stop accepting, let cache writes land.

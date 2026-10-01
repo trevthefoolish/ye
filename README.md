@@ -76,22 +76,30 @@ npm test        # unit and end-to-end tests (no network; xAI is mocked)
 | `RENDER_CONCURRENCY` | `8` | Max concurrent upstream render calls |
 | `RENDER_SECTION_TIMEOUT_MS` | `90000` | Per-call timeout for `section-v2` (`verse-v1` uses 30 s) |
 | `XAI_API_URL` | `https://api.x.ai/v1/responses` | Override the xAI endpoint (tests point it at a mock) |
-| `RENDERS_DIR` | `./renders` | Render cache directory |
-| `SEED_RENDER_CACHE` | on | `0` skips merging the committed `renders/` into `RENDERS_DIR` at startup |
+| `RENDERS_DIR` | `./.cache/renders` (gitignored) | Render cache root; each render version gets its own subdirectory |
+| `SEED_RENDER_CACHE` | on | `0` skips merging the committed `renders/<version>/` into the cache at startup |
 | `LOG_DIR` | `./logs` | JSONL log directory |
 | `LOG_LEVEL` | | `debug` keeps debug lines in production |
 | `ANALYTICS_SALT` | | Hardens the daily anonymous analytics id |
 
 ## The render cache
 
-Renders are stored as one JSON file per book, keyed by `chapterIndex:verseIndex` (0-based), and every entry is stamped with the **render version** that produced it: a hash of everything that shapes the output.
+Renders are stored per **render version**, one JSON file per book:
+
+```
+RENDERS_DIR/<render version>/<book index>.json    keys "chapterIndex:verseIndex" (0-based)
+```
+
+The render version is a short hash of everything that shapes the output:
 
 - `verse-v1`: model, reasoning effort, prompt (`prompts/verse-v1.md`), and response schema.
 - `section-v2`: the same, plus the request's fixed task and constraints and the section map's version and content fingerprint.
 
-The cache only ever holds the current version. Entries from any other version are dropped when their book is loaded, and at startup an external cache directory (the production volume) is compacted before serving. So changing the model, effort, prompt, or schema is a fresh start: the Bible re-renders on demand as people read it, at one API call per verse (or section). To try a different configuration without losing the current cache, point `RENDERS_DIR` at a separate directory. `test/render-version.test.js` pins the current versions so a refactor can't trigger this by accident; when a change is meant to, update the pin and say so in the PR. `/api/version` reports the running version.
+Changing any of those starts a fresh, empty directory, and the Bible re-renders on demand as people read it, at one API call per verse (or section). Changing back finds the previous directory untouched, so a config change, a typo included, never destroys paid renders. At startup the server logs the other versions it finds (`render_cache_prepared.otherVersions`); delete those directories from the volume once you no longer want them. `test/render-version.test.js` pins the current versions so a refactor can't switch directories by accident; when a change is meant to, update the pin and say so in the PR. `/api/version` reports the running version.
 
-The committed `renders/` directory is a reviewed copy of production's cache. At startup its current-version entries are merged into an external cache directory (unless `SEED_RENDER_CACHE=0`); the server never writes to it. To mirror production's renders into it for review:
+The cache started fresh with Grok 4.7. Code before it kept every version mixed together in `RENDERS_DIR/<book index>.json`; the server deletes those flat files at startup. Only pre-4.7 code ever wrote them, so this happens once.
+
+The committed `renders/<version>/` is a reviewed copy of production's cache for the current version. At startup it is merged into the cache (unless `SEED_RENDER_CACHE=0`); the server only reads it, and a test fails if it holds any other version. To mirror production's current version into it:
 
 ```
 ./scripts/sync-railway-renders.sh
@@ -110,6 +118,8 @@ LOG_DIR=/data/logs
 
 Mount a Railway volume at `/data` so the render cache and logs survive deploys. On `SIGTERM` the server stops accepting connections and lets pending cache writes land before exiting.
 
+Leave `RENDER_MODEL` and `RENDER_REASONING_EFFORT` unset in production so the defaults apply (earlier instructions suggested pinning `grok-4.3`/`none`; remove those). After a deploy, `/api/version` should report `grok-4.7`, effort `low`, and the version pinned in `test/render-version.test.js`.
+
 ## Renderer v2 evals
 
 `section-v2` stays off in production until its eval output is reviewed. The eval script renders a fixed scenario set through the section pipeline, prints note metrics, and writes Markdown and JSON reports under `eval-reports/` (gitignored) or `EVAL_REPORTS_DIR`. It never writes the render cache. Run it with Railway's production variables without changing the live service:
@@ -125,14 +135,7 @@ The gate fails only on structural problems: incomplete schema, em dashes or "vap
 
 The section map (`data/sections.json`) comes from `npm run sections:generate`, which prefers OpenBible consensus sections and fills any gap with small deterministic fallback sections, so every one of the 31,071 verses belongs to exactly one section.
 
-When v2 is approved, flip it with a fresh cache directory:
-
-```
-RENDER_PIPELINE=section-v2
-RENDERS_DIR=/data/renders-v2
-```
-
-Check that `/api/version` reports `section-v2`, then cold-load chapters covering consensus sections, fallback sections, cross-chapter sections, and adjacent-chapter swipes. Roll back by unsetting `RENDER_PIPELINE` and restoring `RENDERS_DIR=/data/renders`.
+When v2 is approved, flip it with `RENDER_PIPELINE=section-v2`. Its renders go to their own version directory, so check that `/api/version` reports `section-v2`, then cold-load chapters covering consensus sections, fallback sections, cross-chapter sections, and adjacent-chapter swipes. Roll back by unsetting `RENDER_PIPELINE`; the `verse-v1` directory is still there.
 
 ## Project structure
 
@@ -144,7 +147,7 @@ src/
   text.js                 cleanText (house style), HTML/JSON escaping, small helpers
   log.js                  JSONL logging with retention
   render/
-    store.js              Render cache: per-book JSON files holding the current version only
+    store.js              Render cache: per-version directories of per-book JSON files
     scheduler.js          Bounded upstream pool: dedupe, priority, recency, retries
     renderer.js           Chapter requests -> work units -> cache, with timing logs
     xai.js                xAI HTTP client and error classification
@@ -167,7 +170,7 @@ data/
   bible.json              66 books with per-chapter verse counts
   sections.json           Section map for section-v2
   eval-scenarios.json     Eval-only scenario metadata
-renders/                  Reviewed copy of production's render cache (seed)
+renders/                  Reviewed copy of production's cache for the current version (seed)
 scripts/                  check, section generation, v2 eval, Railway render sync
 test/                     node:test suites
 ```

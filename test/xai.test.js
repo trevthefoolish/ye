@@ -17,7 +17,11 @@ const responsesBody = text => ({
 });
 
 test('postJson classifies failures as retryable or not', async () => {
-  await assert.rejects(post(reply(400, { error: { message: 'bad model' } })), err => err.message === 'xAI HTTP 400: bad model' && err.retryable === false && err.status === 400);
+  // xAI's error body: { code, error: "<text>" }.
+  await assert.rejects(post(reply(400, { code: 'Client specified an invalid argument', error: 'Argument not supported: reasoning.effort' })),
+    err => err.message === 'xAI HTTP 400: Argument not supported: reasoning.effort' && err.retryable === false && err.status === 400);
+  await assert.rejects(post(reply(400, { error: { message: 'bad model' } })), err => err.message === 'xAI HTTP 400: bad model');
+  await assert.rejects(post(reply(403, { code: 'Forbidden' })), err => err.message === 'xAI HTTP 403: Forbidden');
   await assert.rejects(post(reply(404, 'not json')), err => err.message === 'xAI HTTP 404' && err.retryable === false);
   for (const status of [408, 409, 429, 500, 503]) {
     await assert.rejects(post(reply(status, {})), err => err.retryable === true, String(status));

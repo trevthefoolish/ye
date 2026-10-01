@@ -6,3 +6,4 @@ logs
 eval-reports
 .env
 npm-debug.log*
+.cache

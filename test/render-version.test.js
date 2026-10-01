@@ -1,22 +1,37 @@
 'use strict';
 
-// Every cached verse is stamped with the render version that produced it, and
-// the cache keeps only the running version. These pins catch any change (a
-// refactor, a schema description tweak, a prompt edit) that would silently
-// empty the cache and re-render, and re-bill, the entire Bible. If a change is
-// intentional, update the pin in the same commit and say so in the PR.
+// The render version names the cache directory the server reads and writes.
+// These pins catch any change (a refactor, a schema description tweak, a prompt
+// edit) that would silently switch production to a fresh, empty directory and
+// re-render, and re-bill, the entire Bible. If a change is intentional, update
+// the pin in the same commit and say so in the PR.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { loadConfig } = require('../src/config');
 const { verseRenderVersion } = require('../src/render/verse-v1');
 const { fingerprintSectionMap, sectionMap, sectionRenderVersion } = require('../src/render/section-v2');
 
 const DEFAULTS = loadConfig({}).render;
 
-test('defaults are Grok 4.7 at low reasoning effort', () => {
+test('defaults are Grok 4.7 at low reasoning effort on the Responses API', () => {
   assert.equal(DEFAULTS.model, 'grok-4.7');
   assert.equal(DEFAULTS.reasoningEffort, 'low');
+  assert.equal(DEFAULTS.apiUrl, 'https://api.x.ai/v1/responses');
+  assert.equal(loadConfig({ RENDER_PIPELINE: 'section-v2' }).render.apiUrl, 'https://api.x.ai/v1/responses');
+  // Stray whitespace or blank values never make a different model (and cache).
+  assert.equal(verseRenderVersion(loadConfig({ RENDER_MODEL: ' grok-4.7 ', RENDER_REASONING_EFFORT: '' }).render), verseRenderVersion(DEFAULTS));
+});
+
+test('the committed renders/ holds only a render version this code produces', () => {
+  const dir = path.join(__dirname, '..', 'renders');
+  const current = [verseRenderVersion(DEFAULTS), sectionRenderVersion(DEFAULTS)];
+  for (const name of fs.readdirSync(dir)) {
+    if (name === '.gitkeep') continue;
+    assert.ok(current.includes(name), `renders/${name} is not a current render version; re-sync or delete it`);
+  }
 });
 
 test('verse-v1 render version is stable', () => {

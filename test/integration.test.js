@@ -9,8 +9,12 @@ const path = require('node:path');
 const { getJson, request, startMockXai, startServer, waitFor, waitForComplete } = require('./helpers');
 
 const BOOKS = require('../data/bible.json').books;
-const bookFile = (app, book) => path.join(app.rendersDir, `${BOOKS.indexOf(book)}.json`);
-const readCache = (app, book) => JSON.parse(fs.readFileSync(bookFile(app, book), 'utf8'));
+const bookFile = (app, version, book) => path.join(app.versionDir(version), `${BOOKS.indexOf(book)}.json`);
+const readCache = (app, version, book) => JSON.parse(fs.readFileSync(bookFile(app, version, book), 'utf8'));
+const writeCache = (app, version, book, data) => {
+  fs.mkdirSync(app.versionDir(version), { recursive: true });
+  fs.writeFileSync(bookFile(app, version, book), JSON.stringify(data));
+};
 const userContent = payload => payload.input.find(m => m.role === 'user').content;
 const userRefs = mock => mock.payloads.map(userContent);
 const sectionStarts = mock => mock.payloads.map(p => JSON.parse(userContent(p)).section.startRef);
@@ -102,10 +106,9 @@ test('verse-v1 server', async t => {
   });
 
   await t.test('chapter pages carry metadata and inline whatever is rendered', async () => {
-    fs.mkdirSync(app.rendersDir, { recursive: true });
-    fs.writeFileSync(bookFile(app, '2 John'), JSON.stringify({
+    writeCache(app, version, '2 John', {
       '0:0': { rendering: 'Partial seed verse', note: 'Partial seed note', v: version, t: 1 },
-    }));
+    });
     const res = await request(app.port, '/2%20john/1');
     assert.equal(res.status, 200);
     assert.match(res.body, /<title>2 John 1<\/title>/);
@@ -121,9 +124,9 @@ test('verse-v1 server', async t => {
 
   await t.test('model text cannot break out of the page', async () => {
     const hostile = '</script><script>alert(1)</script> "quoted" $& $\' <!--';
-    fs.writeFileSync(bookFile(app, 'Philemon'), JSON.stringify({
+    writeCache(app, version, 'Philemon', {
       '0:0': { rendering: hostile, note: hostile, v: version, t: 1 },
-    }));
+    });
     const res = await request(app.port, '/philemon/1');
     assert.ok(!res.body.includes('<script>alert(1)'));
     assert.match(res.body, /<meta name="description" content="&lt;\/script&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt; &quot;quoted&quot; \$&amp; \$&#39; &lt;!--">/);
@@ -155,7 +158,7 @@ test('verse-v1 server', async t => {
     const complete = await waitForComplete(app.port, '/api/chapter/jude/1');
     assert.deepEqual(complete.verses[0], { rendering: 'Rendered Jude 1:1', note: 'Note for Jude 1:1' });
     const cache = await waitFor(() => {
-      try { const c = readCache(app, 'Jude'); return Object.keys(c).length === 25 && c; } catch { return null; }
+      try { const c = readCache(app, version, 'Jude'); return Object.keys(c).length === 25 && c; } catch { return null; }
     }, { what: 'Jude cache file' });
     assert.equal(cache['0:24'].v, version);
 
@@ -180,10 +183,10 @@ test('verse-v1 server', async t => {
     assert.equal(revalidated.status, 304);
   });
 
-  await t.test('entries from another render version are re-rendered, not served', async () => {
-    fs.writeFileSync(bookFile(app, '3 John'), JSON.stringify({
+  await t.test('entries stamped with another render version are re-rendered, not served', async () => {
+    writeCache(app, version, '3 John', {
       '0:0': { rendering: 'Old-version verse', note: 'Old-version note', v: 'stale-version', t: 1 },
-    }));
+    });
     const cold = await getJson(app.port, '/api/chapter/3-john/1');
     assert.equal(cold.verses[0], null);
     const complete = await waitForComplete(app.port, '/api/chapter/3-john/1');
@@ -225,32 +228,42 @@ test('verse-v1 server', async t => {
   });
 });
 
-test('startup compacts an existing cache volume to the current render version', async t => {
+test('startup removes the pre-4.7 cache layout once and leaves other render versions alone', async t => {
   const { tempDir } = require('./helpers');
   const { verseRenderVersion } = require('../src/render/verse-v1');
   const { loadConfig } = require('../src/config');
-  const { model, reasoningEffort } = loadConfig({}).render;
-  const current = verseRenderVersion({ model, reasoningEffort });
+  const current = verseRenderVersion(loadConfig({}).render);
+  const other = '0123456789ab';
   const volume = tempDir(t);
-  fs.writeFileSync(path.join(volume, '7.json'), JSON.stringify({
-    '0:0': { rendering: 'From an older model', note: 'Old', v: 'older-version', t: 1 },
-    '0:1': { rendering: 'Current verse', note: 'Current', v: current, t: 1 },
-  }));
+  const old = { '0:0': { rendering: 'From an older model', note: 'Old', v: '7fc357e1a8e6', t: 1 } };
+  fs.writeFileSync(path.join(volume, '7.json'), JSON.stringify(old));
+  fs.writeFileSync(path.join(volume, '8.json'), JSON.stringify(old));
+  fs.mkdirSync(path.join(volume, other));
+  fs.writeFileSync(path.join(volume, other, '8.json'), JSON.stringify({ '0:0': { rendering: 'Another config', note: 'n', v: other, t: 1 } }));
+  fs.mkdirSync(path.join(volume, current));
+  fs.writeFileSync(path.join(volume, current, '7.json'), JSON.stringify({ '0:1': { rendering: 'Current verse', note: 'n', v: current, t: 1 } }));
+
   const mock = await startMockXai(t);
   const app = await startServer(t, { XAI_API_URL: mock.url, RENDERS_DIR: volume });
   const prepared = await app.waitForLog('render_cache_prepared');
-  assert.equal(prepared.dropped, 1);
-  assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(path.join(volume, '7.json'), 'utf8'))), ['0:1']);
+  assert.equal(prepared.legacyRemoved, 2);
+  assert.deepEqual(prepared.otherVersions, [other]);
+  assert.deepEqual(fs.readdirSync(volume).sort(), [current, other].sort());
+  assert.ok(fs.existsSync(path.join(volume, other, '8.json')));
+
   const ruth = await getJson(app.port, '/api/chapter/ruth/1?render=0');
   assert.equal(ruth.verses[0], null);
   assert.equal(ruth.verses[1].rendering, 'Current verse');
-  // A cold page's description never falls back to an older model's text.
-  assert.match((await request(app.port, '/ruth/1')).body, /<meta name="description" content="Current verse">/);
+  // Ruth 2 exists only in the removed legacy file and another version's
+  // directory: its page must not borrow either's text.
+  const page = (await request(app.port, '/ruth/2')).body;
+  assert.match(page, /<meta name="description" content="Ruth 2, rendered in modern English with scholarly notes\.">/);
+  assert.ok(!page.includes('id="preloaded"'));
 });
 
 test('upstream render concurrency is capped globally', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '2', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '2' });
   const paths = ['2-john', '3-john', 'jude', 'philemon'].map(book => `/api/chapter/${book}/1`);
   for (const data of await Promise.all(paths.map(p => getJson(app.port, p)))) assert.equal(data.complete, false);
   await Promise.all(paths.map(p => waitForComplete(app.port, p)));
@@ -259,7 +272,7 @@ test('upstream render concurrency is capped globally', async t => {
 
 test('verse-v1: foreground chapters render before background prefetches', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1' });
 
   assert.equal((await getJson(app.port, '/api/chapter/2-john/1?priority=background')).renderPriority, 'background');
   assert.equal((await getJson(app.port, '/api/chapter/3-john/1')).renderPriority, 'foreground');
@@ -273,7 +286,7 @@ test('verse-v1: foreground chapters render before background prefetches', async 
 
 test('verse-v1: the chapter requested most recently renders first', async t => {
   const mock = await startMockXai(t, { delayMs: 20 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1' });
   await getJson(app.port, '/api/chapter/ruth/1');
   await getJson(app.port, '/api/chapter/jude/1');
   await waitForComplete(app.port, '/api/chapter/jude/1');
@@ -287,7 +300,7 @@ test('verse-v1: the chapter requested most recently renders first', async t => {
 
 test('section-v2 renders whole sections through the Responses API', async t => {
   const mock = await startMockXai(t, { delayMs: 5 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2' });
 
   const info = await getJson(app.port, '/api/version');
   assert.equal(info.version, 'e226a3b91a43');
@@ -318,14 +331,14 @@ test('section-v2 renders whole sections through the Responses API', async t => {
 
   // One section call filled the start of chapter 2 as well.
   const cache = await waitFor(() => {
-    try { const c = readCache(app, 'Genesis'); return c['1:2'] && c; } catch { return null; }
+    try { const c = readCache(app, 'e226a3b91a43', 'Genesis'); return c['1:2'] && c; } catch { return null; }
   }, { what: 'Genesis cache file' });
   assert.deepEqual(cache['1:2'], { ...cache['1:2'], rendering: 'Rendered Genesis 2:3', noteKind: 'literary', christConnection: 'none', v: 'e226a3b91a43' });
 });
 
 test('section-v2 renders a section shared by two chapters once', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '4', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '4' });
   await Promise.all([getJson(app.port, '/api/chapter/genesis/1'), getJson(app.port, '/api/chapter/genesis/2')]);
   await Promise.all([waitForComplete(app.port, '/api/chapter/genesis/1'), waitForComplete(app.port, '/api/chapter/genesis/2')]);
   assert.equal(sectionStarts(mock).filter(ref => ref === 'Genesis 1:1').length, 1);
@@ -333,7 +346,7 @@ test('section-v2 renders a section shared by two chapters once', async t => {
 
 test('section-v2: foreground chapters render before background prefetches', async t => {
   const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '1', SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '1' });
   await getJson(app.port, '/api/chapter/2-john/1?priority=background');
   await getJson(app.port, '/api/chapter/3-john/1');
   await waitForComplete(app.port, '/api/chapter/3-john/1');
@@ -348,12 +361,12 @@ test('upstream client errors are not retried; server errors are', async t => {
   const mock = await startMockXai(t, {
     respond: payload => {
       const ref = userContent(payload);
-      if (ref === 'Jude 1:1') return { status: 400, body: { error: { message: 'bad model' } } };
+      if (ref === 'Jude 1:1') return { status: 400, body: { code: 'Client specified an invalid argument', error: 'bad model' } };
       if (ref === 'Jude 1:2' && calls++ === 0) return { status: 503, body: {} };
       return null;
     },
   });
-  const app = await startServer(t, { XAI_API_URL: mock.url, SEED_RENDER_CACHE: '0' });
+  const app = await startServer(t, { XAI_API_URL: mock.url });
   await getJson(app.port, '/api/chapter/jude/1');
   const finished = await waitFor(() => app.logs('chapter_render_finished')[0], { timeoutMs: 8000, what: 'render finish' });
   assert.equal(finished.failed, 1);

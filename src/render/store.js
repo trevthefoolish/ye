@@ -1,12 +1,16 @@
 // Copyright (c) 2026 vapourware.ai All rights reserved.
 'use strict';
 
-// Rendered verses, one JSON file per book: `{dir}/{bookIndex}.json`, keyed by
-// "chapterIndex:verseIndex" (both 0-based). Each entry is stamped with the
-// render version that produced it, and the store keeps only the current
-// version: anything else is dropped when a book loads, and an external cache
-// directory is compacted at startup. Changing the model or prompt is
-// therefore a fresh start, re-rendered on demand.
+// Rendered verses: one directory per render version, one JSON file per book.
+//
+//   {dir}/{renderVersion}/{bookIndex}.json   keys "chapterIndex:verseIndex" (0-based)
+//
+// The render version hashes everything that shapes the model's output, so a
+// change of model, effort, prompt, or schema starts in a fresh, empty
+// directory, and changing back finds the previous one untouched. A config
+// change never deletes anything. The one exception is the flat layout
+// ({dir}/{bookIndex}.json) that predates per-version directories: only code
+// from before Grok 4.7 wrote it, and prepare() removes it at startup.
 //
 // Reads come from memory after the first touch of a book. Writes update memory
 // immediately and persist with tmp+rename, coalesced so a burst of finished
@@ -19,6 +23,12 @@ const { BOOKS, verseCount } = require('../canon');
 const { sha256 } = require('../text');
 
 const entryKey = (chapter, verse) => `${chapter - 1}:${verse - 1}`;
+const isKey = key => /^\d+:\d+$/.test(key);
+const asObject = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
+// Anything the pre-4.7 flat layout left in the cache root: book files, their
+// temp files, and quarantined copies.
+const LEGACY_FILE = /^\d+\.json(\..+)?$/;
+const VERSION_DIR = /^[0-9a-f]{12}$/;
 
 function isEntry(value) {
   return !!value
@@ -29,38 +39,23 @@ function isEntry(value) {
 }
 
 function sameEntry(a, b) {
-  return isEntry(a) && isEntry(b)
-    && a.v === b.v
+  return a.v === b.v
     && a.rendering === b.rendering
     && a.note === b.note
     && a.noteKind === b.noteKind
     && a.christConnection === b.christConnection;
 }
 
-const isKey = key => /^\d+:\d+$/.test(key);
-const asObject = value => (value && typeof value === 'object' && !Array.isArray(value) ? value : {});
-
-// The entries of one book file that belong to `version`; the rest are dropped.
-function currentEntries(data, version) {
-  const kept = {};
-  let dropped = 0;
-  for (const [key, value] of Object.entries(asObject(data))) {
-    if (isKey(key) && isEntry(value) && value.v === version) kept[key] = value;
-    else dropped++;
-  }
-  return { kept, dropped };
-}
-
-// Rebuilds one live cache file for `version`: drops everything else from it,
-// then folds in current-version entries from the committed seed (skipping
-// stale or malformed ones). Pure, so it can be tested without touching disk.
+// Folds current-version entries from a committed seed file into a live cache
+// file. Stale or malformed seed entries are skipped; live-only entries are
+// kept. Pure, so it can be tested without touching disk.
 function mergeSeed(source, dest, version, { destCorrupt = false } = {}) {
-  const { kept: cache, dropped } = currentEntries(dest, version);
-  const stats = { changed: dropped > 0, added: 0, replaced: 0, dropped, skippedStale: 0, skippedMalformed: 0 };
+  const cache = { ...asObject(dest) };
+  const stats = { changed: false, added: 0, replaced: 0, skippedStale: 0, skippedMalformed: 0 };
   for (const [key, value] of Object.entries(asObject(source))) {
     if (!isKey(key) || !isEntry(value)) { stats.skippedMalformed++; continue; }
     if (value.v !== version) { stats.skippedStale++; continue; }
-    if (key in cache && sameEntry(cache[key], value)) continue;
+    if (isEntry(cache[key]) && sameEntry(cache[key], value)) continue;
     // A corrupt destination counts as replaced: its entries existed before.
     if (key in cache || destCorrupt) stats.replaced++;
     else stats.added++;
@@ -74,6 +69,15 @@ function writeFileAtomic(file, body) {
   const tmp = `${file}.${process.pid}.${crypto.randomUUID()}.tmp`;
   fs.writeFileSync(tmp, body);
   fs.renameSync(tmp, file);
+}
+
+function listDir(dir) {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true });
+  } catch (err) {
+    if (err.code === 'ENOENT') return [];
+    throw err;
+  }
 }
 
 // Serializes runs of `task`: schedule() runs it now, or once more after the
@@ -104,11 +108,14 @@ class RenderStore {
   #writers = new Map();
   #completeBodies = new Map();
 
+  // dir: the cache root (RENDERS_DIR). This store reads and writes only
+  // {dir}/{version}/.
   constructor({ dir, version, log }) {
-    this.dir = dir;
+    this.root = dir;
     this.version = version;
+    this.dir = path.join(dir, version);
     this.log = log;
-    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(this.dir, { recursive: true });
   }
 
   #file(bookIndex) {
@@ -116,11 +123,13 @@ class RenderStore {
   }
 
   // Missing files are the normal cold path. Unparseable files are moved aside
-  // rather than silently overwritten by the next write.
+  // rather than silently overwritten by the next write. Any other failure
+  // (EMFILE, EACCES, ...) throws, so a transient error can never stand in for
+  // an empty book and be written back over the real one.
   #read(bookIndex) {
     const file = this.#file(bookIndex);
     try {
-      return { data: JSON.parse(fs.readFileSync(file, 'utf8')), corrupt: false };
+      return { data: asObject(JSON.parse(fs.readFileSync(file, 'utf8'))), corrupt: false };
     } catch (err) {
       if (err.code === 'ENOENT') return { data: {}, corrupt: false };
       if (err instanceof SyntaxError) {
@@ -129,22 +138,23 @@ class RenderStore {
         this.log.warn('render_cache_corrupt', { book: bookIndex, movedTo: aside, err: err.message });
         return { data: {}, corrupt: true };
       }
-      this.log.warn('render_cache_read_failed', { book: bookIndex, err: err.message });
-      return { data: {}, corrupt: false };
+      this.log.error('render_cache_read_failed', { book: bookIndex, err: err.message });
+      throw err;
     }
   }
 
   #book(bookIndex) {
     let data = this.#books.get(bookIndex);
     if (!data) {
-      data = currentEntries(this.#read(bookIndex).data, this.version).kept;
+      data = this.#read(bookIndex).data;
       this.#books.set(bookIndex, data);
     }
     return data;
   }
 
   #current(bookIndex, chapter, verse) {
-    return this.#book(bookIndex)[entryKey(chapter, verse)] || null;
+    const entry = this.#book(bookIndex)[entryKey(chapter, verse)];
+    return isEntry(entry) && entry.v === this.version ? entry : null;
   }
 
   has({ bookIndex, chapter, verse }) {
@@ -217,34 +227,57 @@ class RenderStore {
     });
   }
 
-  // Startup pass over an external cache directory (never the committed
-  // renders/ itself): removes leftover temp files, drops every entry from
-  // another render version, and folds in current-version entries from
-  // `seedDir` when given. Runs before any reads.
+  // Startup pass, before any reads:
+  //   1. removes the pre-4.7 flat layout from the cache root (one time: nothing
+  //      writes it any more),
+  //   2. removes temp files an interrupted write left in this version's directory,
+  //   3. folds in this version's entries from the committed seed
+  //      ({seedDir}/{version}/), when given,
+  //   4. reports other versions' directories, which are left alone.
+  // A failure on one file is logged and skipped; it never stops the pass.
   prepare(seedDir) {
-    const totals = { files: 0, added: 0, replaced: 0, dropped: 0, skippedStale: 0, skippedMalformed: 0 };
-    try {
-      for (const file of fs.readdirSync(this.dir)) {
-        if (file.endsWith('.tmp')) fs.rmSync(path.join(this.dir, file), { force: true });
+    const totals = { legacyRemoved: 0, seededFiles: 0, added: 0, replaced: 0, skippedStale: 0, skippedMalformed: 0 };
+    const remove = (dir, entry) => {
+      try {
+        fs.rmSync(path.join(dir, entry.name));
+        return true;
+      } catch (err) {
+        this.log.warn('render_cache_cleanup_failed', { file: path.join(dir, entry.name), err: err.message });
+        return false;
       }
+    };
+
+    for (const entry of listDir(this.root)) {
+      if (entry.isFile() && LEGACY_FILE.test(entry.name) && remove(this.root, entry)) totals.legacyRemoved++;
+    }
+    for (const entry of listDir(this.dir)) {
+      if (entry.isFile() && entry.name.endsWith('.tmp')) remove(this.dir, entry);
+    }
+
+    const seedVersionDir = seedDir && path.resolve(seedDir, this.version);
+    if (seedVersionDir && seedVersionDir !== path.resolve(this.dir)) {
       for (let bookIndex = 0; bookIndex < BOOKS.length; bookIndex++) {
-        const seedFile = seedDir && path.join(seedDir, `${bookIndex}.json`);
-        const hasSeed = !!seedFile && fs.existsSync(seedFile);
-        if (!hasSeed && !fs.existsSync(this.#file(bookIndex))) continue;
-        const source = hasSeed ? JSON.parse(fs.readFileSync(seedFile, 'utf8')) : {};
-        const dest = this.#read(bookIndex);
-        const merged = mergeSeed(source, dest.data, this.version, { destCorrupt: dest.corrupt });
-        for (const key of ['added', 'replaced', 'dropped', 'skippedStale', 'skippedMalformed']) totals[key] += merged[key];
-        if (merged.changed) {
-          writeFileAtomic(this.#file(bookIndex), JSON.stringify(merged.cache, null, 2));
-          totals.files++;
+        const seedFile = path.join(seedVersionDir, `${bookIndex}.json`);
+        if (!fs.existsSync(seedFile)) continue;
+        try {
+          const dest = this.#read(bookIndex);
+          const merged = mergeSeed(JSON.parse(fs.readFileSync(seedFile, 'utf8')), dest.data, this.version, { destCorrupt: dest.corrupt });
+          for (const key of ['added', 'replaced', 'skippedStale', 'skippedMalformed']) totals[key] += merged[key];
+          if (merged.changed) {
+            writeFileAtomic(this.#file(bookIndex), JSON.stringify(merged.cache, null, 2));
+            totals.seededFiles++;
+          }
+        } catch (err) {
+          this.log.warn('render_cache_seed_failed', { book: bookIndex, err: err.message });
         }
       }
-      if (Object.values(totals).some(Boolean)) this.log.info('render_cache_prepared', { ...totals, dir: this.dir, version: this.version });
-    } catch (err) {
-      this.log.error('render_cache_prepare_failed', { err: err.message });
     }
-    return totals;
+
+    const otherVersions = listDir(this.root)
+      .filter(entry => entry.isDirectory() && VERSION_DIR.test(entry.name) && entry.name !== this.version)
+      .map(entry => entry.name);
+    this.log.info('render_cache_prepared', { ...totals, dir: this.dir, version: this.version, otherVersions });
+    return { ...totals, otherVersions };
   }
 
   // Resolves when every write scheduled so far has landed.

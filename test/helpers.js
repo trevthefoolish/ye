@@ -58,6 +58,10 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', async () => {
+      if (req.method !== 'POST' || req.url !== '/v1/responses') {
+        res.statusCode = 404;
+        return res.end('{"code":"Not found","error":"unknown endpoint"}');
+      }
       const payload = JSON.parse(body);
       payloads.push(payload);
       active++;
@@ -97,8 +101,11 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
   });
 }
 
-// Spawns `node server.js` against the mock, with a throwaway cache and log
-// directory. Resolves once the server logs that it is listening.
+// Spawns `node server.js` against the mock, with a throwaway cache root and
+// log directory, and without seeding from the committed renders/ (so tests
+// never depend on what has been synced there). Resolves once the server logs
+// that it is listening.
+// app.versionDir(version) is where that render version's book files live.
 function startServer(t, env = {}) {
   const dir = tempDir(t);
   const rendersDir = path.join(dir, 'renders');
@@ -115,6 +122,7 @@ function startServer(t, env = {}) {
       RENDER_PIPELINE: '',
       RENDER_MODEL: '',
       RENDER_REASONING_EFFORT: '',
+      SEED_RENDER_CACHE: '0',
       ...env,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -136,6 +144,7 @@ function startServer(t, env = {}) {
       resolve({
         port: started.port,
         rendersDir,
+        versionDir: version => path.join(env.RENDERS_DIR || rendersDir, version),
         child,
         exited,
         logs,

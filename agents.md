@@ -10,7 +10,7 @@ Guide for AI agents working on vapourware.ai — a mobile-only Bible reader that
 
 1. **Foundations** (`src/config.js`, `src/canon.js`, `src/text.js`, `src/log.js`) — environment parsing, the canon (books, chapters, verse refs, slugs), house-style text cleanup and escaping, structured logging. Chapters and verses are 1-based everywhere except the store's file keys.
 2. **Rendering** (`src/render/`)
-   - `store.js` — the render cache. Per-book JSON files keyed `"chapterIndex:verseIndex"` (0-based), every entry stamped with the render version, and only the current version kept: other entries are dropped when a book loads, and the production volume is compacted at startup (then seeded from the committed `renders/`, which the server never writes). Reads are served from memory; writes land in memory at once and persist with tmp+rename, coalesced per book.
+   - `store.js` — the render cache: `RENDERS_DIR/<render version>/<book>.json`, keyed `"chapterIndex:verseIndex"` (0-based), every entry stamped with its version. A config change starts a fresh directory and never deletes another version's. At startup it removes the pre-4.7 flat layout (`RENDERS_DIR/<book>.json`), clears temp files, and seeds from the committed `renders/<version>/`, which the server only reads. Reads are served from memory; writes land in memory at once and persist with tmp+rename, coalesced per book.
    - `scheduler.js` — the one pool all upstream calls go through. Units are deduped by key; foreground beats background (background waits while any foreground unit is unfinished, including retry backoff); within a class the most recently requested units go first; within a request, submission order. Retries with backoff unless an error is marked `retryable: false`.
    - `renderer.js` — turns a chapter request into units via the pipeline, submits them, writes each finished unit to the store, and logs `chapter_render_started` / `chapter_render_finished` with timing summaries.
    - `verse-v1.js` / `section-v2.js` — the two pipelines. A pipeline is `{ name, version, info, unit, plan(chapterRef, missingVerses) }`, where `plan` returns units `{ key, refs, logFields, render() }`.
@@ -30,8 +30,8 @@ Both prompt files are part of their pipeline's render version (after trimming su
 
 These are load-bearing. Don't break them:
 
-- **Render versions are pinned** — `test/render-version.test.js` pins the cache-key hashes. A change that moves one empties the cache and re-renders, and re-bills, the whole Bible as people read it. Only update a pin deliberately, and say so in the PR. Both pipelines hash model, reasoning effort, system prompt, and response schema; `section-v2` adds its fixed task/constraints text and the section map's version and fingerprint.
-- **The cache holds one version** — never serve or keep entries from another render version. Experiments that should not disturb the live cache use their own `RENDERS_DIR`.
+- **Render versions are pinned** — `test/render-version.test.js` pins the cache-key hashes. A change that moves one points production at a fresh, empty directory and re-renders, and re-bills, the whole Bible as people read it. Only update a pin deliberately, and say so in the PR. Both pipelines hash model, reasoning effort, system prompt, and response schema; `section-v2` adds its fixed task/constraints text and the section map's version and fingerprint.
+- **Never serve another version, never delete one automatically** — entries are only served when their stamp matches the running version, and other versions' directories are left for an operator to remove. The committed `renders/` holds only a current version (a test enforces it).
 - **No em dashes, and "vapour" not "vapor"** — `cleanText()` in `src/text.js` enforces both on every model string (keeping case: "Vapor" becomes "Vapour"). The prompts forbid em dashes too.
 - **v1 notes shorter than renderings** — asked of the model and logged as `note_too_long` when missed. Not a v2 rule.
 - **v2 is eval-first** — `section-v2` stays opt-in until smoke, edge, prod-sim, and gate reports are reviewed. Eval scenario metadata must never reach the model payload.
@@ -60,7 +60,7 @@ These are load-bearing. Don't break them:
 3. Optional: `npm run sections:generate` (needs network access to OpenBible).
 4. Optional v2 evals with Railway's variables, never by flipping production: `railway run --service ye --environment production -- npm run eval:v2` (and `:edge`, `:prod-sim`, `:gate`). Prefer `EVAL_REPORTS_DIR=/tmp/...` for exploratory runs; attach reviewed reports to the PR.
 
-When v2 is approved, flip it with `RENDER_PIPELINE=section-v2` and `RENDERS_DIR=/data/renders-v2`; roll back by unsetting the pipeline and restoring `/data/renders`.
+When v2 is approved, flip it with `RENDER_PIPELINE=section-v2` (its renders get their own version directory); roll back by unsetting it.
 
 ---
 

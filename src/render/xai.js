@@ -30,8 +30,11 @@ async function postJson(url, body, { apiKey, timeoutMs, fetchImpl = fetch }) {
   if (!res.ok) {
     let message = `xAI HTTP ${res.status}`;
     try {
+      // xAI sends { code, error: "..." }; accept the { error: { message } } shape too.
       const data = await res.json();
-      if (data?.error?.message) message += `: ${data.error.message}`;
+      const detail = typeof data?.error === 'string' ? data.error : data?.error?.message;
+      if (detail) message += `: ${detail}`;
+      else if (typeof data?.code === 'string') message += `: ${data.code}`;
     } catch { /* non-JSON error body; the status is enough */ }
     throw new RenderError(message, {
       status: res.status,
