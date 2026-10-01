@@ -74,9 +74,8 @@ const MOCK_USAGE = {
   total_tokens: 1000,
 };
 
-// One server-sent event the way xAI frames them: data only, no "event:" line.
-const sse = (type, data) => `data: ${JSON.stringify({ type, ...data })}\n\n`;
-const DONE = 'data: [DONE]\n\n';
+// One server-sent event the way xAI sends them: an "event:" line, then the data.
+const sse = (type, data) => `event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`;
 const sseBytes = event => new TextEncoder().encode(typeof event === 'string' ? event : sse(event.type, event));
 
 // A fetch Response streaming `events` (Responses API events, or raw strings
@@ -107,8 +106,7 @@ function sseStream() {
 
 // Answers Responses API passage requests with deterministic text, streamed as
 // server-sent events in small deltas that split words and JSON tokens. Like
-// grok-4.7, it puts a reasoning item before the message, and like xAI it ends
-// the stream with "data: [DONE]".
+// grok-4.7, it puts a reasoning item before the message.
 //
 // respond(payload) may return { status, body } to answer with that HTTP
 // status and JSON body instead, or { prefix, failAfter } to start each
@@ -157,8 +155,7 @@ function startMockXai(t, { delayMs = 0, respond, beforeVerse } = {}) {
         for (const [n, verse] of reply.verses.entries()) {
           await beforeVerse?.(payload, n);
           if (n === override.failAfter) {
-            res.write(sse('response.failed', { response: { ...response, status: 'failed', error: { code: 'server_error', message: 'mock failure' }, usage: MOCK_USAGE } }));
-            return res.end(DONE);
+            return res.end(sse('response.failed', { response: { ...response, status: 'failed', error: { code: 'server_error', message: 'mock failure' }, usage: MOCK_USAGE } }));
           }
           delta(`${n ? ',' : ''}${JSON.stringify(verse)}`);
         }
@@ -167,8 +164,7 @@ function startMockXai(t, { delayMs = 0, respond, beforeVerse } = {}) {
         const message = { type: 'message', id: 'msg_test', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text, annotations: [] }] };
         res.write(sse('response.output_text.done', { item_id: 'msg_test', output_index: 1, content_index: 0, text }));
         res.write(sse('response.output_item.done', { output_index: 1, item: message }));
-        res.write(sse('response.completed', { response: { ...response, status: 'completed', output: [reasoning, message], usage: MOCK_USAGE } }));
-        res.end(DONE);
+        res.end(sse('response.completed', { response: { ...response, status: 'completed', output: [reasoning, message], usage: MOCK_USAGE } }));
       } finally {
         active--;
       }

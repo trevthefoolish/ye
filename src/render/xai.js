@@ -53,10 +53,11 @@ async function post(url, body, { apiKey, signal, timeoutMs, fetchImpl = fetch })
   return res;
 }
 
-// The data of each server-sent event in `body`, as a string. xAI sends
-// data-only events ending with "data: [DONE]"; comments and other fields
-// ("event:", "id:") are skipped, since every Responses API event names its own
-// type in its data.
+// The data of each server-sent event in `body`, as a string. xAI sends an
+// "event:" line and a "data:" line per event (its docs describe data-only
+// events ending with "data: [DONE]"; both are read). Comments and fields other
+// than data are skipped, since every Responses API event names its own type in
+// its data.
 async function* eventData(body) {
   const decoder = new TextDecoder();
   let buffer = '';

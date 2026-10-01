@@ -2,7 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const http = require('node:http');
+const path = require('node:path');
 const { emptyUsage, eventData, post, requestStructured } = require('../src/render/xai');
 const { sseResponse, sseStream } = require('./helpers');
 
@@ -95,9 +97,10 @@ test('requestStructured hands over text while the response is still streaming', 
   assert.deepEqual(await result, { a: 1 });
 });
 
-test('requestStructured reads a stream framed the way xAI documents it', async () => {
+test('requestStructured reads a stream framed the way xAI\'s docs describe it', async () => {
   // Data-only events with sequence numbers, reasoning summary events before
-  // the message, content parts, and a closing [DONE].
+  // the message, content parts, and a closing [DONE]. (xAI actually sends an
+  // "event:" line per event and no [DONE]; both framings are read.)
   const text = '{"verses":[{"verse":1,"rendering":"In the beginning","note":"n"}]}';
   const msg = { id: 'msg_1', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text, logprobs: [], annotations: [] }] };
   const rs = { id: 'rs_1', type: 'reasoning', summary: [{ type: 'summary_text', text: 'First' }], status: 'completed', encrypted_content: 'x'.repeat(30_000) };
@@ -123,6 +126,22 @@ test('requestStructured reads a stream framed the way xAI documents it', async (
   assert.deepEqual(parsed, JSON.parse(text));
   assert.deepEqual(texts, [text.slice(0, 30), text]);
   assert.deepEqual(usage, { inputTokens: 216, cachedTokens: 192, outputTokens: 923, reasoningTokens: 323, unreportedCalls: 0 });
+});
+
+test('requestStructured reads a stream recorded from xAI, however it is split', async () => {
+  // grok-4.7 with the app's request shape (stream, strict schema, low effort),
+  // recorded with its opaque encrypted reasoning trimmed: an "event:" line
+  // before each data line, reasoning summary events first, no closing [DONE].
+  const raw = fs.readFileSync(path.join(__dirname, 'fixtures', 'xai-stream.txt'), 'utf8');
+  for (const chunkSize of [1, 7, 64, raw.length]) {
+    const usage = emptyUsage();
+    const texts = [];
+    const parsed = await call([], { usage, onText: so => texts.push(so), fetchImpl: async () => sseResponse([raw], { chunkSize }) });
+    assert.deepEqual(parsed, { verses: [{ verse: 35, summary: 'Jesus wept over Lazarus death' }] }, `chunks of ${chunkSize}`);
+    assert.equal(texts.length, 18);
+    assert.deepEqual(JSON.parse(texts.at(-1)), parsed);
+    assert.deepEqual(usage, { inputTokens: 1356, cachedTokens: 1152, outputTokens: 271, reasoningTokens: 253, unreportedCalls: 0 });
+  }
 });
 
 test('only the first output text part is the text, and response.done also ends a response', async () => {
