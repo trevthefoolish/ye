@@ -13,12 +13,9 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 REMOTE_ROOT="${REMOTE_ROOT:-/data/renders}"
 VERSION="$(cd "$ROOT" && node -e '
-const { loadConfig, PIPELINE_SECTION } = require("./src/config");
-const render = loadConfig().render;
-const { version } = render.pipeline === PIPELINE_SECTION
-  ? require("./src/render/section-v2").createSectionPipeline(render)
-  : require("./src/render/verse-v1").createVersePipeline({ ...render, log: console });
-process.stdout.write(version);
+const { loadConfig } = require("./src/config");
+const { createPipeline } = require("./src/render/pipelines");
+process.stdout.write(createPipeline(loadConfig().render, console).version);
 ')"
 
 # The committed seed must match what production serves; otherwise stop before
