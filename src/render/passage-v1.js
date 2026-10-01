@@ -87,17 +87,18 @@ function validatePassage(parsed, start, end) {
 // directly inside it, such as each verse in {"verses":[{...},{...}]}, as soon
 // as that object's closing brace arrives. Call it with the text so far, each
 // call extending the last; it returns the objects completed since the
-// previous call. The final, whole-text parse remains the arbiter of the
-// passage, so an object that does not parse here is skipped.
+// previous call. An object that does not parse here is skipped, and nothing
+// after the top-level object closes is read.
 function itemScanner() {
   const open = [];
   let pos = 0;
   let inString = false;
   let escaped = false;
   let itemStart = -1;
+  let closed = false;
   return text => {
     const items = [];
-    for (; pos < text.length; pos++) {
+    for (; pos < text.length && !closed; pos++) {
       const ch = text[pos];
       if (inString) {
         if (escaped) escaped = false;
@@ -116,6 +117,7 @@ function itemScanner() {
           } catch { /* left to the whole-text parse */ }
           itemStart = -1;
         }
+        closed = open.length === 0;
       }
     }
     return items;
@@ -136,11 +138,15 @@ function passageRenderVersion({ model, reasoningEffort }) {
 
 function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passageTimeoutMs, fetchImpl }) {
   // Resolves every verse of the passage, or throws if the passage as a whole
-  // is not a valid rendering. Before that, onVerse gets each well-formed verse
-  // of the passage, once, as soon as it has streamed in.
+  // is not a valid rendering. Before that, onVerse gets each verse as soon as
+  // it has streamed in, while the stream holds up: in order from the first,
+  // each well-formed. A gap, repeat, reordering, or malformed verse stops the
+  // handing over, and the whole-text check decides the rest. Verses already
+  // handed over stay, so a check that fails anyway says which they were.
   async function renderPassage(book, chapter, start, end, usage, onVerse) {
     const scan = itemScanner();
-    const seen = new Set();
+    let next = start;
+    let stopped = false;
     const parsed = await requestStructured({
       apiUrl, apiKey, model, reasoningEffort, fetchImpl, usage,
       systemPrompt: SYSTEM_PROMPT,
@@ -150,13 +156,22 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
       timeoutMs: passageTimeoutMs,
       onText: text => {
         for (const entry of scan(text)) {
-          if (!inPassage(entry, start, end) || !wellFormed(entry) || seen.has(entry.verse)) continue;
-          seen.add(entry.verse);
+          if (stopped || !inPassage(entry, start, end)) continue;
+          if (entry.verse !== next || !wellFormed(entry)) {
+            stopped = true;
+            continue;
+          }
+          next++;
           onVerse(entry);
         }
       },
     });
-    return validatePassage(parsed, start, end);
+    try {
+      return validatePassage(parsed, start, end);
+    } catch (err) {
+      if (next > start) err.message += ` (verses ${start}-${next - 1} had streamed in)`;
+      throw err;
+    }
   }
 
   return {

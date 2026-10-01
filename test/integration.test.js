@@ -278,22 +278,22 @@ test('foreground chapters render before background prefetches', async t => {
 });
 
 test('background prefetches start beside foreground chapters but leave the reserve free', async t => {
-  const mock = await startMockXai(t, { delayMs: 600 });
-  // Eight slots keep two for foreground; background runs while fewer than six are busy.
+  const mock = await startMockXai(t, { delayMs: 1000 });
+  // Eight slots keep four for foreground; background runs while fewer than four are busy.
   const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '8' });
   await getJson(app.port, '/api/chapter/3-john/1');
   await getJson(app.port, '/api/chapter/2-john/1?priority=background');
   await getJson(app.port, '/api/chapter/jude/1?priority=background');
-  // 3 John's two passages, 2 John's two, and two of Jude's three.
-  await waitFor(() => mock.calls === 6, { what: 'six calls in flight' });
+  // 3 John's two passages, then 2 John's two beside them; Jude's would take the reserve.
+  await waitFor(() => mock.calls === 4, { what: 'four calls in flight' });
   await sleep(150);
-  assert.equal(mock.calls, 6);
-  assert.deepEqual(userRefs(mock).slice(4), ['Jude 1:1-9', 'Jude 1:10-17']);
+  assert.equal(mock.calls, 4);
+  assert.deepEqual(userRefs(mock).slice(2), ['2 John 1:1-7', '2 John 1:8-13']);
   // A chapter the reader opens now still starts at once, in the reserve.
   await getJson(app.port, '/api/chapter/psalms/117');
-  await waitFor(() => mock.calls === 7, { what: 'the foreground call' });
-  assert.equal(userRefs(mock)[6], 'Psalms 117:1-2');
-  assert.equal(mock.maxActive, 7);
+  await waitFor(() => mock.calls === 5, { what: 'the foreground call' });
+  assert.equal(userRefs(mock)[4], 'Psalms 117:1-2');
+  assert.equal(mock.maxActive, 5);
   for (const p of ['3-john/1', '2-john/1', 'jude/1', 'psalms/117']) await waitForComplete(app.port, `/api/chapter/${p}?render=0`);
   assert.equal(mock.calls, 8);
 });

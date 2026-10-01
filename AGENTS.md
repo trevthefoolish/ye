@@ -7,7 +7,7 @@ A mobile-only Bible reader that renders every verse in modern English, with a ma
 `server.js` wires three layers, each depending only on the ones above it:
 
 1. **Foundations** (`src/config.js`, `canon.js`, `text.js`, `log.js`). Chapters and verses are 1-based everywhere except the store's file keys.
-2. **Rendering** (`src/render/`). `renderer.js` asks the pipeline (`passage-v1.js`) to `plan(chapterRef, missingVerses)` into units `{ key, refs, logFields, render(usage, put) }`, submits them to `scheduler.js`, and writes each verse to `store.js` as it streams in (`xai.js` streams every call; the pipeline hands each verse to `put` once its JSON object closes). The scheduler dedupes by key, runs foreground before background (background starts whenever slots are free but leaves a quarter of them for foreground), then most recently requested first, then submission order; it retries with backoff unless an error says `retryable: false`. The store serves reads from memory and persists with tmp+rename, coalesced per book.
+2. **Rendering** (`src/render/`). `renderer.js` asks the pipeline (`passage-v1.js`) to `plan(chapterRef, missingVerses)` into units `{ key, refs, logFields, render(usage, put) }`, submits them to `scheduler.js`, and writes each verse to `store.js` as it streams in (`xai.js` streams every call; the pipeline hands verses to `put` in order as each JSON object closes, and stops at the first gap, repeat, or malformed one). The scheduler dedupes by key, runs foreground before background (background starts whenever slots are free but never takes the half kept for foreground, since a running call cannot be taken back), then most recently requested first, then submission order; it retries with backoff unless an error says `retryable: false`. The store serves reads from memory and persists with tmp+rename, coalesced per book.
 3. **HTTP** (`src/http/`) and the **client** (`client/`, compiled into the page shell at startup; `public/` is served as-is). `client/app.js` is one IIFE: telemetry, canon (every chapter has a flat index `p`), motion constants, a chapter store (fetch dedupe, polling with backoff and caps), `Panel` (one chapter per swipe panel; swaps skeleton lines for verses as they arrive), and the reader (pager, gestures, navigator, history).
 
 ## Invariants
@@ -18,8 +18,8 @@ Load-bearing. Don't break them:
 - **Never serve or delete another version.** Entries are served only when their stamp matches the running version; other versions' directories are left for an operator.
 - **The prompt stays short.** `prompts/passage-v1.md` describes the situation rather than adding rules; a test keeps it under 120 words and free of MUST/NEVER. Anything the app needs regardless goes in code.
 - **House style is code.** `cleanText()` in `src/text.js` removes em dashes and turns "vapor" into "vapour" (keeping case) on every model string.
-- **Rendered text never changes under a reader.** A passage is rendered whole for context, but only its missing verses are stored, and the renderer never writes over a stored verse, including one an earlier, failed attempt streamed in.
-- **Rendering follows demand.** Never pre-render the Bible. Failed units leave their verses missing and retryable by the next request.
+- **Rendered text never changes under a reader.** A passage is rendered whole for context, but only its missing verses are stored, and the renderer never writes over a stored verse, including one an earlier, failed attempt streamed in. The cost: a passage that fails partway is finished by a later call, and a misnumbered passage that streams in order before failing its final check keeps the verses it streamed (the failure log names them).
+- **Rendering follows demand.** Never pre-render the Bible. Failed units leave their unwritten verses missing and retryable by the next request.
 - **Model text is never trusted.** Template placeholders are `{{escaped}}` by default; `{{{raw}}}` is only for `jsonForScript()` output or trusted static assets.
 - **Page shell.** CSS is inlined and JS is served under a content hash with immutable caching. No `<link rel="stylesheet">`, no unhashed scripts.
 - **Security headers.** CSP (`default-src 'self'`, no inline script), `X-Frame-Options: DENY`, HSTS in production. Beacons are rate-limited per IP (30/min `/api/log`, 60/min `/api/ev`); the chapter API is not, because the scheduler's concurrency cap protects the upstream.
@@ -37,7 +37,7 @@ Load-bearing. Don't break them:
 ## Testing changes
 
 1. `npm test`: unit suites plus end-to-end tests that spawn `server.js` against a mock xAI. No network needed.
-2. For client changes, run the server and check a phone-sized window in both themes: a cold chapter (skeleton, then verses a passage at a time), a verse tapped while still rendering (the note stays open), swipes both ways and at both ends of the Bible, the navigator, then Back.
+2. For client changes, run the server and check a phone-sized window in both themes: a cold chapter (skeleton, then verses filling in as they stream), a verse tapped while still rendering (the note stays open), swipes both ways and at both ends of the Bible, the navigator, then Back.
 
 ---
 

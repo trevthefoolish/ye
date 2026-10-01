@@ -183,8 +183,9 @@ test('token counts add up across calls, including billed calls that failed', asy
   assert.deepEqual(usage, { inputTokens: 2100, cachedTokens: 1800, outputTokens: 900, reasoningTokens: 750 });
 });
 
-test('the timeout also bounds a stream that stalls after it starts', async t => {
+test('the timeout also bounds a stream that stalls after it starts', { timeout: 10_000 }, async t => {
   const server = http.createServer((req, res) => {
+    if (req.url === '/warm') return res.end();
     res.setHeader('Content-Type', 'text/event-stream');
     res.write('data: {"type":"response.output_text.delta","delta":"{"}\n\n');
     // ...and nothing more.
@@ -194,12 +195,14 @@ test('the timeout also bounds a stream that stalls after it starts', async t => 
     server.closeAllConnections();
     server.close();
   });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  await (await fetch(`${base}/warm`)).text(); // fetch's first use is slow; keep it out of the timing
   const texts = [];
   const started = Date.now();
   await assert.rejects(
-    requestStructured({ apiUrl: `http://127.0.0.1:${server.address().port}/`, apiKey: 'k', timeoutMs: 200, onText: so => texts.push(so) }),
-    err => err.message === 'xAI request timed out after 200ms' && err.retryable,
+    requestStructured({ apiUrl: `${base}/`, apiKey: 'k', timeoutMs: 500, onText: so => texts.push(so) }),
+    err => err.message === 'xAI request timed out after 500ms' && err.retryable,
   );
   assert.deepEqual(texts, ['{']);
-  assert.ok(Date.now() - started < 2000);
+  assert.ok(Date.now() - started < 5000);
 });

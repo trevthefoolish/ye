@@ -142,15 +142,43 @@ test('each verse is handed over as soon as it streams in, before the passage com
   assert.deepEqual(put, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
 });
 
-test('streamed verses outside the passage, malformed, repeated, or not missing are not handed over', async () => {
-  const verses = [verse(10), verse(1), verse(2, { note: ' ' }), verse(3), verse(3, { rendering: 'Again' }), verse(4)];
-  // Ecclesiastes 1:1-9, with 1 already rendered.
-  const [unit] = pipelineWith(async () => streamedReply({ verses })).plan(ECCLESIASTES_1, [2, 3, 4, 5, 6, 7, 8, 9]);
+// Streams `verses` as Ecclesiastes 1:1-9's reply, with 1 already rendered and
+// 12 (in the next passage) missing too. Resolves the verses handed to put
+// while streaming, and the error if the passage failed.
+async function streamPassage(verses) {
+  const [unit] = pipelineWith(async () => streamedReply({ verses })).plan(ECCLESIASTES_1, [2, 3, 4, 5, 6, 7, 8, 9, 12]);
   const put = [];
-  // Verse 2 is malformed (and verse 3 repeats), so the passage fails as a whole...
-  await assert.rejects(unit.render(undefined, batch => put.push(...batch)), /malformed verse 2/);
-  // ...but the good verses it streamed first were handed over, once each.
-  assert.deepEqual(put.map(entry => [entry.verse, entry.rendering]), [[3, 'Rendering 3'], [4, 'Rendering 4']]);
+  const error = await unit.render(undefined, batch => put.push(...batch.map(entry => entry.verse))).then(() => null, err => err.message);
+  return { put, error };
+}
+const run = (from, to, extra = {}) => Array.from({ length: to - from + 1 }, (_, i) => verse(from + i, extra));
+
+test('streamed verses are handed over in order, skipping other passages and verses not missing', async () => {
+  // Verse 12 belongs to the next passage and 10 is beyond this one: both skipped, even mid-stream.
+  assert.deepEqual(await streamPassage([verse(1), verse(12), verse(2), verse(10), ...run(3, 9)]), { put: [2, 3, 4, 5, 6, 7, 8, 9], error: null });
+});
+
+test('a gap, repeat, reordering, or malformed verse stops the handing over', async () => {
+  // A gap: the rest waits for the whole-text check, which fails.
+  assert.deepEqual(await streamPassage([...run(1, 3), ...run(5, 9)]),
+    { put: [2, 3], error: 'passage rendering missing verse 4 (verses 1-3 had streamed in)' });
+  // A repeat stops it at once, even though the copy itself is well-formed.
+  assert.deepEqual(await streamPassage([...run(1, 3), verse(3, { rendering: 'Again' }), ...run(4, 9)]),
+    { put: [2, 3], error: 'verse 3 rendered twice (verses 1-3 had streamed in)' });
+  assert.deepEqual(await streamPassage([...run(1, 2), verse(3, { note: ' ' }), ...run(4, 9)]),
+    { put: [2], error: 'malformed verse 3 (verses 1-2 had streamed in)' });
+  // Out of order but complete: nothing streams after the swap, and the whole
+  // passage still arrives at the end.
+  const swapped = await streamPassage([verse(1), verse(3), verse(2), ...run(4, 9)]);
+  assert.deepEqual(swapped, { put: [], error: null });
+  // Numbered from the wrong verse: nothing is handed over.
+  assert.deepEqual(await streamPassage(run(2, 10)), { put: [], error: 'passage rendering missing verse 1' });
+});
+
+test('nothing after the top-level object is read', () => {
+  const scan = itemScanner();
+  assert.deepEqual(scan('{"verses":[{"verse":1}]}'), [{ verse: 1 }]);
+  assert.deepEqual(scan('{"verses":[{"verse":1}]}{"verses":[{"verse":2}]}'), []);
 });
 
 test('a stream that breaks keeps what it handed over and fails the passage', async () => {

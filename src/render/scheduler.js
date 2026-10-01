@@ -8,9 +8,10 @@
 // of starting a second one. Dispatch order:
 //
 //   1. Foreground before background. Background units run only while
-//      `reserve` slots (a quarter of them by default) stay free, so a prefetch
-//      starts at once when slots are idle but never takes the last ones from
-//      a reader who opens a new chapter.
+//      `reserve` slots (half of them by default) stay free, so a prefetch
+//      starts at once when slots are idle but never takes the reserved ones.
+//      A running call cannot be taken back, so the reserve is sized for
+//      several readers opening unrendered chapters at once.
 //   2. Within a class, the most recently requested units first. Every chapter
 //      request (including each poll) re-stamps its units, so the chapter a
 //      reader is looking at outranks one they have swiped away from.
@@ -22,7 +23,7 @@
 const FOREGROUND = 'foreground';
 const BACKGROUND = 'background';
 
-function createScheduler({ concurrency, reserve = Math.floor(concurrency / 4), retries = 2, retryBaseMs = 1000, onRetry = () => {} }) {
+function createScheduler({ concurrency, reserve = Math.floor(concurrency / 2), retries = 2, retryBaseMs = 1000, onRetry = () => {} }) {
   const units = new Map();
   const queue = [];
   let running = 0;

@@ -11,10 +11,12 @@
 //
 // Units that fail after retries leave their unwritten verses missing; the
 // next request for the chapter plans them again. Verses a failed attempt did
-// write stay as they are.
+// write stay as they are, so a passage can end up finished by a later call.
 
 const { createScheduler, FOREGROUND, BACKGROUND } = require('./scheduler');
 const { emptyUsage } = require('./xai');
+
+const refKey = ({ bookIndex, chapter, verse }) => `${bookIndex}:${chapter}:${verse}`;
 
 function summarize(values) {
   const nums = values.filter(n => typeof n === 'number' && Number.isFinite(n));
@@ -60,12 +62,13 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
   // Runs inside a scheduler slot, once per attempt. Skips the API call if
   // every ref is already stored (by another unit, or by an earlier attempt
   // that streamed them all before failing). Stores verses as they stream in,
-  // and never over one already stored, so a retry cannot change text a reader
-  // may be looking at.
+  // only the unit's own refs and never over one already stored, so a retry
+  // cannot change text a reader may be looking at.
   async function runUnit(unit, usage, tally) {
     if (unit.refs.every(ref => store.has(ref))) return;
+    const planned = new Set(unit.refs.map(refKey));
     const put = entries => {
-      const fresh = entries.filter(entry => !store.has(entry));
+      const fresh = entries.filter(entry => planned.has(refKey(entry)) && !store.has(entry));
       if (fresh.length === 0) return;
       store.put(fresh);
       tally.rendered += fresh.length;

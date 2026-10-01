@@ -109,8 +109,18 @@ test('a background unit runs while foreground work backs off; queued foreground 
   assert.deepEqual(started, ['fg', 'bg', 'fg', 'bg-late']);
 });
 
-test('the reserve defaults to a quarter of the slots, rounded down', async () => {
-  for (const [concurrency, backgroundSlots] of [[1, 1], [2, 2], [4, 3], [32, 24]]) {
+test('queued foreground work starts before newer background work', async () => {
+  const r = recorder();
+  // One slot, so no reserve: only priority keeps the prefetch behind.
+  const scheduler = createScheduler({ concurrency: 1 });
+  const fg = scheduler.submit(jobs(r, ['f1', 'f2', 'f3'], 5), FOREGROUND);
+  const bg = scheduler.submit(jobs(r, ['b1', 'b2'], 5), BACKGROUND);
+  await settle([...fg, ...bg]);
+  assert.deepEqual(r.started, ['f1', 'f2', 'f3', 'b1', 'b2']);
+});
+
+test('the reserve defaults to half the slots, rounded down', async () => {
+  for (const [concurrency, backgroundSlots] of [[1, 1], [2, 1], [3, 2], [32, 16]]) {
     const r = recorder();
     const scheduler = createScheduler({ concurrency });
     const names = Array.from({ length: concurrency + 1 }, (_, i) => `b${i}`);

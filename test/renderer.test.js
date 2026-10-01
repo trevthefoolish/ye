@@ -168,6 +168,21 @@ test('a retry makes no call when the failed attempt streamed every verse', async
   assert.equal(finished.failed, 0);
 });
 
+test('a unit stores only the verses it was planned for', async t => {
+  const pipeline = streamingPipeline([
+    async ({ put, entry, missing }) => {
+      put([{ ...entry(1, 'Stray'), chapter: 2 }]);
+      return [...missing.map(verse => entry(verse, 'R')), { ...entry(2, 'Stray'), chapter: 3 }];
+    },
+  ]);
+  const { log, store, renderer, missing } = setup(t, pipeline);
+  renderer.request(RUTH_1, missing(), FOREGROUND);
+  const finished = await waitFor(() => log.entries.find(e => e.event === 'chapter_render_finished'));
+  assert.equal(finished.rendered, 22);
+  assert.equal(store.has({ bookIndex: 7, chapter: 2, verse: 1 }), false);
+  assert.equal(store.has({ bookIndex: 7, chapter: 3, verse: 2 }), false);
+});
+
 test('skips the upstream call when another unit already filled the verse', async t => {
   const pipeline = fakePipeline();
   const { store, renderer } = setup(t, pipeline, 1);
