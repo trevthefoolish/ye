@@ -8,8 +8,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const { loadConfig } = require('../src/config');
 const { passageRenderVersion } = require('../src/render/passage-v1');
 
@@ -21,15 +19,6 @@ test('defaults are Grok 4.7 at low reasoning effort on the Responses API', () =>
   assert.equal(DEFAULTS.apiUrl, 'https://api.x.ai/v1/responses');
   // Stray whitespace or blank values never make a different model (and cache).
   assert.equal(passageRenderVersion(loadConfig({ RENDER_MODEL: ' grok-4.7 ', RENDER_REASONING_EFFORT: '' }).render), passageRenderVersion(DEFAULTS));
-});
-
-test('the committed renders/ holds only a render version this code produces', () => {
-  const dir = path.join(__dirname, '..', 'renders');
-  const current = [passageRenderVersion(DEFAULTS)];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name.startsWith('.')) continue; // .gitkeep, .DS_Store
-    assert.ok(entry.isDirectory() && current.includes(entry.name), `renders/${entry.name} is not a current render version; re-sync or delete it`);
-  }
 });
 
 test('passage-v1 render version is stable', () => {

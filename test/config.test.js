@@ -7,11 +7,9 @@ const { loadConfig } = require('../src/config');
 
 const ROOT = path.join(__dirname, '..');
 
-test('local runs cache outside the committed renders/', () => {
+test('local runs cache and log in gitignored directories', () => {
   const { cache, logs } = loadConfig({});
   assert.equal(cache.dir, path.join(ROOT, '.cache', 'renders'));
-  assert.notEqual(cache.dir, cache.seedDir);
-  assert.deepEqual(cache.retiredDirs, []);
   assert.equal(logs.dir, path.join(ROOT, 'logs'));
   assert.equal(loadConfig({ RENDERS_DIR: '  ' }).cache.dir, cache.dir);
 });
@@ -20,7 +18,6 @@ test('on Railway, renders and logs live on the attached volume with no other set
   const config = loadConfig({ RAILWAY_VOLUME_MOUNT_PATH: '/data', XAI_API_KEY: 'k' });
   assert.equal(config.cache.dir, '/data/renders');
   assert.equal(config.logs.dir, '/data/logs');
-  assert.deepEqual(config.cache.retiredDirs, ['/data/renders-v2']);
   assert.equal(config.render.model, 'grok-4.7');
 });
 
@@ -30,7 +27,7 @@ test('render timeouts leave headroom for grok-4.7 reasoning latency', () => {
 });
 
 test('explicit RENDERS_DIR and LOG_DIR still win over the volume', () => {
-  const config = loadConfig({ RAILWAY_VOLUME_MOUNT_PATH: '/data', RENDERS_DIR: '/data/renders-v2', LOG_DIR: '/var/log/ye' });
-  assert.equal(config.cache.dir, '/data/renders-v2');
+  const config = loadConfig({ RAILWAY_VOLUME_MOUNT_PATH: '/data', RENDERS_DIR: '/srv/renders', LOG_DIR: '/var/log/ye' });
+  assert.equal(config.cache.dir, '/srv/renders');
   assert.equal(config.logs.dir, '/var/log/ye');
 });

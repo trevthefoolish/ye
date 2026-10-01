@@ -56,13 +56,6 @@ function loadConfig(env = process.env) {
       // Cache root; each render version gets its own subdirectory. On Railway
       // it is on the volume; locally it is a gitignored directory.
       dir: persistent('RENDERS_DIR', 'renders') || path.join(ROOT, '.cache', 'renders'),
-      // Where section-v2 renders lived before Grok 4.7 (the old docs had
-      // RENDERS_DIR=/data/renders-v2). Removed at startup unless in use.
-      retiredDirs: volume ? [path.join(volume, 'renders-v2')] : [],
-      // The committed renders/ (reviewed copies of production's cache) seeds
-      // the cache at startup. The server only reads it.
-      seedDir: path.join(ROOT, 'renders'),
-      seed: env.SEED_RENDER_CACHE !== '0',
     }),
   });
 }

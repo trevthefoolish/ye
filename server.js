@@ -29,7 +29,7 @@ async function main() {
   const pipeline = createPassagePipeline(config.render);
 
   const store = new RenderStore({ dir: config.cache.dir, version: pipeline.version, log });
-  store.prepare(config.cache.seed ? config.cache.seedDir : null, { retiredDirs: config.cache.retiredDirs });
+  store.prepare();
 
   const { concurrency, retries, retryBaseMs } = config.render;
   const renderer = createRenderer({ pipeline, store, log, concurrency, retries, retryBaseMs });

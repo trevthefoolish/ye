@@ -124,9 +124,7 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
 }
 
 // Spawns `node server.js` against the mock, with a throwaway cache root and
-// log directory, and without seeding from the committed renders/ (so tests
-// never depend on what has been synced there). Resolves once the server logs
-// that it is listening.
+// log directory. Resolves once the server logs that it is listening.
 // app.versionDir(version) is where that render version's book files live.
 function startServer(t, env = {}) {
   // Not tempDir(): this one is removed only after the server has exited.
@@ -144,7 +142,6 @@ function startServer(t, env = {}) {
       LOG_DIR: path.join(dir, 'logs'),
       RENDER_MODEL: '',
       RENDER_REASONING_EFFORT: '',
-      SEED_RENDER_CACHE: '0',
       RAILWAY_VOLUME_MOUNT_PATH: '',
       ...env,
     },

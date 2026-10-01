@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { getJson, request, startMockXai, startServer, waitFor, waitForComplete } = require('./helpers');
+const { getJson, request, startMockXai, startServer, tempDir, waitFor, waitForComplete } = require('./helpers');
 
 const BOOKS = require('../data/bible.json').books;
 const bookFile = (app, version, book) => path.join(app.versionDir(version), `${BOOKS.indexOf(book)}.json`);
@@ -103,17 +103,17 @@ test('server (passage-v1)', async t => {
 
   await t.test('chapter pages carry metadata and inline whatever is rendered', async () => {
     writeCache(app, version, '2 John', {
-      '0:0': { rendering: 'Partial seed verse', note: 'Partial seed note', v: version, t: 1 },
+      '0:0': { rendering: 'Partial verse', note: 'Partial note', v: version, t: 1 },
     });
     const res = await request(app.port, '/2%20john/1');
     assert.equal(res.status, 200);
     assert.match(res.body, /<title>2 John 1<\/title>/);
     assert.match(res.body, /<link rel="canonical" href="https:\/\/www\.vapourware\.ai\/2-john\/1">/);
-    assert.match(res.body, /<meta name="description" content="Partial seed verse">/);
+    assert.match(res.body, /<meta name="description" content="Partial verse">/);
     const preloaded = JSON.parse(res.body.match(/<script id="preloaded" type="application\/json">(.*?)<\/script>/)[1]);
     assert.equal(preloaded.book, '2 John');
     assert.equal(preloaded.complete, false);
-    assert.equal(preloaded.verses[0].rendering, 'Partial seed verse');
+    assert.equal(preloaded.verses[0].rendering, 'Partial verse');
     const ld = JSON.parse(res.body.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
     assert.equal(ld.name, '2 John 1');
   });
@@ -232,68 +232,13 @@ test('server (passage-v1)', async t => {
   });
 });
 
-test('startup removes the pre-4.7 cache layout once and leaves other render versions alone', async t => {
-  const { tempDir } = require('./helpers');
-  const { createPassagePipeline } = require('../src/render/passage-v1');
-  const { loadConfig } = require('../src/config');
-  const current = createPassagePipeline(loadConfig({}).render).version;
-  const other = '0123456789ab';
+test('on Railway, only XAI_API_KEY is needed: renders and logs go on the volume', async t => {
   const volume = tempDir(t);
-  // Ruth 2:1 ("1:0") exists in the legacy file, in another version's
-  // directory, and with a wrong stamp in the current one; Ruth 1:2 ("0:1") is current.
-  const old = {
-    '0:0': { rendering: 'From an older model', note: 'Old', v: '7fc357e1a8e6', t: 1 },
-    '1:0': { rendering: 'Legacy Ruth 2', note: 'Old', v: '7fc357e1a8e6', t: 1 },
-  };
-  fs.writeFileSync(path.join(volume, '7.json'), JSON.stringify(old));
-  fs.writeFileSync(path.join(volume, '8.json'), JSON.stringify(old));
-  fs.mkdirSync(path.join(volume, other));
-  fs.writeFileSync(path.join(volume, other, '7.json'), JSON.stringify({ '1:0': { rendering: 'Other-config Ruth 2', note: 'n', v: other, t: 1 } }));
-  fs.writeFileSync(path.join(volume, other, '8.json'), JSON.stringify({ '0:0': { rendering: 'Another config', note: 'n', v: other, t: 1 } }));
-  fs.mkdirSync(path.join(volume, current));
-  fs.writeFileSync(path.join(volume, current, '7.json'), JSON.stringify({
-    '0:1': { rendering: 'Current verse', note: 'n', v: current, t: 1 },
-    '1:0': { rendering: 'Mis-stamped Ruth 2', note: 'n', v: other, t: 1 },
-  }));
-
-  const mock = await startMockXai(t);
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDERS_DIR: volume });
-  const prepared = await app.waitForLog('render_cache_prepared');
-  assert.equal(prepared.legacyRemoved, 2);
-  assert.deepEqual(prepared.otherVersions, [other]);
-  assert.deepEqual(fs.readdirSync(volume).sort(), [current, other].sort());
-  assert.ok(fs.existsSync(path.join(volume, other, '8.json')));
-
-  const ruth = await getJson(app.port, '/api/chapter/ruth/1?render=0');
-  assert.equal(ruth.verses[0], null);
-  assert.equal(ruth.verses[1].rendering, 'Current verse');
-  // Ruth 2 has no current-version text, so its page must not borrow any.
-  const page = (await request(app.port, '/ruth/2')).body;
-  assert.match(page, /<meta name="description" content="Ruth 2, rendered in modern English with scholarly notes\.">/);
-  assert.ok(!page.includes('id="preloaded"'));
-  for (const text of ['Legacy Ruth 2', 'Other-config Ruth 2', 'Mis-stamped Ruth 2']) assert.ok(!page.includes(text), text);
-  assert.equal((await getJson(app.port, '/api/chapter/ruth/2?render=0')).verses[0], null);
-});
-
-test('on Railway, only XAI_API_KEY is needed: the volume gets renders and logs, pre-4.7 caches go', async t => {
-  const { tempDir } = require('./helpers');
-  const volume = tempDir(t);
-  const old = { '0:0': { rendering: 'From an older model', note: 'Old', v: '7fc357e1a8e6', t: 1 } };
-  fs.mkdirSync(path.join(volume, 'renders'));
-  fs.writeFileSync(path.join(volume, 'renders', '7.json'), JSON.stringify(old));
-  fs.mkdirSync(path.join(volume, 'renders-v2'));
-  fs.writeFileSync(path.join(volume, 'renders-v2', '7.json'), JSON.stringify(old));
-  fs.mkdirSync(path.join(volume, 'logs'));
-
   const mock = await startMockXai(t);
   const app = await startServer(t, { XAI_API_URL: mock.url, RAILWAY_VOLUME_MOUNT_PATH: volume, RENDERS_DIR: '', LOG_DIR: '' });
   const info = await getJson(app.port, '/api/version');
   assert.equal(info.renderPipeline, 'passage-v1');
   assert.equal(info.model, 'grok-4.7');
-  const prepared = await app.waitForLog('render_cache_prepared');
-  assert.equal(prepared.legacyRemoved, 1);
-  assert.deepEqual(prepared.retiredRemoved, [path.join(volume, 'renders-v2')]);
-  assert.deepEqual(fs.readdirSync(volume).sort(), ['logs', 'renders']);
 
   await getJson(app.port, '/api/chapter/jude/1');
   await waitForComplete(app.port, '/api/chapter/jude/1');
