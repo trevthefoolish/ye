@@ -138,14 +138,15 @@ function passageRenderVersion({ model, reasoningEffort }) {
 
 function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passageTimeoutMs, fetchImpl }) {
   // Resolves every verse of the passage, or throws if the passage as a whole
-  // is not a valid rendering. Before that, onVerse gets each verse as soon as
-  // it has streamed in, while the stream holds up: in order from the first,
-  // each well-formed. A gap, repeat, reordering, or malformed verse stops the
-  // handing over, and the whole-text check decides the rest. Verses already
-  // handed over stay, so a check that fails anyway says which they were.
+  // is not a valid rendering. Before that, onVerse gets each verse once the
+  // next one has streamed in after it, in order from the first and each
+  // well-formed, so a verse that was split in two or merged with the next is
+  // never handed over. The first gap, repeat, reordering, or malformed verse
+  // stops the handing over, and the whole-text check decides the rest,
+  // including the last verse.
   async function renderPassage(book, chapter, start, end, usage, onVerse) {
     const scan = itemScanner();
-    let next = start;
+    let pending = null;
     let stopped = false;
     const parsed = await requestStructured({
       apiUrl, apiKey, model, reasoningEffort, fetchImpl, usage,
@@ -157,21 +158,16 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
       onText: text => {
         for (const entry of scan(text)) {
           if (stopped || !inPassage(entry, start, end)) continue;
-          if (entry.verse !== next || !wellFormed(entry)) {
+          if (entry.verse !== (pending ? pending.verse + 1 : start) || !wellFormed(entry)) {
             stopped = true;
             continue;
           }
-          next++;
-          onVerse(entry);
+          if (pending) onVerse(pending);
+          pending = entry;
         }
       },
     });
-    try {
-      return validatePassage(parsed, start, end);
-    } catch (err) {
-      if (next > start) err.message += ` (verses ${start}-${next - 1} had streamed in)`;
-      throw err;
-    }
+    return validatePassage(parsed, start, end);
   }
 
   return {
@@ -183,9 +179,9 @@ function createPassagePipeline({ apiUrl, apiKey, model, reasoningEffort, passage
     // rendered for context, but only its missing verses are stored, so text a
     // reader already has never changes under them.
     //
-    // render(usage, put) hands each missing verse to put() as soon as it has
-    // streamed in, then resolves all of them once the passage is complete and
-    // valid. The caller stores what it has not already stored.
+    // render(usage, put) hands missing verses to put() as they stream in,
+    // then resolves all of them once the passage is complete and valid. The
+    // caller stores what it has not already stored.
     plan({ bookIndex, book, chapter }, missing) {
       const wanted = new Set(missing);
       const toEntry = ({ verse, rendering, note }) => ({ bookIndex, chapter, verse, rendering: cleanText(rendering), note: cleanText(note) });

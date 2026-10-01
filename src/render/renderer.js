@@ -18,6 +18,14 @@ const { emptyUsage } = require('./xai');
 
 const refKey = ({ bookIndex, chapter, verse }) => `${bookIndex}:${chapter}:${verse}`;
 
+// Log fields for a failed attempt: why, the verses it stored anyway, and its timing.
+const failureFields = (logFields, err) => ({
+  ...logFields,
+  reason: err.message,
+  ...(err.storedVerses && { storedVerses: err.storedVerses }),
+  ...err.timing,
+});
+
 function summarize(values) {
   const nums = values.filter(n => typeof n === 'number' && Number.isFinite(n));
   if (nums.length === 0) return { avg: 0, p95: 0, max: 0 };
@@ -51,11 +59,9 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
     retries,
     retryBaseMs,
     onRetry: (unit, err, delayMs) => log.warn(`${pipeline.unit}_render_retry`, {
-      ...unit.meta.logFields,
+      ...failureFields(unit.meta.logFields, err),
       attempt: unit.attempts,
       delay: delayMs,
-      reason: err.message,
-      ...err.timing,
     }),
   });
 
@@ -67,13 +73,21 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
   async function runUnit(unit, usage, tally) {
     if (unit.refs.every(ref => store.has(ref))) return;
     const planned = new Set(unit.refs.map(refKey));
+    const stored = [];
     const put = entries => {
       const fresh = entries.filter(entry => planned.has(refKey(entry)) && !store.has(entry));
       if (fresh.length === 0) return;
       store.put(fresh);
       tally.rendered += fresh.length;
+      stored.push(...fresh.map(entry => entry.verse));
     };
-    put(await unit.render(usage, put));
+    try {
+      put(await unit.render(usage, put));
+    } catch (err) {
+      // A failed attempt keeps what it stored; its retry or failure log says what.
+      if (stored.length > 0) err.storedVerses = stored;
+      throw err;
+    }
   }
 
   // A unit already in the scheduler is joined, not resubmitted; only the
@@ -82,7 +96,7 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
     const submitted = scheduler.submit(units.map(unit => ({ key: unit.key, task: () => runUnit(unit, usage, tally), meta: unit })), priority);
     return submitted.map(({ status, promise }, i) => {
       if (status === 'started') {
-        promise.catch(err => log.warn(`${pipeline.unit}_render_failed`, { ...units[i].logFields, reason: err.message, ...err.timing }));
+        promise.catch(err => log.warn(`${pipeline.unit}_render_failed`, failureFields(units[i].logFields, err)));
       }
       return promise;
     });

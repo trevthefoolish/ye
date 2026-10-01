@@ -133,7 +133,8 @@ test('stores verses as they stream in, and a retry never rewrites one', async t 
   assert.deepEqual([1, 2, 3, 4, 5, 22].map(text), ['First 1', 'First 2', 'First 3', 'Second 4', 'Second 5', 'Second 22']);
   assert.equal(finished.rendered, 22);
   assert.equal(finished.failed, 0);
-  assert.ok(log.entries.some(e => e.event === 'passage_render_retry' && e.reason === 'stream broke'));
+  const retry = log.entries.find(e => e.event === 'passage_render_retry');
+  assert.deepEqual([retry.reason, retry.storedVerses], ['stream broke', [1, 2, 3]]);
 });
 
 test('a unit that fails partway counts only its unwritten verses as failed', async t => {
@@ -148,6 +149,7 @@ test('a unit that fails partway counts only its unwritten verses as failed', asy
   const finished = await waitFor(() => log.entries.find(e => e.event === 'chapter_render_finished'));
   assert.equal(finished.rendered, 2);
   assert.equal(finished.failed, 20);
+  assert.deepEqual(log.entries.find(e => e.event === 'passage_render_failed').storedVerses, [1, 2]);
   assert.equal(text(1), 'Kept 1');
   assert.equal(missing().length, 20);
 });

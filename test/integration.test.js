@@ -304,13 +304,14 @@ test('verses appear as they stream, before their passage finishes', async t => {
   const mock = await startMockXai(t, { beforeVerse: (payload, n) => (userContent(payload) === 'Jude 1:1-9' && n === 3 ? held : null) });
   const app = await startServer(t, { XAI_API_URL: mock.url });
   await getJson(app.port, '/api/chapter/jude/1');
+  // Three verses have streamed; the first two are stored, and the third waits for the fourth.
   const partial = await waitFor(async () => {
     const data = await getJson(app.port, '/api/chapter/jude/1?render=0');
-    return data.verses[2] && data.verses.slice(9).every(Boolean) ? data : null;
-  }, { what: 'the first three verses and the other passages' });
+    return data.verses[1] && data.verses.slice(9).every(Boolean) ? data : null;
+  }, { what: 'the first two verses and the other passages' });
   assert.deepEqual(partial.verses[0], { rendering: 'Rendered Jude 1:1', note: 'Note for Jude 1:1' });
-  assert.deepEqual(partial.verses.slice(3, 9), [null, null, null, null, null, null]);
-  assert.equal(partial.missingCount, 6);
+  assert.deepEqual(partial.verses.slice(2, 9), [null, null, null, null, null, null, null]);
+  assert.equal(partial.missingCount, 7);
   release();
   const complete = await waitForComplete(app.port, '/api/chapter/jude/1?render=0');
   assert.equal(complete.verses[8].rendering, 'Rendered Jude 1:9');
@@ -328,14 +329,15 @@ test('a passage that fails partway keeps the verses it streamed; its retry fills
   const app = await startServer(t, { XAI_API_URL: mock.url });
   await getJson(app.port, '/api/chapter/jude/1');
   const complete = await waitForComplete(app.port, '/api/chapter/jude/1?render=0');
+  // Three verses streamed before the failure; the third was still waiting for the fourth.
   assert.deepEqual(complete.verses.slice(0, 9).map(v => v.rendering), [
-    'Rendered Jude 1:1', 'Rendered Jude 1:2', 'Rendered Jude 1:3',
-    'Retried Jude 1:4', 'Retried Jude 1:5', 'Retried Jude 1:6', 'Retried Jude 1:7', 'Retried Jude 1:8', 'Retried Jude 1:9',
+    'Rendered Jude 1:1', 'Rendered Jude 1:2',
+    'Retried Jude 1:3', 'Retried Jude 1:4', 'Retried Jude 1:5', 'Retried Jude 1:6', 'Retried Jude 1:7', 'Retried Jude 1:8', 'Retried Jude 1:9',
   ]);
   // The retry rendered the whole passage again, for context.
   assert.deepEqual(userRefs(mock).filter(ref => ref === 'Jude 1:1-9').length, 2);
   const retry = await app.waitForLog('passage_render_retry');
-  assert.equal(retry.reason, 'xAI response failed: mock failure');
+  assert.deepEqual([retry.reason, retry.storedVerses], ['xAI response failed: mock failure', [1, 2]]);
   const finished = await app.waitForLog('chapter_render_finished');
   assert.equal(finished.rendered, 25);
   assert.equal(finished.failed, 0);

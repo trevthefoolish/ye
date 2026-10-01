@@ -116,7 +116,7 @@ test('passage-v1 sends the bare passage with the prompt file, and stores only mi
   assert.deepEqual(pipeline.plan(ECCLESIASTES_1, []), []);
 });
 
-test('each verse is handed over as soon as it streams in, before the passage completes', async () => {
+test('each verse is handed over once the next has streamed in, before the passage completes', async () => {
   const stream = sseStream();
   const [unit] = pipelineWith(async () => stream.response).plan(ECCLESIASTES_1, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
   const put = [];
@@ -126,20 +126,22 @@ test('each verse is handed over as soon as it streams in, before the passage com
   const verses = Array.from({ length: 9 }, (_, i) => verse(i + 1));
   const items = verses.map(v => JSON.stringify(v));
   await send(`{"verses":[${items[0]}`);
-  assert.deepEqual(put, [1]);
+  // Verse 1 waits until verse 2 shows it was whole.
+  assert.deepEqual(put, []);
   // Half a verse is not a verse.
   await send(`,${items[1].slice(0, 20)}`);
-  assert.deepEqual(put, [1]);
+  assert.deepEqual(put, []);
   await send(`${items[1].slice(20)},${items[2]}`);
-  assert.deepEqual(put, [1, 2, 3]);
+  assert.deepEqual(put, [1, 2]);
   await send(`,${items.slice(3).join(',')}]}`);
-  assert.deepEqual(put, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(put, [1, 2, 3, 4, 5, 6, 7, 8]);
 
   const text = JSON.stringify({ verses });
   stream.push(completed(text));
   stream.end();
+  // The last verse comes with the whole passage, once it has been checked.
   assert.deepEqual((await done).map(entry => entry.verse), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.deepEqual(put, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  assert.deepEqual(put, [1, 2, 3, 4, 5, 6, 7, 8]);
 });
 
 // Streams `verses` as Ecclesiastes 1:1-9's reply, with 1 already rendered and
@@ -155,22 +157,21 @@ const run = (from, to, extra = {}) => Array.from({ length: to - from + 1 }, (_, 
 
 test('streamed verses are handed over in order, skipping other passages and verses not missing', async () => {
   // Verse 12 belongs to the next passage and 10 is beyond this one: both skipped, even mid-stream.
-  assert.deepEqual(await streamPassage([verse(1), verse(12), verse(2), verse(10), ...run(3, 9)]), { put: [2, 3, 4, 5, 6, 7, 8, 9], error: null });
+  assert.deepEqual(await streamPassage([verse(1), verse(12), verse(2), verse(10), ...run(3, 9)]), { put: [2, 3, 4, 5, 6, 7, 8], error: null });
 });
 
-test('a gap, repeat, reordering, or malformed verse stops the handing over', async () => {
-  // A gap: the rest waits for the whole-text check, which fails.
-  assert.deepEqual(await streamPassage([...run(1, 3), ...run(5, 9)]),
-    { put: [2, 3], error: 'passage rendering missing verse 4 (verses 1-3 had streamed in)' });
-  // A repeat stops it at once, even though the copy itself is well-formed.
-  assert.deepEqual(await streamPassage([...run(1, 3), verse(3, { rendering: 'Again' }), ...run(4, 9)]),
-    { put: [2, 3], error: 'verse 3 rendered twice (verses 1-3 had streamed in)' });
-  assert.deepEqual(await streamPassage([...run(1, 2), verse(3, { note: ' ' }), ...run(4, 9)]),
-    { put: [2], error: 'malformed verse 3 (verses 1-2 had streamed in)' });
+test('a gap, repeat, reordering, or malformed verse stops the handing over, and drops the verse before it', async () => {
+  // A gap: verse 3 may have swallowed verse 4, so it is not handed over either.
+  assert.deepEqual(await streamPassage([...run(1, 3), ...run(5, 9)]), { put: [2], error: 'passage rendering missing verse 4' });
+  // Verse 3 merged with 4 and the numbering carried on: the same.
+  assert.deepEqual(await streamPassage([...run(1, 2), verse(3, { rendering: 'Rendering 3 and 4' }), ...run(5, 9)]), { put: [2], error: 'passage rendering missing verse 4' });
+  // Verse 5 split in two: neither half is handed over.
+  assert.deepEqual(await streamPassage([...run(1, 4), verse(5, { rendering: 'First half' }), verse(5, { rendering: 'second half' }), ...run(6, 9)]),
+    { put: [2, 3, 4], error: 'verse 5 rendered twice' });
+  assert.deepEqual(await streamPassage([...run(1, 2), verse(3, { note: ' ' }), ...run(4, 9)]), { put: [], error: 'malformed verse 3' });
   // Out of order but complete: nothing streams after the swap, and the whole
   // passage still arrives at the end.
-  const swapped = await streamPassage([verse(1), verse(3), verse(2), ...run(4, 9)]);
-  assert.deepEqual(swapped, { put: [], error: null });
+  assert.deepEqual(await streamPassage([verse(1), verse(3), verse(2), ...run(4, 9)]), { put: [], error: null });
   // Numbered from the wrong verse: nothing is handed over.
   assert.deepEqual(await streamPassage(run(2, 10)), { put: [], error: 'passage rendering missing verse 1' });
 });
@@ -190,7 +191,8 @@ test('a stream that breaks keeps what it handed over and fails the passage', asy
   await sleep(5);
   stream.fail(new TypeError('terminated'));
   await assert.rejects(done, err => err.message === 'xAI request failed: terminated' && err.retryable);
-  assert.deepEqual(put, [1, 2]);
+  // Verse 2 was still waiting for verse 3, so only verse 1 was handed over.
+  assert.deepEqual(put, [1]);
 });
 
 test('the prompt describes the job and leaves style to the model', () => {

@@ -17,7 +17,7 @@ It's designed for deep, repeated reading. The kind that reveals its meaning over
 
 The Bible is rendered on demand by [Grok](https://x.ai) (`grok-4.7` at low reasoning effort), a passage at a time: each chapter splits into near-even passages of at most 10 verses, and each passage is one call to xAI's Responses API with strict JSON-schema output. The prompt ([`prompts/passage-v1.md`](prompts/passage-v1.md)) is short on purpose: who is reading, what to write for each verse, and the app's one opinion, that the Bible is one story that leads to Jesus. The only house style, no em dashes and "vapour" with a *u*, is applied in code.
 
-A chapter request returns whatever is already rendered and queues the rest; the reader polls, and verses appear one by one as the model writes them, since each call streams and every verse is stored as soon as it is whole. Nothing renders ahead of demand: only chapters someone opens (and their neighbours, at lower priority) go to the model. Neighbours render alongside the open chapter while upstream slots are free, but never in the half of the slots kept for chapters readers open.
+A chapter request returns whatever is already rendered and queues the rest; the reader polls, and verses appear one by one as the model writes them, since each call streams and every verse is stored once the model has moved on to the next. Nothing renders ahead of demand: only chapters someone opens (and their neighbours, at lower priority) go to the model. Neighbours render alongside the open chapter while upstream slots are free, but never in the half of the slots kept for chapters readers open.
 
 Renders are cached per **render version**, a hash of the model, reasoning effort, prompt, schema, and passage size:
 
