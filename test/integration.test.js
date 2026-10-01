@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { getJson, request, startMockXai, startServer, waitFor, waitForComplete } = require('./helpers');
+const { getJson, request, startMockXai, startServer, tempDir, waitFor, waitForComplete } = require('./helpers');
 
 const BOOKS = require('../data/bible.json').books;
 const bookFile = (app, version, book) => path.join(app.versionDir(version), `${BOOKS.indexOf(book)}.json`);
@@ -17,7 +17,6 @@ const writeCache = (app, version, book, data) => {
 };
 const userContent = payload => payload.input.find(m => m.role === 'user').content;
 const userRefs = mock => mock.payloads.map(userContent);
-const sectionStarts = mock => mock.payloads.map(p => JSON.parse(userContent(p)).section.startRef);
 
 test('server (passage-v1)', async t => {
   const mock = await startMockXai(t);
@@ -42,9 +41,6 @@ test('server (passage-v1)', async t => {
       model: 'grok-4.7',
       reasoningEffort: 'low',
       renderPipeline: 'passage-v1',
-      promptVersion: 'passage-v1',
-      schemaVersion: 'passage-v1',
-      sectionVersion: null,
       appVersion: '0.0.1',
     });
   });
@@ -107,19 +103,28 @@ test('server (passage-v1)', async t => {
 
   await t.test('chapter pages carry metadata and inline whatever is rendered', async () => {
     writeCache(app, version, '2 John', {
-      '0:0': { rendering: 'Partial seed verse', note: 'Partial seed note', v: version, t: 1 },
+      '0:0': { rendering: 'Partial verse', note: 'Partial note', v: version, t: 1 },
     });
     const res = await request(app.port, '/2%20john/1');
     assert.equal(res.status, 200);
     assert.match(res.body, /<title>2 John 1<\/title>/);
     assert.match(res.body, /<link rel="canonical" href="https:\/\/www\.vapourware\.ai\/2-john\/1">/);
-    assert.match(res.body, /<meta name="description" content="Partial seed verse">/);
+    assert.match(res.body, /<meta name="description" content="Partial verse">/);
     const preloaded = JSON.parse(res.body.match(/<script id="preloaded" type="application\/json">(.*?)<\/script>/)[1]);
     assert.equal(preloaded.book, '2 John');
     assert.equal(preloaded.complete, false);
-    assert.equal(preloaded.verses[0].rendering, 'Partial seed verse');
+    assert.equal(preloaded.verses[0].rendering, 'Partial verse');
     const ld = JSON.parse(res.body.match(/<script type="application\/ld\+json">(.*?)<\/script>/)[1]);
     assert.equal(ld.name, '2 John 1');
+  });
+
+  await t.test('pages without current-version text never borrow another version\'s', async () => {
+    writeCache(app, version, 'Obadiah', { '0:0': { rendering: 'Mis-stamped verse', note: 'n', v: 'stale-version', t: 1 } });
+    writeCache(app, '5155da19beec', 'Obadiah', { '0:0': { rendering: 'Old-version verse', note: 'n', v: '5155da19beec', t: 1 } });
+    const res = await request(app.port, '/obadiah/1');
+    assert.match(res.body, /<meta name="description" content="Obadiah 1, rendered in modern English with scholarly notes\.">/);
+    assert.ok(!res.body.includes('id="preloaded"'));
+    for (const text of ['Mis-stamped verse', 'Old-version verse']) assert.ok(!res.body.includes(text), text);
   });
 
   await t.test('model text cannot break out of the page', async () => {
@@ -236,68 +241,13 @@ test('server (passage-v1)', async t => {
   });
 });
 
-test('startup removes the pre-4.7 cache layout once and leaves other render versions alone', async t => {
-  const { tempDir } = require('./helpers');
-  const { createPipeline } = require('../src/render/pipelines');
-  const { loadConfig } = require('../src/config');
-  const current = createPipeline(loadConfig({}).render).version;
-  const other = '0123456789ab';
+test('on Railway, only XAI_API_KEY is needed: renders and logs go on the volume', async t => {
   const volume = tempDir(t);
-  // Ruth 2:1 ("1:0") exists in the legacy file, in another version's
-  // directory, and with a wrong stamp in the current one; Ruth 1:2 ("0:1") is current.
-  const old = {
-    '0:0': { rendering: 'From an older model', note: 'Old', v: '7fc357e1a8e6', t: 1 },
-    '1:0': { rendering: 'Legacy Ruth 2', note: 'Old', v: '7fc357e1a8e6', t: 1 },
-  };
-  fs.writeFileSync(path.join(volume, '7.json'), JSON.stringify(old));
-  fs.writeFileSync(path.join(volume, '8.json'), JSON.stringify(old));
-  fs.mkdirSync(path.join(volume, other));
-  fs.writeFileSync(path.join(volume, other, '7.json'), JSON.stringify({ '1:0': { rendering: 'Other-config Ruth 2', note: 'n', v: other, t: 1 } }));
-  fs.writeFileSync(path.join(volume, other, '8.json'), JSON.stringify({ '0:0': { rendering: 'Another config', note: 'n', v: other, t: 1 } }));
-  fs.mkdirSync(path.join(volume, current));
-  fs.writeFileSync(path.join(volume, current, '7.json'), JSON.stringify({
-    '0:1': { rendering: 'Current verse', note: 'n', v: current, t: 1 },
-    '1:0': { rendering: 'Mis-stamped Ruth 2', note: 'n', v: other, t: 1 },
-  }));
-
-  const mock = await startMockXai(t);
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDERS_DIR: volume });
-  const prepared = await app.waitForLog('render_cache_prepared');
-  assert.equal(prepared.legacyRemoved, 2);
-  assert.deepEqual(prepared.otherVersions, [other]);
-  assert.deepEqual(fs.readdirSync(volume).sort(), [current, other].sort());
-  assert.ok(fs.existsSync(path.join(volume, other, '8.json')));
-
-  const ruth = await getJson(app.port, '/api/chapter/ruth/1?render=0');
-  assert.equal(ruth.verses[0], null);
-  assert.equal(ruth.verses[1].rendering, 'Current verse');
-  // Ruth 2 has no current-version text, so its page must not borrow any.
-  const page = (await request(app.port, '/ruth/2')).body;
-  assert.match(page, /<meta name="description" content="Ruth 2, rendered in modern English with scholarly notes\.">/);
-  assert.ok(!page.includes('id="preloaded"'));
-  for (const text of ['Legacy Ruth 2', 'Other-config Ruth 2', 'Mis-stamped Ruth 2']) assert.ok(!page.includes(text), text);
-  assert.equal((await getJson(app.port, '/api/chapter/ruth/2?render=0')).verses[0], null);
-});
-
-test('on Railway, only XAI_API_KEY is needed: the volume gets renders and logs, pre-4.7 caches go', async t => {
-  const { tempDir } = require('./helpers');
-  const volume = tempDir(t);
-  const old = { '0:0': { rendering: 'From an older model', note: 'Old', v: '7fc357e1a8e6', t: 1 } };
-  fs.mkdirSync(path.join(volume, 'renders'));
-  fs.writeFileSync(path.join(volume, 'renders', '7.json'), JSON.stringify(old));
-  fs.mkdirSync(path.join(volume, 'renders-v2'));
-  fs.writeFileSync(path.join(volume, 'renders-v2', '7.json'), JSON.stringify(old));
-  fs.mkdirSync(path.join(volume, 'logs'));
-
   const mock = await startMockXai(t);
   const app = await startServer(t, { XAI_API_URL: mock.url, RAILWAY_VOLUME_MOUNT_PATH: volume, RENDERS_DIR: '', LOG_DIR: '' });
   const info = await getJson(app.port, '/api/version');
   assert.equal(info.renderPipeline, 'passage-v1');
   assert.equal(info.model, 'grok-4.7');
-  const prepared = await app.waitForLog('render_cache_prepared');
-  assert.equal(prepared.legacyRemoved, 1);
-  assert.deepEqual(prepared.retiredRemoved, [path.join(volume, 'renders-v2')]);
-  assert.deepEqual(fs.readdirSync(volume).sort(), ['logs', 'renders']);
 
   await getJson(app.port, '/api/chapter/jude/1');
   await waitForComplete(app.port, '/api/chapter/jude/1');
@@ -315,91 +265,15 @@ test('upstream render concurrency is capped globally', async t => {
   assert.equal(mock.maxActive, 2);
 });
 
-test('verse-v1: foreground chapters render before background prefetches', async t => {
-  const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'verse-v1', RENDER_CONCURRENCY: '1' });
-  assert.equal((await getJson(app.port, '/api/version')).version, '5155da19beec');
-
+test('foreground chapters render before background prefetches', async t => {
+  const mock = await startMockXai(t, { delayMs: 100 });
+  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_CONCURRENCY: '1' });
   assert.equal((await getJson(app.port, '/api/chapter/2-john/1?priority=background')).renderPriority, 'background');
   assert.equal((await getJson(app.port, '/api/chapter/3-john/1')).renderPriority, 'foreground');
-  await waitForComplete(app.port, '/api/chapter/3-john/1');
-
-  const refs = userRefs(mock);
-  const thirdJohn = require('../data/bible.json').verses[BOOKS.indexOf('3 John')][0];
-  // 2 John 1:1 was already running; everything else waited for 3 John.
-  assert.deepEqual(refs.slice(0, 1 + thirdJohn), ['2 John 1:1', ...Array.from({ length: thirdJohn }, (_, i) => `3 John 1:${i + 1}`)]);
-});
-
-test('verse-v1: the chapter requested most recently renders first', async t => {
-  const mock = await startMockXai(t, { delayMs: 20 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'verse-v1', RENDER_CONCURRENCY: '1' });
-  await getJson(app.port, '/api/chapter/ruth/1');
-  await getJson(app.port, '/api/chapter/jude/1');
-  await waitForComplete(app.port, '/api/chapter/jude/1');
-  const refs = userRefs(mock);
-  const lastJude = refs.lastIndexOf('Jude 1:25');
-  assert.ok(refs.slice(0, lastJude).filter(r => r.startsWith('Ruth')).length <= 1, refs.slice(0, lastJude + 1).join(', '));
-  // Within a chapter, verses go top to bottom.
-  const jude = refs.filter(r => r.startsWith('Jude'));
-  assert.deepEqual(jude, Array.from({ length: 25 }, (_, i) => `Jude 1:${i + 1}`));
-});
-
-test('section-v2 renders whole sections through the Responses API', async t => {
-  const mock = await startMockXai(t, { delayMs: 5 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2' });
-
-  const info = await getJson(app.port, '/api/version');
-  assert.equal(info.version, 'e226a3b91a43');
-  assert.equal(info.renderPipeline, 'section-v2');
-  assert.equal(info.promptVersion, 'margin-note-v3');
-  assert.equal(info.schemaVersion, 'section-render-v1');
-  assert.equal(info.sectionVersion, 'sections-openbible-v1');
-
-  assert.equal((await getJson(app.port, '/api/chapter/genesis/1')).complete, false);
-  const complete = await waitForComplete(app.port, '/api/chapter/genesis/1');
-  // The public shape is the same as verse-v1: note metadata stays server-side.
-  assert.deepEqual(complete.verses[0], { rendering: 'Rendered Genesis 1:1', note: 'Margin Genesis 1:1' });
-
-  const payload = mock.payloads[0];
-  assert.equal(payload.model, 'grok-4.7');
-  assert.equal(payload.store, false);
-  assert.deepEqual(payload.reasoning, { effort: 'low' });
-  assert.equal(payload.messages, undefined);
-  assert.deepEqual(
-    { type: payload.text.format.type, name: payload.text.format.name, strict: payload.text.format.strict },
-    { type: 'json_schema', name: 'section_rendering', strict: true }
-  );
-  const user = JSON.parse(payload.input.find(m => m.role === 'user').content);
-  assert.equal(user.book, 'Genesis');
-  assert.equal(user.chapter, 1);
-  assert.deepEqual(user.section, { id: 'ob-gen-1-1-gen-2-3', startRef: 'Genesis 1:1', endRef: 'Genesis 2:3', label: 'Genesis 1:1-Genesis 2:3', source: 'openbible-consensus' });
-  assert.deepEqual(user.targetReferences.slice(-2), ['Genesis 2:2', 'Genesis 2:3']);
-
-  // One section call filled the start of chapter 2 as well.
-  const cache = await waitFor(() => {
-    try { const c = readCache(app, 'e226a3b91a43', 'Genesis'); return c['1:2'] && c; } catch { return null; }
-  }, { what: 'Genesis cache file' });
-  assert.deepEqual(cache['1:2'], { ...cache['1:2'], rendering: 'Rendered Genesis 2:3', noteKind: 'literary', christConnection: 'none', v: 'e226a3b91a43' });
-});
-
-test('section-v2 renders a section shared by two chapters once', async t => {
-  const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '4' });
-  await Promise.all([getJson(app.port, '/api/chapter/genesis/1'), getJson(app.port, '/api/chapter/genesis/2')]);
-  await Promise.all([waitForComplete(app.port, '/api/chapter/genesis/1'), waitForComplete(app.port, '/api/chapter/genesis/2')]);
-  assert.equal(sectionStarts(mock).filter(ref => ref === 'Genesis 1:1').length, 1);
-});
-
-test('section-v2: foreground chapters render before background prefetches', async t => {
-  const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '1' });
-  await getJson(app.port, '/api/chapter/2-john/1?priority=background');
-  await getJson(app.port, '/api/chapter/3-john/1');
-  await waitForComplete(app.port, '/api/chapter/3-john/1');
-  const starts = sectionStarts(mock);
-  const lastForeground = starts.findLastIndex(ref => ref.startsWith('3 John'));
-  assert.equal(starts[0], '2 John 1:1');
-  assert.ok(!starts.slice(1, lastForeground).some(ref => ref.startsWith('2 John')), starts.join(', '));
+  // A plain poll would promote 2 John to foreground; render=0 only reads.
+  await waitForComplete(app.port, '/api/chapter/2-john/1?render=0');
+  // 2 John's first passage was already running; its second waited for 3 John.
+  assert.deepEqual(userRefs(mock), ['2 John 1:1-7', '3 John 1:1-7', '3 John 1:8-14', '2 John 1:8-13']);
 });
 
 test('upstream client errors are not retried; server errors are', async t => {

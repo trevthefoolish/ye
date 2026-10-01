@@ -11,7 +11,7 @@ const { sleep, tempDir, waitFor } = require('./helpers');
 
 const RUTH_1 = { bookIndex: 7, book: 'Ruth', chapter: 1 };
 
-// One unit per verse, like verse-v1. `fail(verse)` makes that verse throw.
+// One unit per verse. `fail(verse)` makes that verse throw.
 function fakePipeline({ delayMs = 5, fail = () => false } = {}) {
   const calls = [];
   return {

@@ -10,7 +10,7 @@ const { loadConfig } = require('./src/config');
 const { openLogs } = require('./src/log');
 const { createApp } = require('./src/http/app');
 const { buildShell } = require('./src/http/shell');
-const { createPipeline } = require('./src/render/pipelines');
+const { createPassagePipeline } = require('./src/render/passage-v1');
 const { createRenderer } = require('./src/render/renderer');
 const { RenderStore } = require('./src/render/store');
 
@@ -26,10 +26,10 @@ async function main() {
     process.exit(1);
   }
 
-  const pipeline = createPipeline(config.render, log);
+  const pipeline = createPassagePipeline(config.render);
 
   const store = new RenderStore({ dir: config.cache.dir, version: pipeline.version, log });
-  store.prepare(config.cache.seed ? config.cache.seedDir : null, { retiredDirs: config.cache.retiredDirs });
+  store.prepare();
 
   const { concurrency, retries, retryBaseMs } = config.render;
   const renderer = createRenderer({ pipeline, store, log, concurrency, retries, retryBaseMs });

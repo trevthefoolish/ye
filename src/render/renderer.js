@@ -4,7 +4,7 @@
 // Chapter-level rendering on top of a pipeline, the store, and the scheduler.
 //
 // A chapter request with missing verses asks the pipeline for work units
-// (verses or sections), submits them to the shared scheduler, and writes each
+// (passages), submits them to the shared scheduler, and writes each
 // unit's entries to the store as soon as it finishes, so polling clients see
 // verses appear progressively. Rendering never runs ahead of requests: only
 // chapters someone asked for (or the client prefetches) are rendered.
@@ -26,7 +26,7 @@ function summarize(values) {
   };
 }
 
-// `unit` names what one timing covers (verse or section): avgVerseMs, p95SectionMs, ...
+// `unit` names what one timing covers (a passage): avgPassageMs, p95PassageMs, ...
 function timingSummary(timings, unit) {
   const cap = unit[0].toUpperCase() + unit.slice(1);
   const total = summarize(timings.map(t => t?.totalMs));
@@ -65,8 +65,8 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
     return entries;
   }
 
-  // Sections can be shared by two chapters' jobs; only the submission that
-  // created a unit logs its failure and counts its tokens.
+  // A unit already in the scheduler is joined, not resubmitted; only the
+  // submission that created it logs its failure.
   function submitUnits(units, priority, usage) {
     const submitted = scheduler.submit(units.map(unit => ({ key: unit.key, task: () => runUnit(unit, usage), meta: unit })), priority);
     return submitted.map(({ status, promise }, i) => {
@@ -134,7 +134,7 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
     return priority === BACKGROUND ? 'started-background' : 'started';
   }
 
-  return { request, stats: scheduler.stats };
+  return { request };
 }
 
 module.exports = { createRenderer, FOREGROUND, BACKGROUND };

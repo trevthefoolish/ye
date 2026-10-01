@@ -1,7 +1,7 @@
 // Copyright (c) 2026 vapourware.ai All rights reserved.
 'use strict';
 
-// Minimal xAI HTTP client shared by both render pipelines.
+// Minimal xAI Responses API client.
 
 class RenderError extends Error {
   constructor(message, { retryable = true, status } = {}) {

@@ -55,7 +55,7 @@ function request(port, pathname, { method = 'GET', headers = {}, body } = {}) {
 
 const getJson = async (port, pathname) => JSON.parse((await request(port, pathname)).body);
 
-// "Jude 1:1-9" -> every verse of the passage, with the same text verse-v1 gets.
+// "Jude 1:1-9" -> every verse of the passage, with deterministic text.
 function passageReply(passage) {
   const [, book, chapter, start, end] = passage.match(/^(.+) (\d+):(\d+)-(\d+)$/);
   const verses = [];
@@ -66,10 +66,8 @@ function passageReply(passage) {
   return { verses };
 }
 
-// Answers Responses API requests for every pipeline with deterministic text:
-// a passage (passage-v1), a plain reference (verse-v1), or a JSON section
-// payload (section-v2). Like grok-4.7, it puts a reasoning item before the
-// message. `respond(payload)` may return { status, body } to override the reply.
+// Answers Responses API passage requests with deterministic text. Like
+// grok-4.7, it puts a reasoning item before the message. `respond(payload)` may return { status, body } to override the reply.
 function startMockXai(t, { delayMs = 0, respond } = {}) {
   const payloads = [];
   let active = 0;
@@ -94,11 +92,7 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
         res.statusCode = override.status || 200;
         return res.end(JSON.stringify(override.body));
       }
-      const user = payload.input.find(m => m.role === 'user').content;
-      const reply = payload.text.format.name === 'passage_rendering' ? passageReply(user)
-        : user.startsWith('{')
-          ? { verses: JSON.parse(user).targetReferences.map(ref => ({ ref, rendering: `Rendered ${ref}`, note: `Margin ${ref}`, noteKind: 'literary', christConnection: 'none' })) }
-          : { rendering: `Rendered ${user}`, note: `Note for ${user}` };
+      const reply = passageReply(payload.input.find(m => m.role === 'user').content);
       res.end(JSON.stringify({
         id: 'resp_test',
         output: [
@@ -130,9 +124,7 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
 }
 
 // Spawns `node server.js` against the mock, with a throwaway cache root and
-// log directory, and without seeding from the committed renders/ (so tests
-// never depend on what has been synced there). Resolves once the server logs
-// that it is listening.
+// log directory. Resolves once the server logs that it is listening.
 // app.versionDir(version) is where that render version's book files live.
 function startServer(t, env = {}) {
   // Not tempDir(): this one is removed only after the server has exited.
@@ -148,10 +140,8 @@ function startServer(t, env = {}) {
       XAI_API_KEY: 'test-key',
       RENDERS_DIR: rendersDir,
       LOG_DIR: path.join(dir, 'logs'),
-      RENDER_PIPELINE: '',
       RENDER_MODEL: '',
       RENDER_REASONING_EFFORT: '',
-      SEED_RENDER_CACHE: '0',
       RAILWAY_VOLUME_MOUNT_PATH: '',
       ...env,
     },
@@ -197,4 +187,4 @@ async function waitForComplete(port, pathname) {
   }, { what: `${pathname} to complete`, intervalMs: 100 });
 }
 
-module.exports = { ROOT, getJson, request, sleep, startMockXai, startServer, tempDir, waitFor, waitForComplete };
+module.exports = { getJson, request, sleep, startMockXai, startServer, tempDir, waitFor, waitForComplete };

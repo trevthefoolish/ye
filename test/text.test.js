@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { cleanText, escapeHtml, jsonForScript, parsePositiveInt, slugify } = require('../src/text');
+const { cleanText, escapeHtml, jsonForScript, parsePositiveInt } = require('../src/text');
 
 test('cleanText turns em dashes into commas', () => {
   assert.equal(cleanText('vapour—mist rising'), 'vapour, mist rising');
@@ -38,9 +38,4 @@ test('parsePositiveInt accepts positive integers and falls back otherwise', () =
   assert.equal(parsePositiveInt('8', 4), 8);
   assert.equal(parsePositiveInt('12px', 4), 12);
   for (const bad of ['0', '-2', 'abc', undefined, '']) assert.equal(parsePositiveInt(bad, 4), 4);
-});
-
-test('slugify makes URL- and file-safe identifiers', () => {
-  assert.equal(slugify('Song of Solomon'), 'song-of-solomon');
-  assert.equal(slugify('1John.3.16'), '1john-3-16');
 });

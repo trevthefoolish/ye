@@ -8,12 +8,7 @@ const { parsePositiveInt } = require('./text');
 
 const ROOT = path.resolve(__dirname, '..');
 
-const PIPELINE_PASSAGE = 'passage-v1';
-const PIPELINE_VERSE = 'verse-v1';
-const PIPELINE_SECTION = 'section-v2';
-const PIPELINES = [PIPELINE_PASSAGE, PIPELINE_VERSE, PIPELINE_SECTION];
-
-// Every pipeline uses the Responses API (Chat Completions is legacy at xAI).
+// The Responses API (Chat Completions is legacy at xAI).
 const XAI_RESPONSES_URL = 'https://api.x.ai/v1/responses';
 
 // Unset and blank both mean "use the default"; stray whitespace is not a
@@ -21,9 +16,6 @@ const XAI_RESPONSES_URL = 'https://api.x.ai/v1/responses';
 const setting = (value, fallback) => (typeof value === 'string' && value.trim()) || fallback;
 
 function loadConfig(env = process.env) {
-  // passage-v1 in production; the older pipelines stay selectable by name.
-  const requested = setting(env.RENDER_PIPELINE);
-  const pipeline = PIPELINES.includes(requested) ? requested : PIPELINE_PASSAGE;
   // Railway sets this when a volume is attached; renders and logs live there
   // unless RENDERS_DIR / LOG_DIR say otherwise.
   const volume = setting(env.RAILWAY_VOLUME_MOUNT_PATH);
@@ -41,7 +33,6 @@ function loadConfig(env = process.env) {
       analyticsSalt: env.ANALYTICS_SALT || '',
     }),
     render: Object.freeze({
-      pipeline,
       apiKey: env.XAI_API_KEY || '',
       apiUrl: env.XAI_API_URL || XAI_RESPONSES_URL,
       model: setting(env.RENDER_MODEL, 'grok-4.7'),
@@ -49,17 +40,13 @@ function loadConfig(env = process.env) {
       // reasoning off. low is xAI's setting for latency-sensitive work, and
       // reasoning tokens bill as output, so it is also the cheapest.
       reasoningEffort: setting(env.RENDER_REASONING_EFFORT, 'low'),
-      // Upstream calls in flight at once, across all readers. A verse takes
-      // ~20 s, so this is the throughput dial: 32 renders an average chapter
-      // (26 verses) in one round. xAI rate limits answer 429, which is retried.
+      // Upstream calls in flight at once, across all readers: the throughput
+      // dial. xAI rate limits answer 429, which is retried.
       concurrency: parsePositiveInt(env.RENDER_CONCURRENCY, 32),
-      // grok-4.7 reasons even at low effort: in production a single verse
-      // averaged ~20 s and a quarter of calls ran past 30 s. A timeout cuts off
-      // (and re-bills) a call that would have succeeded, so leave headroom.
-      verseTimeoutMs: 90_000,
-      // A passage call reasons over up to 10 verses and writes them all.
+      // grok-4.7 reasons even at low effort, and a passage call reasons over up
+      // to 10 verses and writes them all. A timeout cuts off (and re-bills) a
+      // call that would have succeeded, so leave headroom.
       passageTimeoutMs: 120_000,
-      sectionTimeoutMs: parsePositiveInt(env.RENDER_SECTION_TIMEOUT_MS, 90_000),
       retries: 2,
       retryBaseMs: 1_000,
       // How long clients should wait before polling a partially rendered chapter.
@@ -69,15 +56,8 @@ function loadConfig(env = process.env) {
       // Cache root; each render version gets its own subdirectory. On Railway
       // it is on the volume; locally it is a gitignored directory.
       dir: persistent('RENDERS_DIR', 'renders') || path.join(ROOT, '.cache', 'renders'),
-      // Where section-v2 renders lived before Grok 4.7 (the old docs had
-      // RENDERS_DIR=/data/renders-v2). Removed at startup unless in use.
-      retiredDirs: volume ? [path.join(volume, 'renders-v2')] : [],
-      // The committed renders/ (reviewed copies of production's cache) seeds
-      // the cache at startup. The server only reads it.
-      seedDir: path.join(ROOT, 'renders'),
-      seed: env.SEED_RENDER_CACHE !== '0',
     }),
   });
 }
 
-module.exports = { loadConfig, PIPELINE_PASSAGE, PIPELINE_SECTION, PIPELINE_VERSE };
+module.exports = { loadConfig };

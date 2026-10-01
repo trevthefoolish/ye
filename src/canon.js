@@ -17,10 +17,6 @@ function chapterPath(bookIndex, chapter) {
   return `/${toSlug(BOOKS[bookIndex])}/${chapter}`;
 }
 
-function formatRef(book, chapter, verse) {
-  return `${book} ${chapter}:${verse}`;
-}
-
 function verseCount(bookIndex, chapter) {
   return VERSE_COUNTS[bookIndex]?.[chapter - 1] || 0;
 }
@@ -36,62 +32,4 @@ function resolveChapter(bookParam, chapterParam) {
   return { bookIndex, book: BOOKS[bookIndex], chapter, verseCount: verses };
 }
 
-// Every verse in canonical order, built on first use (only the section
-// pipeline and scripts need it).
-let verseIndex = null;
-
-function getVerseIndex() {
-  if (verseIndex) return verseIndex;
-  const refs = [];
-  const locations = new Map();
-  const ordinals = new Map();
-  BOOKS.forEach((book, bookIndex) => {
-    VERSE_COUNTS[bookIndex].forEach((count, c) => {
-      for (let verse = 1; verse <= count; verse++) {
-        const ref = formatRef(book, c + 1, verse);
-        ordinals.set(ref, refs.length);
-        locations.set(ref, Object.freeze({ ref, book, bookIndex, chapter: c + 1, verse }));
-        refs.push(ref);
-      }
-    });
-  });
-  verseIndex = { refs, locations, ordinals };
-  return verseIndex;
-}
-
-function parseRef(ref) {
-  const location = getVerseIndex().locations.get(ref);
-  if (location) return location;
-  throw new Error(/^.+ \d+:\d+$/.test(ref) ? `unknown reference: ${ref}` : `malformed reference: ${ref}`);
-}
-
-function compareRefs(a, b) {
-  const { ordinals } = getVerseIndex();
-  return ordinals.get(a) - ordinals.get(b);
-}
-
-// Inclusive range of canonical refs; ranges may cross chapters.
-function refsBetween(startRef, endRef) {
-  const { refs, ordinals } = getVerseIndex();
-  const start = ordinals.get(startRef);
-  const end = ordinals.get(endRef);
-  if (start === undefined || end === undefined || end < start) {
-    throw new Error(`invalid range: ${startRef}-${endRef}`);
-  }
-  return refs.slice(start, end + 1);
-}
-
-module.exports = {
-  BOOKS,
-  CHAPTER_COUNTS,
-  VERSE_COUNTS,
-  chapterPath,
-  compareRefs,
-  formatRef,
-  getVerseIndex,
-  parseRef,
-  refsBetween,
-  resolveChapter,
-  toSlug,
-  verseCount,
-};
+module.exports = { BOOKS, CHAPTER_COUNTS, VERSE_COUNTS, chapterPath, resolveChapter, toSlug, verseCount };

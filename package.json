@@ -2,21 +2,13 @@
   "name": "ye",
   "version": "0.0.1",
   "description": "The Bible rendered in modern English",
-  "main": "server.js",
   "engines": {
     "node": "22.x"
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test \"test/**/*.test.js\"",
-    "check": "node scripts/check.js",
-    "sections:generate": "node scripts/generate-sections.js",
-    "eval:v2": "node scripts/eval-renderer-v2.js",
-    "eval:v2:edge": "EVAL_SET=edge node scripts/eval-renderer-v2.js",
-    "eval:v2:prod-sim": "EVAL_SET=prod-sim node scripts/eval-renderer-v2.js",
-    "eval:v2:gate": "EVAL_SET=${EVAL_SET:-edge} EVAL_GATE=1 node scripts/eval-renderer-v2.js"
+    "test": "node --test \"test/**/*.test.js\""
   },
-  "keywords": [],
   "author": "vapourware.ai",
   "license": "UNLICENSED",
   "dependencies": {

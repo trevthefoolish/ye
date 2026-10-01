@@ -7,7 +7,7 @@ const canon = require('../src/canon');
 test('the canon has 66 books, 1,189 chapters, and 31,071 verses', () => {
   assert.equal(canon.BOOKS.length, 66);
   assert.equal(canon.CHAPTER_COUNTS.reduce((a, b) => a + b, 0), 1189);
-  assert.equal(canon.getVerseIndex().refs.length, 31071);
+  assert.equal(canon.VERSE_COUNTS.flat().reduce((a, b) => a + b, 0), 31071);
 });
 
 test('resolveChapter accepts slugs and names, rejects anything else', () => {
@@ -22,13 +22,4 @@ test('resolveChapter accepts slugs and names, rejects anything else', () => {
 test('chapter paths are lowercase slugs', () => {
   assert.equal(canon.chapterPath(21, 1), '/song-of-solomon/1');
   assert.equal(canon.chapterPath(10, 8), '/1-kings/8');
-});
-
-test('refs parse, order, and range across chapter boundaries', () => {
-  assert.deepEqual({ ...canon.parseRef('Genesis 2:3') }, { ref: 'Genesis 2:3', book: 'Genesis', bookIndex: 0, chapter: 2, verse: 3 });
-  assert.throws(() => canon.parseRef('Genesis 51:1'), /unknown reference/);
-  assert.throws(() => canon.parseRef('nonsense'), /malformed reference/);
-  assert.ok(canon.compareRefs('Genesis 1:31', 'Genesis 2:1') < 0);
-  assert.deepEqual(canon.refsBetween('Genesis 1:30', 'Genesis 2:2'), ['Genesis 1:30', 'Genesis 1:31', 'Genesis 2:1', 'Genesis 2:2']);
-  assert.throws(() => canon.refsBetween('Genesis 2:2', 'Genesis 1:30'), /invalid range/);
 });
