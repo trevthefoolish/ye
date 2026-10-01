@@ -40,11 +40,7 @@ function isEntry(value) {
 }
 
 function sameEntry(a, b) {
-  return a.v === b.v
-    && a.rendering === b.rendering
-    && a.note === b.note
-    && a.noteKind === b.noteKind
-    && a.christConnection === b.christConnection;
+  return a.v === b.v && a.rendering === b.rendering && a.note === b.note;
 }
 
 // Folds current-version entries from a committed seed file into a live cache
@@ -189,16 +185,13 @@ class RenderStore {
     return result;
   }
 
-  // entries: [{ bookIndex, chapter, verse, rendering, note, noteKind?, christConnection? }].
+  // entries: [{ bookIndex, chapter, verse, rendering, note }].
   // Visible to reads immediately; resolves once persisted (never rejects).
   put(entries) {
     const touched = new Set();
     const t = Date.now();
-    for (const { bookIndex, chapter, verse, rendering, note, noteKind, christConnection } of entries) {
-      const entry = { rendering, note };
-      if (noteKind !== undefined) entry.noteKind = noteKind;
-      if (christConnection !== undefined) entry.christConnection = christConnection;
-      this.#book(bookIndex)[entryKey(chapter, verse)] = { ...entry, v: this.version, t };
+    for (const { bookIndex, chapter, verse, rendering, note } of entries) {
+      this.#book(bookIndex)[entryKey(chapter, verse)] = { rendering, note, v: this.version, t };
       touched.add(bookIndex);
     }
     for (const bookIndex of touched) {

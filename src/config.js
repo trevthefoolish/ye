@@ -10,8 +10,7 @@ const ROOT = path.resolve(__dirname, '..');
 
 const PIPELINE_PASSAGE = 'passage-v1';
 const PIPELINE_VERSE = 'verse-v1';
-const PIPELINE_SECTION = 'section-v2';
-const PIPELINES = [PIPELINE_PASSAGE, PIPELINE_VERSE, PIPELINE_SECTION];
+const PIPELINES = [PIPELINE_PASSAGE, PIPELINE_VERSE];
 
 // Every pipeline uses the Responses API (Chat Completions is legacy at xAI).
 const XAI_RESPONSES_URL = 'https://api.x.ai/v1/responses';
@@ -59,7 +58,6 @@ function loadConfig(env = process.env) {
       verseTimeoutMs: 90_000,
       // A passage call reasons over up to 10 verses and writes them all.
       passageTimeoutMs: 120_000,
-      sectionTimeoutMs: parsePositiveInt(env.RENDER_SECTION_TIMEOUT_MS, 90_000),
       retries: 2,
       retryBaseMs: 1_000,
       // How long clients should wait before polling a partially rendered chapter.
@@ -80,4 +78,4 @@ function loadConfig(env = process.env) {
   });
 }
 
-module.exports = { loadConfig, PIPELINE_PASSAGE, PIPELINE_SECTION, PIPELINE_VERSE };
+module.exports = { loadConfig, PIPELINE_PASSAGE, PIPELINE_VERSE };

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 vapourware.ai All rights reserved.
 'use strict';
 
-// Text helpers shared by the server, renderers, and scripts.
+// Text helpers shared by the server and the renderer.
 
 const crypto = require('node:crypto');
 
@@ -31,10 +31,6 @@ function parsePositiveInt(value, fallback) {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-function slugify(value) {
-  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
-
 function sha256(input, length = 64) {
   return crypto.createHash('sha256').update(input).digest('hex').slice(0, length);
 }
@@ -54,4 +50,4 @@ function renderVersion(parts) {
   return sha256(stableStringify(parts), 12);
 }
 
-module.exports = { cleanText, escapeHtml, jsonForScript, parsePositiveInt, renderVersion, slugify, sha256, stableStringify };
+module.exports = { cleanText, escapeHtml, jsonForScript, parsePositiveInt, renderVersion, sha256 };

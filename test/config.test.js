@@ -27,8 +27,8 @@ test('on Railway, renders and logs live on the attached volume with no other set
 
 test('RENDER_PIPELINE selects an older pipeline by name; anything else is passage-v1', () => {
   assert.equal(loadConfig({ RENDER_PIPELINE: 'verse-v1' }).render.pipeline, 'verse-v1');
-  assert.equal(loadConfig({ RENDER_PIPELINE: ' section-v2 ' }).render.pipeline, 'section-v2');
-  for (const value of [undefined, '', 'passage-v1', 'verse-v2']) {
+  assert.equal(loadConfig({ RENDER_PIPELINE: ' verse-v1 ' }).render.pipeline, 'verse-v1');
+  for (const value of [undefined, '', 'passage-v1', 'section-v2']) {
     assert.equal(loadConfig({ RENDER_PIPELINE: value }).render.pipeline, 'passage-v1', String(value));
   }
 });
@@ -38,7 +38,6 @@ test('render timeouts leave headroom for grok-4.7 reasoning latency', () => {
   const { render } = loadConfig({});
   assert.equal(render.verseTimeoutMs, 90_000);
   assert.equal(render.passageTimeoutMs, 120_000);
-  assert.equal(render.sectionTimeoutMs, 90_000);
 });
 
 test('explicit RENDERS_DIR and LOG_DIR still win over the volume', () => {

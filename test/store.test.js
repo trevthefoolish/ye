@@ -73,12 +73,12 @@ test('reads and writes only the directory of its own render version', async t =>
 test('put() is visible at once and persists only known fields with 0-based keys', async t => {
   const { dir, store } = newStore(t);
   const writes = [];
-  for (let verse = 1; verse <= 22; verse++) writes.push(store.put([entry(verse, { ref: 'Ruth 1:1', noteKind: 'literary' })]));
+  for (let verse = 1; verse <= 22; verse++) writes.push(store.put([entry(verse, { ref: 'Ruth 1:1' })]));
   assert.equal(store.chapter(RUTH).missing.length, 0);
   assert.deepEqual(await Promise.all(writes), Array(22).fill([true]));
   const saved = readJson(path.join(dir, '7.json'));
   assert.equal(Object.keys(saved).length, 22);
-  assert.deepEqual(Object.keys(saved['0:21']), ['rendering', 'note', 'noteKind', 'v', 't']);
+  assert.deepEqual(Object.keys(saved['0:21']), ['rendering', 'note', 'v', 't']);
   assert.equal(saved['0:21'].v, VERSION);
   assert.equal(fs.readdirSync(dir).filter(f => f.endsWith('.tmp')).length, 0);
 });
@@ -166,7 +166,7 @@ test('prepare() never treats a version directory given as the root as legacy', t
 test('prepare() removes retired cache directories, unless one is in use', t => {
   const volume = tempDir(t);
   const retired = path.join(volume, 'renders-v2');
-  writeJson(path.join(retired, '7.json'), { '0:0': stored('Old section-v2 render', 'oldoldoldold') });
+  writeJson(path.join(retired, '7.json'), { '0:0': stored('Old render', 'oldoldoldold') });
   const log = memoryLogger();
   const store = new RenderStore({ dir: path.join(volume, 'renders'), version: VERSION, log });
   assert.deepEqual(store.prepare(null, { retiredDirs: [retired, path.join(volume, 'missing')] }).retiredRemoved, [retired]);

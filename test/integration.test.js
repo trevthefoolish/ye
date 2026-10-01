@@ -17,7 +17,6 @@ const writeCache = (app, version, book, data) => {
 };
 const userContent = payload => payload.input.find(m => m.role === 'user').content;
 const userRefs = mock => mock.payloads.map(userContent);
-const sectionStarts = mock => mock.payloads.map(p => JSON.parse(userContent(p)).section.startRef);
 
 test('server (passage-v1)', async t => {
   const mock = await startMockXai(t);
@@ -342,64 +341,6 @@ test('verse-v1: the chapter requested most recently renders first', async t => {
   // Within a chapter, verses go top to bottom.
   const jude = refs.filter(r => r.startsWith('Jude'));
   assert.deepEqual(jude, Array.from({ length: 25 }, (_, i) => `Jude 1:${i + 1}`));
-});
-
-test('section-v2 renders whole sections through the Responses API', async t => {
-  const mock = await startMockXai(t, { delayMs: 5 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2' });
-
-  const info = await getJson(app.port, '/api/version');
-  assert.equal(info.version, 'e226a3b91a43');
-  assert.equal(info.renderPipeline, 'section-v2');
-  assert.equal(info.promptVersion, 'margin-note-v3');
-  assert.equal(info.schemaVersion, 'section-render-v1');
-  assert.equal(info.sectionVersion, 'sections-openbible-v1');
-
-  assert.equal((await getJson(app.port, '/api/chapter/genesis/1')).complete, false);
-  const complete = await waitForComplete(app.port, '/api/chapter/genesis/1');
-  // The public shape is the same as verse-v1: note metadata stays server-side.
-  assert.deepEqual(complete.verses[0], { rendering: 'Rendered Genesis 1:1', note: 'Margin Genesis 1:1' });
-
-  const payload = mock.payloads[0];
-  assert.equal(payload.model, 'grok-4.7');
-  assert.equal(payload.store, false);
-  assert.deepEqual(payload.reasoning, { effort: 'low' });
-  assert.equal(payload.messages, undefined);
-  assert.deepEqual(
-    { type: payload.text.format.type, name: payload.text.format.name, strict: payload.text.format.strict },
-    { type: 'json_schema', name: 'section_rendering', strict: true }
-  );
-  const user = JSON.parse(payload.input.find(m => m.role === 'user').content);
-  assert.equal(user.book, 'Genesis');
-  assert.equal(user.chapter, 1);
-  assert.deepEqual(user.section, { id: 'ob-gen-1-1-gen-2-3', startRef: 'Genesis 1:1', endRef: 'Genesis 2:3', label: 'Genesis 1:1-Genesis 2:3', source: 'openbible-consensus' });
-  assert.deepEqual(user.targetReferences.slice(-2), ['Genesis 2:2', 'Genesis 2:3']);
-
-  // One section call filled the start of chapter 2 as well.
-  const cache = await waitFor(() => {
-    try { const c = readCache(app, 'e226a3b91a43', 'Genesis'); return c['1:2'] && c; } catch { return null; }
-  }, { what: 'Genesis cache file' });
-  assert.deepEqual(cache['1:2'], { ...cache['1:2'], rendering: 'Rendered Genesis 2:3', noteKind: 'literary', christConnection: 'none', v: 'e226a3b91a43' });
-});
-
-test('section-v2 renders a section shared by two chapters once', async t => {
-  const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '4' });
-  await Promise.all([getJson(app.port, '/api/chapter/genesis/1'), getJson(app.port, '/api/chapter/genesis/2')]);
-  await Promise.all([waitForComplete(app.port, '/api/chapter/genesis/1'), waitForComplete(app.port, '/api/chapter/genesis/2')]);
-  assert.equal(sectionStarts(mock).filter(ref => ref === 'Genesis 1:1').length, 1);
-});
-
-test('section-v2: foreground chapters render before background prefetches', async t => {
-  const mock = await startMockXai(t, { delayMs: 25 });
-  const app = await startServer(t, { XAI_API_URL: mock.url, RENDER_PIPELINE: 'section-v2', RENDER_CONCURRENCY: '1' });
-  await getJson(app.port, '/api/chapter/2-john/1?priority=background');
-  await getJson(app.port, '/api/chapter/3-john/1');
-  await waitForComplete(app.port, '/api/chapter/3-john/1');
-  const starts = sectionStarts(mock);
-  const lastForeground = starts.findLastIndex(ref => ref.startsWith('3 John'));
-  assert.equal(starts[0], '2 John 1:1');
-  assert.ok(!starts.slice(1, lastForeground).some(ref => ref.startsWith('2 John')), starts.join(', '));
 });
 
 test('upstream client errors are not retried; server errors are', async t => {

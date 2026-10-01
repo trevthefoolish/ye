@@ -67,9 +67,8 @@ function passageReply(passage) {
 }
 
 // Answers Responses API requests for every pipeline with deterministic text:
-// a passage (passage-v1), a plain reference (verse-v1), or a JSON section
-// payload (section-v2). Like grok-4.7, it puts a reasoning item before the
-// message. `respond(payload)` may return { status, body } to override the reply.
+// a passage (passage-v1) or a plain reference (verse-v1). Like grok-4.7, it
+// puts a reasoning item before the message. `respond(payload)` may return { status, body } to override the reply.
 function startMockXai(t, { delayMs = 0, respond } = {}) {
   const payloads = [];
   let active = 0;
@@ -96,9 +95,7 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
       }
       const user = payload.input.find(m => m.role === 'user').content;
       const reply = payload.text.format.name === 'passage_rendering' ? passageReply(user)
-        : user.startsWith('{')
-          ? { verses: JSON.parse(user).targetReferences.map(ref => ({ ref, rendering: `Rendered ${ref}`, note: `Margin ${ref}`, noteKind: 'literary', christConnection: 'none' })) }
-          : { rendering: `Rendered ${user}`, note: `Note for ${user}` };
+        : { rendering: `Rendered ${user}`, note: `Note for ${user}` };
       res.end(JSON.stringify({
         id: 'resp_test',
         output: [

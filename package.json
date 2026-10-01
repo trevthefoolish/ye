@@ -9,12 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "check": "node scripts/check.js",
-    "sections:generate": "node scripts/generate-sections.js",
-    "eval:v2": "node scripts/eval-renderer-v2.js",
-    "eval:v2:edge": "EVAL_SET=edge node scripts/eval-renderer-v2.js",
-    "eval:v2:prod-sim": "EVAL_SET=prod-sim node scripts/eval-renderer-v2.js",
-    "eval:v2:gate": "EVAL_SET=${EVAL_SET:-edge} EVAL_GATE=1 node scripts/eval-renderer-v2.js"
+    "check": "node scripts/check.js"
   },
   "keywords": [],
   "author": "vapourware.ai",

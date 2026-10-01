@@ -3,7 +3,6 @@ node_modules
 .DS_Store
 .claude
 logs
-eval-reports
 .env
 npm-debug.log*
 .cache
