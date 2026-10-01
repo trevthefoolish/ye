@@ -56,6 +56,17 @@ test('put() is visible at once and persists only known fields with 0-based keys'
   assert.equal(fs.readdirSync(dir).filter(f => f.endsWith('.tmp')).length, 0);
 });
 
+test('stored text is served in the current house style, without rewriting the file', t => {
+  const { dir, store } = newStore(t);
+  // As the earlier cleanText left a spaced em dash, and a dash ending a verse.
+  const saved = { '0:0': stored('in all their work ,  this too is a gift.'), '0:1': { ...stored('for women, '), note: 'a vapor note' } };
+  writeJson(path.join(dir, '7.json'), saved);
+  const { verses } = store.chapter(RUTH);
+  assert.deepEqual(verses[0], { rendering: 'in all their work, this too is a gift.', note: 'n' });
+  assert.deepEqual(verses[1], { rendering: 'for women,', note: 'a vapour note' });
+  assert.deepEqual(readJson(path.join(dir, '7.json')), saved);
+});
+
 test('completeChapter() memoizes the body and invalidates it on write', async t => {
   const { store } = newStore(t);
   await store.put(Array.from({ length: 21 }, (_, i) => entry(i + 1)));

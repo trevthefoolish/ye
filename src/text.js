@@ -8,9 +8,18 @@ const crypto = require('node:crypto');
 // Load-bearing house style for every model-generated string: no em dashes,
 // and always "vapour", never "vapor" (it is the project's name). Case is
 // kept, so a sentence can still begin "Vapour of vapours".
+//
+// An em dash becomes a comma whatever space surrounds it ("brother—James" and
+// "brother — James" both read "brother, James"), and a dash that ends the
+// text, where a sentence runs on into the next verse, becomes a bare comma.
+// Text cleaned before that, which turned a spaced dash into " ,  ", is
+// repaired the same way, so cleaning twice changes nothing.
 function cleanText(s) {
   return s
-    .replaceAll('—', ', ')
+    .replace(/\s*—+\s*/g, ', ')
+    .replace(/ +,/g, ',')
+    .replace(/, {2,}/g, ', ')
+    .replace(/, $/, ',')
     .replace(/\b(vapo)(r)(s?)\b/gi, (match, stem, r, plural) => stem + (r === 'R' ? 'UR' : 'ur') + plural);
 }
 

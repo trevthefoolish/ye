@@ -18,12 +18,15 @@
 // once, but they are kept in memory only, are not final (has() is false and
 // their chapter is not complete), and are replaced by put() or dropped by
 // unstage(). Only put() writes final text, which nothing replaces.
+//
+// Final text is served through cleanText, so a fix to the house style also
+// reaches verses stored before it, without rewriting them.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { verseCount } = require('../canon');
-const { sha256 } = require('../text');
+const { cleanText, sha256 } = require('../text');
 
 const entryKey = (chapter, verse) => `${chapter - 1}:${verse - 1}`;
 const stagedKey = ({ bookIndex, chapter, verse }) => `${bookIndex}:${entryKey(chapter, verse)}`;
@@ -130,7 +133,7 @@ class RenderStore {
     for (let verse = 1; verse <= count; verse++) {
       const entry = this.#current(bookIndex, chapter, verse);
       const staged = !entry && this.#staged.get(stagedKey({ bookIndex, chapter, verse }));
-      if (entry) verses[verse - 1] = { rendering: entry.rendering, note: entry.note };
+      if (entry) verses[verse - 1] = { rendering: cleanText(entry.rendering), note: cleanText(entry.note) };
       else verses[verse - 1] = staged ? { rendering: staged.rendering, note: staged.note, provisional: true } : null;
       if (!entry) missing.push(verse);
     }

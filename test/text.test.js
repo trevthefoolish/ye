@@ -4,10 +4,29 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { cleanText, escapeHtml, jsonForScript, parsePositiveInt } = require('../src/text');
 
-test('cleanText turns em dashes into commas', () => {
+test('cleanText turns em dashes into commas, whatever space is around them', () => {
   assert.equal(cleanText('vapour—mist rising'), 'vapour, mist rising');
   assert.equal(cleanText('a—b—c'), 'a, b, c');
+  assert.equal(cleanText('James’s brother — James — writes'), 'James’s brother, James, writes');
+  assert.equal(cleanText('brother —James'), 'brother, James');
+  assert.equal(cleanText('brother— James'), 'brother, James');
+  assert.equal(cleanText('two dashes——here'), 'two dashes, here');
+  // A sentence that runs on into the next verse keeps a plain trailing comma.
+  assert.equal(cleanText('the cosmetics used for women—'), 'the cosmetics used for women,');
+  assert.equal(cleanText('to those bitter in soul —'), 'to those bitter in soul,');
   assert.equal(cleanText('no dashes here'), 'no dashes here');
+  assert.equal(cleanText('Grace, mercy, and peace,'), 'Grace, mercy, and peace,');
+});
+
+test('cleanText repairs text cleaned by its earlier version, and cleaning twice changes nothing', () => {
+  // What the earlier version made of real verses (production, Ecclesiastes 3 and Esther 2).
+  assert.equal(cleanText('in all their work ,  this too is God’s gift.'), 'in all their work, this too is God’s gift.');
+  assert.equal(cleanText('for every deed ,  there.'), 'for every deed, there.');
+  assert.equal(cleanText('brother , James and brother,  John'), 'brother, James and brother, John');
+  assert.equal(cleanText('the cosmetics used for women, '), 'the cosmetics used for women,');
+  for (const s of ['a — b', 'a—', 'a ,  b', 'Vapor —of vapors—', 'plain, text.']) {
+    assert.equal(cleanText(cleanText(s)), cleanText(s), s);
+  }
 });
 
 test('cleanText enforces "vapour", keeping case, without touching other words', () => {
