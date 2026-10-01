@@ -17,7 +17,7 @@ It's designed for deep, repeated reading. The kind that reveals its meaning over
 
 The Bible is rendered on demand by [Grok](https://x.ai) (`grok-4.7` at low reasoning effort), a passage at a time: each chapter splits into near-even passages of at most 10 verses, and each passage is one call to xAI's Responses API with strict JSON-schema output. The prompt ([`prompts/passage-v1.md`](prompts/passage-v1.md)) is short on purpose: who is reading, what to write for each verse, and the app's one opinion, that the Bible is one story that leads to Jesus. The only house style, no em dashes and "vapour" with a *u*, is applied in code.
 
-A chapter request returns whatever is already rendered and queues the rest; the reader polls and verses appear as each passage finishes. Nothing renders ahead of demand: only chapters someone opens (and their neighbours, at lower priority) go to the model.
+A chapter request returns whatever is already rendered and queues the rest; the reader polls, and verses appear one by one as the model writes them, since each call streams and every verse is stored as soon as it is whole. Nothing renders ahead of demand: only chapters someone opens (and their neighbours, at lower priority) go to the model. Neighbours render alongside the open chapter while upstream slots are free; a quarter of the slots are always left for the chapter a reader opens next.
 
 Renders are cached per **render version**, a hash of the model, reasoning effort, prompt, schema, and passage size:
 
@@ -46,7 +46,7 @@ npm test                         # unit and end-to-end tests; xAI is mocked
 | `NODE_ENV` | `production` in the Docker image | Enables HSTS, secure cookies, and quieter logs |
 | `RENDER_MODEL` | `grok-4.7` | Model (part of the render version) |
 | `RENDER_REASONING_EFFORT` | `low` | `low`, `medium`, `high`, or `xhigh`; reasoning bills as output (part of the render version) |
-| `RENDER_CONCURRENCY` | `32` | Max concurrent upstream calls |
+| `RENDER_CONCURRENCY` | `32` | Max concurrent upstream calls; prefetches may use three quarters of them |
 | `XAI_API_URL` | `https://api.x.ai/v1/responses` | xAI endpoint (tests point it at a mock) |
 | `RENDERS_DIR` | `<volume>/renders` on Railway, else `./.cache/renders` | Render cache root |
 | `LOG_DIR` | `<volume>/logs` on Railway, else `./logs` | JSONL logs: server 7 days, anonymous analytics 30 |
@@ -68,9 +68,9 @@ src/
   log.js             JSONL logging with retention
   render/
     passage-v1.js    The pipeline: passages, prompt, schema, render version
-    xai.js           xAI client and error classification
-    scheduler.js     Bounded upstream pool: dedupe, priority, recency, retries
-    renderer.js      Chapter requests -> passage units -> cache, with timing logs
+    xai.js           Streaming xAI client and error classification
+    scheduler.js     Bounded upstream pool: dedupe, priority with a foreground reserve, recency, retries
+    renderer.js      Chapter requests -> passage units -> cache verse by verse, with timing logs
     store.js         Render cache: per-version directories of per-book JSON
   http/
     app.js           Express app: security headers, routes, errors

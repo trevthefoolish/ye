@@ -4,13 +4,14 @@
 // Chapter-level rendering on top of a pipeline, the store, and the scheduler.
 //
 // A chapter request with missing verses asks the pipeline for work units
-// (passages), submits them to the shared scheduler, and writes each
-// unit's entries to the store as soon as it finishes, so polling clients see
-// verses appear progressively. Rendering never runs ahead of requests: only
-// chapters someone asked for (or the client prefetches) are rendered.
+// (passages), submits them to the shared scheduler, and writes each verse to
+// the store as soon as it streams in, so polling clients see verses appear
+// one by one. Rendering never runs ahead of requests: only chapters someone
+// asked for (or the client prefetches) are rendered.
 //
-// Units that fail after retries leave their verses missing; the next request
-// for the chapter plans them again.
+// Units that fail after retries leave their unwritten verses missing; the
+// next request for the chapter plans them again. Verses a failed attempt did
+// write stay as they are.
 
 const { createScheduler, FOREGROUND, BACKGROUND } = require('./scheduler');
 const { emptyUsage } = require('./xai');
@@ -56,19 +57,26 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
     }),
   });
 
-  // Runs inside a scheduler slot. Skips the API call if another unit already
-  // filled every ref between planning and now.
-  async function runUnit(unit, usage) {
-    if (unit.refs.every(ref => store.has(ref))) return [];
-    const entries = await unit.render(usage);
-    store.put(entries);
-    return entries;
+  // Runs inside a scheduler slot, once per attempt. Skips the API call if
+  // every ref is already stored (by another unit, or by an earlier attempt
+  // that streamed them all before failing). Stores verses as they stream in,
+  // and never over one already stored, so a retry cannot change text a reader
+  // may be looking at.
+  async function runUnit(unit, usage, tally) {
+    if (unit.refs.every(ref => store.has(ref))) return;
+    const put = entries => {
+      const fresh = entries.filter(entry => !store.has(entry));
+      if (fresh.length === 0) return;
+      store.put(fresh);
+      tally.rendered += fresh.length;
+    };
+    put(await unit.render(usage, put));
   }
 
   // A unit already in the scheduler is joined, not resubmitted; only the
   // submission that created it logs its failure.
-  function submitUnits(units, priority, usage) {
-    const submitted = scheduler.submit(units.map(unit => ({ key: unit.key, task: () => runUnit(unit, usage), meta: unit })), priority);
+  function submitUnits(units, priority, usage, tally) {
+    const submitted = scheduler.submit(units.map(unit => ({ key: unit.key, task: () => runUnit(unit, usage, tally), meta: unit })), priority);
     return submitted.map(({ status, promise }, i) => {
       if (status === 'started') {
         promise.catch(err => log.warn(`${pipeline.unit}_render_failed`, { ...units[i].logFields, reason: err.message, ...err.timing }));
@@ -91,22 +99,19 @@ function createRenderer({ pipeline, store, log, concurrency, retries, retryBaseM
       units: units.length,
     });
     const usage = emptyUsage();
-    const results = await Promise.allSettled(submitUnits(units, job.priority, usage));
-    let rendered = 0;
+    const tally = { rendered: 0 };
+    const results = await Promise.allSettled(submitUnits(units, job.priority, usage, tally));
     let failed = 0;
     const timings = results.map((result, i) => {
-      if (result.status === 'fulfilled') {
-        rendered += result.value.result.length;
-        return result.value.timing;
-      }
-      failed += units[i].refs.length;
+      if (result.status === 'fulfilled') return result.value.timing;
+      failed += units[i].refs.filter(unitRef => !store.has(unitRef)).length;
       return result.reason?.timing;
     });
     log.info('chapter_render_finished', {
       book: ref.book,
       ch: ref.chapter,
       durationMs: Date.now() - startedAt,
-      rendered,
+      rendered: tally.rendered,
       failed,
       missing: missing.length,
       renderPipeline: pipeline.name,

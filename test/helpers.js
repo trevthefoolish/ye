@@ -56,19 +56,66 @@ function request(port, pathname, { method = 'GET', headers = {}, body } = {}) {
 const getJson = async (port, pathname) => JSON.parse((await request(port, pathname)).body);
 
 // "Jude 1:1-9" -> every verse of the passage, with deterministic text.
-function passageReply(passage) {
+function passageReply(passage, prefix = 'Rendered') {
   const [, book, chapter, start, end] = passage.match(/^(.+) (\d+):(\d+)-(\d+)$/);
   const verses = [];
   for (let verse = Number(start); verse <= Number(end); verse++) {
     const ref = `${book} ${chapter}:${verse}`;
-    verses.push({ verse, rendering: `Rendered ${ref}`, note: `Note for ${ref}` });
+    verses.push({ verse, rendering: `${prefix} ${ref}`, note: `Note for ${ref}` });
   }
   return { verses };
 }
 
-// Answers Responses API passage requests with deterministic text. Like
-// grok-4.7, it puts a reasoning item before the message. `respond(payload)` may return { status, body } to override the reply.
-function startMockXai(t, { delayMs = 0, respond } = {}) {
+const MOCK_USAGE = {
+  input_tokens: 700,
+  input_tokens_details: { cached_tokens: 600 },
+  output_tokens: 300,
+  output_tokens_details: { reasoning_tokens: 250 },
+  total_tokens: 1000,
+};
+
+// One server-sent event the way xAI frames them: data only, no "event:" line.
+const sse = (type, data) => `data: ${JSON.stringify({ type, ...data })}\n\n`;
+const DONE = 'data: [DONE]\n\n';
+const sseBytes = event => new TextEncoder().encode(typeof event === 'string' ? event : sse(event.type, event));
+
+// A fetch Response streaming `events` (Responses API events, or raw strings
+// sent as they are) in pieces of `chunkSize` bytes, which split lines, JSON,
+// and multi-byte characters.
+function sseResponse(events, { chunkSize = 5 } = {}) {
+  const bytes = new Uint8Array(events.flatMap(event => [...sseBytes(event)]));
+  return new Response(new ReadableStream({
+    start(controller) {
+      for (let i = 0; i < bytes.length; i += chunkSize) controller.enqueue(bytes.slice(i, i + chunkSize));
+      controller.close();
+    },
+  }));
+}
+
+// A fetch Response whose stream the test feeds by hand: push(event) sends an
+// event, end() closes the stream, and fail(err) breaks it.
+function sseStream() {
+  let controller;
+  const response = new Response(new ReadableStream({ start(c) { controller = c; } }));
+  return {
+    response,
+    push: event => controller.enqueue(sseBytes(event)),
+    end: () => controller.close(),
+    fail: err => controller.error(err),
+  };
+}
+
+// Answers Responses API passage requests with deterministic text, streamed as
+// server-sent events in small deltas that split words and JSON tokens. Like
+// grok-4.7, it puts a reasoning item before the message, and like xAI it ends
+// the stream with "data: [DONE]".
+//
+// respond(payload) may return { status, body } to answer with that HTTP
+// status and JSON body instead, or { prefix, failAfter } to start each
+// rendering with `prefix` and to fail the response (response.failed) after
+// streaming `failAfter` verses. beforeVerse(payload, n) may return a promise
+// to hold the stream before its nth verse (0-based).
+function startMockXai(t, { delayMs = 0, respond, beforeVerse } = {}) {
   const payloads = [];
   let active = 0;
   let maxActive = 0;
@@ -84,29 +131,47 @@ function startMockXai(t, { delayMs = 0, respond } = {}) {
       payloads.push(payload);
       active++;
       maxActive = Math.max(maxActive, active);
-      if (delayMs) await sleep(delayMs);
-      active--;
-      const override = respond?.(payload);
-      res.setHeader('Content-Type', 'application/json');
-      if (override) {
-        res.statusCode = override.status || 200;
-        return res.end(JSON.stringify(override.body));
+      try {
+        if (delayMs) await sleep(delayMs);
+        const override = respond?.(payload) || {};
+        if (override.status) {
+          res.statusCode = override.status;
+          res.setHeader('Content-Type', 'application/json');
+          return res.end(JSON.stringify(override.body));
+        }
+        res.setHeader('Content-Type', 'text/event-stream');
+        const reply = passageReply(payload.input.find(m => m.role === 'user').content, override.prefix);
+        const reasoning = { type: 'reasoning', id: 'rs_test', summary: [], encrypted_content: 'opaque' };
+        const response = { id: 'resp_test', object: 'response', status: 'in_progress', output: [] };
+        res.write(sse('response.created', { response }));
+        res.write(sse('response.output_item.added', { output_index: 0, item: reasoning }));
+        res.write(sse('response.output_item.done', { output_index: 0, item: reasoning }));
+        res.write(': keep-alive\n\n');
+        res.write(sse('response.output_item.added', { output_index: 1, item: { type: 'message', id: 'msg_test', role: 'assistant', content: [] } }));
+        const delta = text => {
+          for (let i = 0; i < text.length; i += 7) {
+            res.write(sse('response.output_text.delta', { item_id: 'msg_test', output_index: 1, content_index: 0, delta: text.slice(i, i + 7) }));
+          }
+        };
+        delta('{"verses":[');
+        for (const [n, verse] of reply.verses.entries()) {
+          await beforeVerse?.(payload, n);
+          if (n === override.failAfter) {
+            res.write(sse('response.failed', { response: { ...response, status: 'failed', error: { code: 'server_error', message: 'mock failure' }, usage: MOCK_USAGE } }));
+            return res.end(DONE);
+          }
+          delta(`${n ? ',' : ''}${JSON.stringify(verse)}`);
+        }
+        delta(']}');
+        const text = JSON.stringify(reply);
+        const message = { type: 'message', id: 'msg_test', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text, annotations: [] }] };
+        res.write(sse('response.output_text.done', { item_id: 'msg_test', output_index: 1, content_index: 0, text }));
+        res.write(sse('response.output_item.done', { output_index: 1, item: message }));
+        res.write(sse('response.completed', { response: { ...response, status: 'completed', output: [reasoning, message], usage: MOCK_USAGE } }));
+        res.end(DONE);
+      } finally {
+        active--;
       }
-      const reply = passageReply(payload.input.find(m => m.role === 'user').content);
-      res.end(JSON.stringify({
-        id: 'resp_test',
-        output: [
-          { type: 'reasoning', id: 'rs_test', summary: [], encrypted_content: 'opaque' },
-          { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(reply) }] },
-        ],
-        usage: {
-          input_tokens: 700,
-          input_tokens_details: { cached_tokens: 600 },
-          output_tokens: 300,
-          output_tokens_details: { reasoning_tokens: 250 },
-          total_tokens: 1000,
-        },
-      }));
     });
   });
   return new Promise(resolve => {
@@ -187,4 +252,4 @@ async function waitForComplete(port, pathname) {
   }, { what: `${pathname} to complete`, intervalMs: 100 });
 }
 
-module.exports = { getJson, request, sleep, startMockXai, startServer, tempDir, waitFor, waitForComplete };
+module.exports = { getJson, request, sleep, sseResponse, sseStream, startMockXai, startServer, tempDir, waitFor, waitForComplete };
